@@ -1,6 +1,6 @@
 import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { getListRoleAssignmentProjectsQueryKey, useListRoleAssignmentProjects } from "@workspace/api-client-react";
-import { getGetLessonsReferenceDataQueryKey } from "@workspace/api-client-react";
+import { getListRoleAssignmentDepartmentsQueryKey, useListRoleAssignmentDepartments } from "@workspace/api-client-react";
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useQueryClient } from '@tanstack/react-query';
 import { matchesWorkspaceUserSearch } from './workspace-user-search';
@@ -36,6 +36,7 @@ import {
   useUpdateAuditUserProfile,
 } from '@workspace/api-client-react';
 import { PdfTemplatesAdmin } from '@/pages/qaqc/reporting/pdf-templates-admin';
+import { CsatNumberingSettings } from './csat-numbering';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +61,8 @@ import { hasQaqcRoleApprovalPermission, qaqcActivityGroups, qaqcAdministrativePe
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { AuditModulePermissions } from './audit-module-permissions';
 import { AuditMemoTab } from './audit-memo-tab';
+
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 
 const qaqcAliases: Record<string, string[]> = { data_entry: ['data_entry', 'create_edit'], view_own_scope: ['view_own_scope', 'view_own'],
   ...Object.fromEntries(qaqcAdministrativePermissions.map(key => [`qaqc.${key}`, [`qaqc.${key}`, key]])) };
@@ -192,7 +195,7 @@ function UsersAccess({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [search, setSearch] = useState('');
   const [roleDialog, setRoleDialog] = useState<{ userId: string; editing?: Role }>();
   const [roleId, setRoleId] = useState(''); const [scopeType, setScopeType] = useState<'organization' | 'project' | 'department'>('organization');
-  const departmentReferences = useGetLessonsReferenceData(undefined, { query: { queryKey: getGetLessonsReferenceDataQueryKey(), enabled: app === 'lessons' } });
+  const [roleSaveError, setRoleSaveError] = useState('');
   const [scopeIds, setScopeIds] = useState<string[]>([]); const [projectSearch, setProjectSearch] = useState('');
   const [passwordDialog, setPasswordDialog] = useState<{ id: string; username: string; fullName: string; email?: string | null }>();
   const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '' });
@@ -203,6 +206,9 @@ function UsersAccess({ app }: { app: AppKey }) {
   const currentUser = useGetCurrentUser();
   const cap = useQaqcCapabilities(app === 'qaqc');
   const cR = app !== 'qaqc' || cap.canTask('manage_roles'); const cD = app !== 'qaqc' || cap.canTask('delegate');
+  const departmentReferences = useListRoleAssignmentDepartments({ application: app }, { query: {
+    queryKey: getListRoleAssignmentDepartmentsQueryKey({ application: app }), enabled: cR,
+  } });
   const assignmentProjects = useListRoleAssignmentProjects({ application: app }, { query: {
     enabled: cR, queryKey: getListRoleAssignmentProjectsQueryKey({ application: app }),
   } });
@@ -280,16 +286,21 @@ function UsersAccess({ app }: { app: AppKey }) {
   );
   const users = api.users.data?.items.filter(u => matchesWorkspaceUserSearch(u, search)) ?? [];
   const projects = assignmentProjects.data?.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(projectSearch.toLowerCase())) ?? [];
+  const scopeOptions = scopeType === 'department'
+    ? (departmentReferences.data ?? []).filter(d => `${d.name} ${d.code}`.toLowerCase().includes(projectSearch.toLowerCase()))
+    : projects;
   const resetRoleDialog = () => { setRoleDialog(undefined); setRoleId(''); setScopeType('organization'); setScopeIds([]); setProjectSearch(''); };
   const openRoleDialog = (userId: string, editing?: Role) => {
     setRoleDialog({ userId, editing }); setRoleId(editing?.id ?? '');
-    setScopeType(editing?.scopeType === 'department' && app === 'lessons' ? 'department' : editing?.scopeType === 'project' ? 'project' : 'organization');
+    setRoleSaveError('');
+    setScopeType(editing?.scopeType === 'department' ? 'department' : editing?.scopeType === 'project' ? 'project' : 'organization');
     setScopeIds(editing?.scopeType === 'project' || editing?.scopeType === 'department' ? (editing.scopeIds ?? []) : []); setProjectSearch('');
   };
   const saveRole = () => {
     if (!roleDialog || !roleId || (scopeType !== 'organization' && !scopeIds.length)) return;
     const data = { roleId, scopeType, scopeIds: scopeType === 'organization' ? [] : scopeIds };
-    act.assign.mutate({ userId: roleDialog.userId, data } as any, { onSuccess: () => { act.done(roleDialog.editing ? 'Role scope updated' : 'Role assigned'); resetRoleDialog(); }, onError: act.fail });
+    setRoleSaveError('');
+    act.assign.mutate({ userId: roleDialog.userId, data } as any, { onSuccess: () => { act.done(roleDialog.editing ? 'Role scope updated' : 'Role assigned'); resetRoleDialog(); }, onError: error => { setRoleSaveError(errorText(error)); act.fail(error); } });
   };
   const removeRole = (userId: string, role: Role) => {
     if (!window.confirm(`Remove the "${role.name}" role from this user?${users.find((u) => u.id === userId)?.workspaceRoles.length === 1 ? ` This will also revoke access to ${names[app]}.` : ''}`)) return;
@@ -334,7 +345,7 @@ function UsersAccess({ app }: { app: AppKey }) {
         <TableCell><p className="font-medium">{u.fullName}</p><p className="text-xs text-muted-foreground">{u.email}</p></TableCell>
         <TableCell>{canManagePlatformRoles ? <Select value={platformRoles.data?.find(r => r.name === u.platformRole)?.id ?? ''} disabled={updatePlatformRole.isPending || u.id === currentUser.data?.id} onValueChange={roleId => changePlatformRole(u.id, roleId)}><SelectTrigger className="min-w-44" aria-label={`Platform role for ${u.fullName}`}><SelectValue placeholder={u.platformRole} /></SelectTrigger><SelectContent>{platformRoles.data?.map(role => <SelectItem key={role.id} value={role.id} disabled={role.name === 'Super Admin' && currentUser.data?.platformRole !== 'Super Admin'}>{role.name}</SelectItem>)}</SelectContent></Select> : <Badge variant="outline">{u.platformRole}</Badge>}</TableCell>
         <TableCell><div className="flex flex-col items-start gap-2">{u.workspaceRoles.map(r => {
-          const sourceOptions = r.scopeType === 'department' ? departmentReferences.data?.departments : platform.data?.projects;
+          const sourceOptions = r.scopeType === 'department' ? departmentReferences.data : platform.data?.projects;
           const selectedNames = (r.scopeIds ?? []).map(id => sourceOptions?.find(p => p.id === id)?.name ?? id);
           return <div key={r.id} className="flex flex-wrap items-center gap-2"><div><Badge variant="secondary">{r.name}</Badge><p className="text-xs text-muted-foreground">{r.scopeType === 'department' ? `Selected departments: ${selectedNames.join(', ') || 'None'}` : r.scopeType === 'project' ? `Selected projects: ${selectedNames.join(', ') || 'None'}` : 'Organization-wide'}</p></div><Button type="button" size="sm" variant="outline" onClick={() => openRoleDialog(u.id, r)}>Edit scope</Button><Button type="button" size="sm" variant="outline" className="h-7 border-destructive/50 px-2 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground" disabled={act.removeRole.isPending} onClick={() => removeRole(u.id, r)}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove role</Button></div>;
         })}{!u.workspaceRoles.length && <span className="text-sm text-muted-foreground">No role assigned</span>}</div></TableCell>
@@ -345,8 +356,19 @@ function UsersAccess({ app }: { app: AppKey }) {
     {app === 'lessons' && <ApproverScopes />}
     <Dialog open={!!roleDialog} onOpenChange={open => !open && resetRoleDialog()}><DialogContent><DialogHeader><DialogTitle>{roleDialog?.editing ? 'Edit role scope' : 'Assign workspace role'}</DialogTitle><DialogDescription>Assignment applies only to {names[app]}.</DialogDescription></DialogHeader>
       <div className="grid gap-3"><div><Label>Role</Label><Select value={roleId} onValueChange={setRoleId} disabled={!!roleDialog?.editing}><SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger><SelectContent>{api.roles.data?.items.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent></Select></div>
-        <div><Label>Access scope</Label><Select value={scopeType} onValueChange={v => { setScopeType(v as typeof scopeType); setScopeIds([]); setProjectSearch(''); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="organization">Organization-wide</SelectItem><SelectItem value="project">Selected projects</SelectItem>{app === 'lessons' && <SelectItem value="department">Selected departments</SelectItem>}</SelectContent></Select></div>
-        {scopeType !== 'organization' && <div className="rounded-md border p-3"><Input value={projectSearch} onChange={e => setProjectSearch(e.target.value)} placeholder={scopeType === 'department' ? 'Search departments' : 'Search projects'} /><div className="mt-2 max-h-40 space-y-2 overflow-y-auto">{(scopeType === 'department' ? (departmentReferences.data?.departments ?? []).filter(d => `${d.name} ${d.code}`.toLowerCase().includes(projectSearch.toLowerCase())) : projects).map(p => <label key={p.id} className="flex items-center gap-2 text-sm"><Checkbox checked={scopeIds.includes(p.id)} onCheckedChange={checked => setScopeIds(ids => checked ? [...new Set([...ids, p.id])] : ids.filter(id => id !== p.id))} /><span>{p.name} <span className="text-muted-foreground">({p.code})</span></span></label>)}</div>{!scopeIds.length && <p className="mt-2 text-xs text-destructive">Select at least one {scopeType === 'department' ? 'department' : 'project'}.</p>}</div>}
+        <div><Label>Access scope</Label><Select value={scopeType} onValueChange={v => { setScopeType(v as typeof scopeType); setScopeIds([]); setProjectSearch(''); setRoleSaveError(''); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="organization">Organization-wide</SelectItem><SelectItem value="project">Selected projects</SelectItem><SelectItem value="department">Selected departments</SelectItem></SelectContent></Select></div>
+        {scopeType !== 'organization' && <div className="rounded-md border p-3">
+          <Input aria-label={scopeType === 'department' ? 'Search departments' : 'Search projects'} value={projectSearch}
+            onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }}
+            onChange={e => setProjectSearch(e.target.value)} placeholder={scopeType === 'department' ? 'Search departments' : 'Search projects'} />
+          {(scopeType === 'department' ? departmentReferences : assignmentProjects).isLoading && <p className="mt-2 text-sm">Loading options…</p>}
+          {(scopeType === 'department' ? departmentReferences : assignmentProjects).isError && <div role="alert" className="mt-2 text-sm text-destructive">Options could not be loaded. <Button variant="outline" size="sm" onClick={() => (scopeType === 'department' ? departmentReferences : assignmentProjects).refetch()}>Retry</Button></div>}
+          {!(scopeType === 'department' ? departmentReferences : assignmentProjects).isLoading && !(scopeType === 'department' ? departmentReferences : assignmentProjects).isError && !(scopeType === 'department' ? departmentReferences.data : assignmentProjects.data)?.length && <p className="mt-2 text-sm text-muted-foreground">No active {scopeType === 'department' ? 'departments' : 'projects'} are available in your administration scope.</p>}
+          <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">{scopeOptions.map(p => <label key={p.id} className="flex items-center gap-2 text-sm"><Checkbox checked={scopeIds.includes(p.id)} onCheckedChange={checked => setScopeIds(ids => checked ? [...new Set([...ids, p.id])] : ids.filter(id => id !== p.id))} /><span>{p.name} <span className="text-muted-foreground">({p.code})</span></span></label>)}
+            {!!projectSearch && !scopeOptions.length && <p role="status" className="text-sm text-muted-foreground">No matching {scopeType === 'department' ? 'departments' : 'projects'}.</p>}
+          </div>{!scopeIds.length && <p className="mt-2 text-xs text-destructive">Select at least one {scopeType === 'department' ? 'department' : 'project'}.</p>}
+        </div>}
+        {roleSaveError && <p role="alert" className="text-sm text-destructive">{roleSaveError}</p>}
       </div><DialogFooter><Button variant="outline" onClick={resetRoleDialog}>Cancel</Button><Button disabled={!roleId || (scopeType !== 'organization' && !scopeIds.length) || act.assign.isPending} onClick={saveRole}>{roleDialog?.editing ? 'Save scope' : 'Assign'}</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={!!passwordDialog} onOpenChange={open => !open && setPasswordDialog(undefined)}><DialogContent><DialogHeader><DialogTitle>Set password — {passwordDialog?.username}</DialogTitle><DialogDescription>Set a sign-in password for {passwordDialog?.email ?? 'this imported user'}. Share it securely; it remains valid until an administrator replaces it.</DialogDescription></DialogHeader><div className="grid gap-3"><div><Label htmlFor="sign-in-password">Sign-in password</Label><Input id="sign-in-password" type="password" minLength={8} maxLength={128} autoComplete="new-password" value={passwordForm.password} onChange={e => setPasswordForm({ ...passwordForm, password: e.target.value })} /><p className="mt-1 text-xs text-muted-foreground">Use at least 8 characters. Do not reuse your own password.</p></div><div><Label htmlFor="confirm-sign-in-password">Confirm password</Label><Input id="confirm-sign-in-password" type="password" minLength={8} maxLength={128} autoComplete="new-password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} />{passwordForm.confirm && passwordForm.password !== passwordForm.confirm && <p className="mt-1 text-xs text-destructive">Passwords do not match.</p>}</div></div><DialogFooter><Button variant="outline" onClick={() => setPasswordDialog(undefined)}>Cancel</Button><Button disabled={passwordForm.password.length < 8 || passwordForm.password !== passwordForm.confirm || setTemporaryPassword.isPending} onClick={savePassword}>{setTemporaryPassword.isPending ? 'Saving…' : 'Set password'}</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={!!emailDialog} onOpenChange={open => !open && setEmailDialog(undefined)}><DialogContent><DialogHeader><DialogTitle>Edit email — {emailDialog?.fullName}</DialogTitle><DialogDescription>This email is used for sign-in and system notifications. The user must use the new address the next time they sign in.</DialogDescription></DialogHeader><div className="grid gap-2"><Label htmlFor="user-email">Email address</Label><Input id="user-email" type="email" autoComplete="off" maxLength={320} value={emailValue} onChange={e => setEmailValue(e.target.value)} />{emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue.trim()) && <p className="text-xs text-destructive">Enter a valid email address.</p>}</div><DialogFooter><Button variant="outline" onClick={() => setEmailDialog(undefined)}>Cancel</Button><Button disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue.trim()) || emailValue.trim().toLowerCase() === emailDialog?.email.toLowerCase() || updateEmail.isPending} onClick={saveEmail}>{updateEmail.isPending ? 'Saving…' : 'Save email'}</Button></DialogFooter></DialogContent></Dialog>
@@ -355,7 +377,7 @@ function UsersAccess({ app }: { app: AppKey }) {
       <div><Label>Project</Label><Select value={delegation.projectId} onValueChange={changeProject} disabled={delegationOptions.isLoading}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{delegationOptions.data?.projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent></Select>{delegationOptions.isError && <p className="mt-1 text-xs text-destructive">Projects and users could not be loaded.</p>}</div>
       <div className="grid gap-3 sm:grid-cols-2"><div><Label>Delegator</Label><Select value={delegation.delegatorId} onValueChange={changeDelegator} disabled={!delegation.projectId}><SelectTrigger><SelectValue placeholder="Select delegator" /></SelectTrigger><SelectContent>{delegationOptions.data?.users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}</SelectContent></Select></div><div><Label>Delegate</Label><Select value={delegation.delegateId} onValueChange={delegateId => setDelegation(current => ({ ...current, delegateId }))} disabled={!delegation.projectId}><SelectTrigger><SelectValue placeholder="Select delegate" /></SelectTrigger><SelectContent>{delegationOptions.data?.users.filter(user => user.id !== delegation.delegatorId).map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}</SelectContent></Select></div></div>
       <section className="rounded-lg border p-3"><div className="mb-3 flex items-center justify-between"><div><p className="font-medium">Lessons pending with Delegator</p><p className="text-xs text-muted-foreground">Only selected forms will be available to the delegate.</p></div>{displayedLessonIds.length > 0 && <label className="flex items-center gap-2 text-sm"><Checkbox checked={allLessonsSelected} onCheckedChange={checked => setDelegation(current => ({ ...current, lessonFormIds: checked === true ? displayedLessonIds : [] }))} />Select all</label>}</div>
-        {!delegation.projectId || !delegation.delegatorId ? <p className="py-5 text-center text-sm text-muted-foreground">Select a project and delegator to see pending forms.</p> : pendingForms.isLoading ? <p className="py-5 text-center text-sm text-muted-foreground">Loading pending lessons…</p> : pendingForms.isError ? <div className="py-4 text-center"><p className="text-sm text-destructive">Pending lessons could not be loaded.</p><Button className="mt-2" size="sm" variant="outline" onClick={() => pendingForms.refetch()}>Retry</Button></div> : !pendingForms.data?.length ? <p className="py-5 text-center text-sm text-muted-foreground">No lesson forms are currently awaiting this delegator.</p> : <div className="max-h-52 space-y-2 overflow-y-auto">{pendingForms.data.map(form => <label key={form.id} className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><Checkbox checked={delegation.lessonFormIds.includes(form.id)} onCheckedChange={checked => toggleLesson(form.id, checked === true)} /><span><span className="block text-sm font-medium">{form.referenceNumber}</span><span className="block text-xs text-muted-foreground">{form.title}</span></span></label>)}</div>}
+        {!delegation.projectId || !delegation.delegatorId ? <p className="py-5 text-center text-sm text-muted-foreground">Select a project and delegator to see pending forms.</p> : pendingForms.isLoading ? <p className="py-5 text-center text-sm text-muted-foreground">Loading pending lessons…</p> : pendingForms.isError ? <div className="py-4 text-center"><p className="text-sm text-destructive">Pending lessons could not be loaded.</p><Button className="mt-2" size="sm" variant="outline" onClick={() => pendingForms.refetch()}>Retry</Button></div> : !pendingForms.data?.length ? <p className="py-5 text-center text-sm text-muted-foreground">No lesson forms are currently awaiting this delegator.</p> : <SearchableSelectionList label="Search pending lessons">{pendingForms.data.map(form => <label key={form.id} className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><Checkbox checked={delegation.lessonFormIds.includes(form.id)} onCheckedChange={checked => toggleLesson(form.id, checked === true)} /><span><span className="block text-sm font-medium">{form.referenceNumber}</span><span className="block text-xs text-muted-foreground">{form.title}</span></span></label>)}</SearchableSelectionList>}
       </section>
       <div className="grid grid-cols-2 gap-3"><div><Label>Starts</Label><Input type="date" value={delegation.startDate} onChange={e => setDelegation({ ...delegation, startDate: e.target.value })} /></div><div><Label>Expires</Label><Input type="date" min={delegation.startDate} value={delegation.endDate} onChange={e => setDelegation({ ...delegation, endDate: e.target.value })} /></div></div>
     </div> : <div className="grid gap-3"><Label>Delegator user ID</Label><Input value={legacyDelegation.delegatorId} onChange={e => setLegacyDelegation({ ...legacyDelegation, delegatorId: e.target.value })} /><Label>Delegate user ID</Label><Input value={legacyDelegation.delegateId} onChange={e => setLegacyDelegation({ ...legacyDelegation, delegateId: e.target.value })} /><Label>Scope</Label><Input value={legacyDelegation.scope} onChange={e => setLegacyDelegation({ ...legacyDelegation, scope: e.target.value })} /><div className="grid grid-cols-2 gap-3"><div><Label>Starts</Label><Input type="date" value={legacyDelegation.startDate} onChange={e => setLegacyDelegation({ ...legacyDelegation, startDate: e.target.value })} /></div><div><Label>Expires</Label><Input type="date" value={legacyDelegation.endDate} onChange={e => setLegacyDelegation({ ...legacyDelegation, endDate: e.target.value })} /></div></div></div>}<DialogFooter><Button variant="outline" onClick={() => setDelegateOpen(false)}>Cancel</Button><Button disabled={act.createDelegation.isPending || (app === 'lessons' && (!delegation.projectId || !delegation.delegatorId || !delegation.delegateId || delegation.delegatorId === delegation.delegateId || !delegation.startDate || !delegation.endDate || delegation.endDate < delegation.startDate || delegation.lessonFormIds.length === 0))} onClick={createDelegation}>{act.createDelegation.isPending ? 'Creating…' : 'Create delegation'}</Button></DialogFooter></DialogContent></Dialog>
@@ -373,7 +395,7 @@ function Roles({ app }: { app: AppKey }) {
     : basePermissionLabels;
   const permissionKeys = (app === 'qaqc' ? [...qaqcGlobalPermissions] as PermissionKey[] : (Object.keys(permissionLabels) as PermissionKey[])).filter(key => app === 'qaqc' || app === 'audit' || (key !== 'create_audit_programme' && key !== 'audit_team_lead' && key !== 'audit_program_manager' && key !== 'product_process_owner'));
   const roleHasApproval = (role: Role) => app === 'qaqc' ? hasQaqcRoleApprovalPermission(role.permissions)
-    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject'].includes(p.key));
+    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key));
   const supportsApprovalLevel = app === 'audit' || app === 'qaqc';
   const hasApproveReject = !!editing && roleHasApproval(editing);
   const parsedAuthorizationLevel = /^\d+$/.test(authorizationLevelInput) ? Number(authorizationLevelInput) : NaN;
@@ -399,7 +421,7 @@ function Roles({ app }: { app: AppKey }) {
     if (!editing) return;
     const selected = editing.permissions.some(p => p.key === key);
     const permissions = selected ? editing.permissions.filter(p => p.key !== key) : [...editing.permissions, { key, name: labelFor(key) }];
-    if (app === 'audit' && key === 'approve_reject' && selected && !permissions.some(p => ['audit.schedules.approve_reject', 'schedules.approve_reject'].includes(p.key))) {
+    if (app === 'audit' && key === 'approve_reject' && selected && !permissions.some(p => ['audit.schedules.approve_reject', 'schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key))) {
       setAuthorizationLevelInput('');
       setEditing({ ...editing, permissions, roleAuthorizationLevel: null });
       return;
@@ -408,6 +430,11 @@ function Roles({ app }: { app: AppKey }) {
   };
   const save = () => {
     if (!editing?.name.trim()) return;
+    if (app === 'audit' && hasApproveReject && !editing.permissions.some(p =>
+      ['schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key))) {
+      act.fail(new Error('Select at least one approval module: Schedules / Programme, Audit Reports or Corrective Action Reports.'));
+      return;
+    }
     if (supportsApprovalLevel && hasApproveReject && !validAuthorizationLevel) return;
     const exists = api.roles.data?.items.some(r => r.id === editing.id);
     const mutation = exists ? act.updateRole : act.createRole;
@@ -502,7 +529,7 @@ function Escalations({ app }: { app: AppKey }) {
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuContent searchable className="w-[var(--radix-dropdown-menu-trigger-width)]">
                   {[...new Set([...activeRoleNames, ...r.recipientRoles])].map(roleName => (
                     <DropdownMenuCheckboxItem
                       key={roleName}
@@ -527,7 +554,7 @@ function Escalations({ app }: { app: AppKey }) {
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuContent searchable className="w-[var(--radix-dropdown-menu-trigger-width)]">
                   {[...new Set([...activeRoleNames, ...(r.ccRecipientRoles ?? [])])].map(roleName => (
                     <DropdownMenuCheckboxItem
                       key={roleName}
@@ -605,6 +632,7 @@ function NumberingTab({ app }: { app: AppKey }) {
   return <div className="space-y-5">
     {app === 'lessons' && <div className="max-w-sm space-y-2"><Label>Numbering for Project / Department</Label><Select value={sourceType} onValueChange={value => setSourceType(value as 'Project' | 'Department')}><SelectTrigger aria-label="Numbering source"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Project">Project</SelectItem><SelectItem value="Department">Department</SelectItem></SelectContent></Select></div>}
     <NumberingForm key={`${app}-${sourceType}-${config.dataUpdatedAt}`} app={app} sourceType={sourceType} displayName={names[app]} module={module} onSaved={notify} />
+    {app === 'qaqc' && <CsatNumberingSettings />}
     {app === 'audit' && <><div className="rounded-lg border bg-muted/30 p-4 text-sm">
       Plan, Report, Finding and CAR numbers automatically use <strong>Project Master → Additional Data → Contract / project no.</strong> for projects,
       or <strong>Department Master → Cost ID</strong> for departments. Existing numbers and running sequences are retained.

@@ -4,14 +4,61 @@ import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, zeroFill, type Obj } from './reporting-types';
 import { moveRevision } from './approved-revisions';
+import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS } from '@workspace/field-controls';
+import { setDateFormatResolver } from '@workspace/spreadsheet-dates';
 
-function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
+function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false, period?: string) {
   return renderToStaticMarkup(<FormCtx.Provider value={{ data, readOnly, set: () => {}, fc: () => ({ disabled: fieldLocked, required: false }) }}>
-    <DailyForm calc={calcDaily(data)} baseline={baseline} />
+    <DailyForm calc={calcDaily(data)} baseline={baseline} period={period} />
   </FormCtx.Provider>);
 }
 
 describe('Daily discipline submission layout', () => {
+  it('uses organization-formatted dates across every current column and labels prior balances Till yesterday', () => {
+    try {
+      for (const [format, expected] of [['DD-MM-YYYY', '29-10-2026'], ['MM/DD/YYYY', '10/29/2026']] as const) {
+        setDateFormatResolver(() => format);
+        const html = render({}, {}, false, false, '2026-10-29');
+        expect(html.match(new RegExp(`Current Date \\(${expected}\\)`, 'g'))).toHaveLength(14);
+        expect(html.match(/>Till yesterday</g)).toHaveLength(14);
+        expect(html).not.toContain('Yesterday (auto)');
+        expect(html).toContain('Enter cumulative figures through the selected date');
+      }
+    } finally { setDateFormatResolver(() => 'DD/MM/YYYY'); }
+  });
+  it('explains daily additions while showing cumulative Yesterday and separate current counts', () => {
+    const data = { dailyDisciplineInputMode: DAILY_ADDITIONS, disciplines: { drawings: { Civil: { approved: 5, resubmit: 2, rejected: 1, underReview: 4 } } } };
+    const baseline = { disciplines: { drawings: { Civil: { approved: 25, resubmit: 25, rejected: 25, underReview: 25 } } } };
+    const html = render(data, baseline);
+    expect(html).toContain('Enter only the counts added on the selected day');
+    expect(html).toContain('Drawings overall total — Yesterday 100 · Current 12');
+    expect(html).not.toContain('Legacy cumulative-entry report');
+  });
+  it('explains daily additions for tiles 3–6 and uses cumulative revision approvals for percentages', () => {
+    const data = {
+      dailyDisciplineInputMode: DAILY_ADDITIONS, dailySupplementInputMode: DAILY_SUPPLEMENT_ADDITIONS,
+      disciplines: { drawings: { Civil: { approved: 12 } } },
+      revisions: { drawings: [{ name: 'Rev 0', value: 2 }], submittals: [] },
+      documentTypes: { drawing: 3 }, correspondence: { incoming: 4 }, rejectedSubmissions: { drawing: 5 },
+    };
+    const baseline = { disciplines: { drawings: { Civil: { approved: 100 } } },
+      revisions: { drawings: [{ name: 'Rev 0', value: 5 }] } };
+    const html = render(data, baseline);
+    expect(html).toContain('For tiles 3–6, enter only additions for the selected day');
+    expect(html).toContain('matched by document type and revision number');
+    expect(html).toContain('6.3%');
+    expect(data.revisions.drawings[0].value).toBe(2);
+  });
+  it('warns without silently converting historical supplementary tiles', () => {
+    expect(render({ dailySupplementInputMode: DAILY_SUPPLEMENT_ADDITIONS }, { dailySupplementLegacyPrevious: true }))
+      .toContain('historical daily additions require a reviewed correction');
+    expect(render({ dailyDisciplineInputMode: DAILY_ADDITIONS }))
+      .toContain('For tiles 3–6, enter cumulative figures');
+  });
+  it('warns when a previous report retains an unreviewed legacy interpretation', () => {
+    expect(render({ dailyDisciplineInputMode: DAILY_ADDITIONS }, { dailyDisciplineLegacyPrevious: true }))
+      .toContain('a reviewed historical correction is required');
+  });
   it('orders disciplines consistently in drawings and submittals', () => {
     const html = render();
     for (const category of ['Drawings', 'Submittals']) {
@@ -24,14 +71,14 @@ describe('Daily discipline submission layout', () => {
   it('combines both categories under one heading with individual discipline tables', () => {
     const html = render();
     expect(html).toContain('Daily Submission - Drawings and Submittals by Discipline');
-    expect(html).toContain('Enter the cumulative figures as on the Current Date for each discipline.');
+    expect(html).toContain('Enter cumulative figures through the selected date');
     expect(html).not.toContain('Disciplines - drawings');
     expect(html).not.toContain('Disciplines - submittals');
     for (const cat of ['drawings', 'submittals']) for (const d of DISCIPLINES) {
       expect(html).toContain(`aria-label="${d} ${cat === 'drawings' ? 'Drawings' : 'Submittals'}"`);
       for (const [, label] of DISC_STATUSES) expect(html).toContain(`aria-label="${d} ${cat} ${label} current"`);
     }
-    expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(13);
+    expect(html.match(/>Till yesterday</g)).toHaveLength(14);
     expect(html.match(/Total \(auto\)/g)).toHaveLength(10);
     for (const title of ['Approved status by Rivision', 'Document Types', 'Correspondence', 'Submission Review — Pending Days']) expect(html).toContain(title);
   });
@@ -90,7 +137,7 @@ describe('Daily discipline submission layout', () => {
       revisions: { drawings: [{ name: '0', value: 20 }], submittals: [{ name: 'A', value: 15 }] },
     }, { revisions: { drawings: [{ name: '0', value: 12 }], submittals: [{ name: 'A', value: 10 }] } });
     expect(html.indexOf('Approved status by Rivision')).toBeGreaterThan(html.indexOf('Document Types'));
-    for (const label of ['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum', 'Add Revision']) expect(html).toContain(label);
+    for (const label of ['Document Type', 'Revision No.', 'Till yesterday', 'Current Date', '% of Overall Cum', 'Add Revision']) expect(html).toContain(label);
     expect(html.match(/<select /g)).toHaveLength(2);
     expect(html.match(/<option[^>]*value="drawings"/g)).toHaveLength(2);
     expect(html.match(/<option[^>]*value="submittals"/g)).toHaveLength(2);
@@ -142,7 +189,7 @@ describe('Daily discipline submission layout', () => {
     expect(original.drawings).toHaveLength(2);
     expect(moveRevision(original, 'drawings', 0, 'drawings')).toBe(original);
     expect(calcDaily({ revisions: { drawings: [{ name: '0', value: 1 }, { name: '0', value: 2 }] } }).issues)
-      .toContain('Duplicate drawings revision name: 0.');
+      .toContain('Approved Status by Revision → Drawing row 2: revision "0" is duplicated. Use a unique revision number.');
   });
 
   it('places correspondence and rejected submissions immediately after revisions in the requested order', () => {

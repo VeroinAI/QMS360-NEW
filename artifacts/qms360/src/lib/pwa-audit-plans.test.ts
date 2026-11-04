@@ -36,6 +36,20 @@ beforeEach(() => {
 });
 
 describe("dated Audit Plan offline synchronization", () => {
+  it("retains multiple selections through a failed save, reopening, correction and update retry", async () => {
+    const selected: AuditPlan = { ...plan, auditMethods: ["Interviews", "Observation of activities"],
+      auditCriteria: ["ISO/IEC 17025:2017", "Approved drawings and specifications"] };
+    await queueAuditPlan(selected, "update");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response('{"error":"Retry later"}', { status: 503 })));
+    expect(await syncQueuedAuditPlans()).toMatchObject({ failed: 1 });
+    expect((await listQueuedAuditPlans())[0]?.plan).toMatchObject(selected);
+    const cleared = { ...selected, auditCriteria: [] };
+    await queueAuditPlan(cleared, "update");
+    const fetch = vi.fn(async (_url: string, _options: RequestInit) => new Response(JSON.stringify(cleared), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await syncQueuedAuditPlans()).toMatchObject({ synced: 1 });
+    expect(JSON.parse(String(fetch.mock.calls[0]![1].body))).toMatchObject({ auditMethods: selected.auditMethods, auditCriteria: [] });
+  });
   it("retains independent dates across serialization/reopen and replay without a shared timestamp", async () => {
     await queueAuditPlan(plan);
     expect((await listQueuedAuditPlans())[0]?.plan.activities).toEqual(plan.activities);

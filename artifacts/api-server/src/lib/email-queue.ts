@@ -1,9 +1,10 @@
 import { and, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db, organizationSettings, outboundEmails, users } from "@workspace/db";
-import { deliverEmail, type EmailDeliveryInput, type EmailPdfAttachment } from "./email";
+import { deliverEmail, type EmailDeliveryInput, type EmailDeliveryResult, type EmailReportAttachment } from "./email";
 import { removeEmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
-import { renderEmailRuleTemplate, type EmailRuleTemplate } from "@workspace/field-controls";
+import { renderEmailRuleTemplate, validEmailReportSelection, validEmailReportSelections, selectedEmailReports, type EmailRuleTemplate } from "@workspace/field-controls";
+import type { EmailReportRequest } from "./email-report-generator";
 import { prepareCustomPlaceholderValues, type PlaceholderEventContext } from "./email-placeholder-values";
 
 type Database = typeof db;
@@ -74,6 +75,27 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
   delete context.retryEnvelopeRecipients;
   delete context.emailAttachments;
   if (input.attachments?.length) context.emailAttachments = input.attachments;
+  if (context.kind === "email_event_rule") {
+    // Explicit No attachment also suppresses old hard-coded workflow PDFs.
+    delete context.emailAttachments;
+    delete context.emailReportRequest;
+    delete context.emailReportRequests;
+    const eventType = String(context.eventType ?? "");
+    if (!validEmailReportSelection(eventType, input.ruleTemplate?.reportAttachment)
+      || !validEmailReportSelections(eventType, input.ruleTemplate?.reportAttachments))
+      throw new Error("Report does not belong to this email event");
+    const selections = selectedEmailReports(input.ruleTemplate);
+    const requests: EmailReportRequest[] = [];
+    for (const selection of selections) {
+      if (selection === "audit_schedule_pdf" && input.attachments?.length) context.emailAttachments = input.attachments;
+      else {
+        if (typeof context.entityId !== "string") throw new Error("The event has no report record");
+        requests.push({ selection, eventType, entityId: context.entityId });
+      }
+    }
+    if (input.ruleTemplate?.reportAttachments !== undefined && requests.length) context.emailReportRequests = requests;
+    else if (requests.length) context.emailReportRequest = requests[0];
+  }
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
   const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
   const entityId = typeof context.entityId === "string" ? context.entityId : null;
@@ -135,12 +157,46 @@ async function claimDueEmails(database: Database) {
   }).where(and(inArray(outboundEmails.id, candidates.map((row) => row.id)), isNull(outboundEmails.deletedAt), due)).returning();
 }
 
-async function processClaimedEmail(database: Database, row: typeof outboundEmails.$inferSelect) {
+export async function processClaimedEmail(database: Database, row: typeof outboundEmails.$inferSelect) {
   const attemptedAt = new Date();
   const retryEnvelopeRecipients = Array.isArray(row.context.retryEnvelopeRecipients)
     ? row.context.retryEnvelopeRecipients.filter((email): email is string => typeof email === "string")
     : undefined;
-  const result = await deliverEmail(database, {
+  let result: EmailDeliveryResult;
+  try {
+    // Persist each generated report before starting the next, so a failed report
+    // or SMTP retry reuses completed private snapshots and never sends a partial set.
+    while (Array.isArray(row.context.emailReportRequests) && row.context.emailReportRequests.length) {
+      const requests = row.context.emailReportRequests as EmailReportRequest[];
+      const { generateEmailReport } = await import("./email-report-generator");
+      const attachment = await generateEmailReport(row.organizationId, requests[0]!);
+      const context = { ...row.context,
+        emailAttachments: [...(row.context.emailAttachments as EmailReportAttachment[] ?? []), attachment],
+        emailReportRequests: requests.slice(1),
+      };
+      try {
+        await database.update(outboundEmails).set({ context, updatedAt: new Date() })
+          .where(and(eq(outboundEmails.id, row.id), eq(outboundEmails.organizationId, row.organizationId)));
+      } catch (error) {
+        await removeEmailPdfAttachment(row.organizationId, attachment.objectPath);
+        throw error;
+      }
+      row.context = context;
+    }
+    if (row.context.emailReportRequest && !row.context.emailAttachments) {
+      const { generateEmailReport } = await import("./email-report-generator");
+      const attachment = await generateEmailReport(row.organizationId, row.context.emailReportRequest as EmailReportRequest);
+      const context = { ...row.context, emailAttachments: [attachment] };
+      try {
+        await database.update(outboundEmails).set({ context, updatedAt: new Date() })
+          .where(and(eq(outboundEmails.id, row.id), eq(outboundEmails.organizationId, row.organizationId)));
+      } catch (error) {
+        await removeEmailPdfAttachment(row.organizationId, attachment.objectPath);
+        throw error;
+      }
+      row.context = context;
+    }
+    result = await deliverEmail(database, {
     organizationId: row.organizationId,
     recipientIds: [],
     recipients: queuedToRecipients(row),
@@ -152,9 +208,14 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
     html: row.bodyHtml ?? undefined,
     attachments: row.context.emailAttachments === undefined
       ? undefined
-      : row.context.emailAttachments as EmailPdfAttachment[],
+      : row.context.emailAttachments as EmailReportAttachment[],
     context: { ...row.context, queueId: row.id, queueAttempt: row.attemptCount + 1 },
-  });
+    });
+  } catch (error) {
+    // Never send an incomplete email when its selected report cannot be built.
+    result = { attempted: true, sent: 0, failed: 1, failedRecipients: queuedToRecipients(row),
+      error: `Report attachment / email preparation failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
   const attemptCount = row.attemptCount + 1;
   const succeeded = result.attempted && result.failed === 0;
   if (succeeded) {

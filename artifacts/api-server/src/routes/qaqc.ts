@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { validateRoleDepartments } from "../lib/role-departments";
 import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
@@ -23,13 +24,15 @@ import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
+import { readCsatNumbering, saveCsatNumbering, type CsatPattern, type CsatRange } from "../lib/csat-numbering";
+import { auditProjectNumberSourceValue } from "../lib/audit-number-source";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
   documentGovernanceLogEntries, escalationInstances, escalationRules,
   evidenceFiles, materialInspectionEntries, notificationTemplates, notifications,
-  organizationSettings, permissions, platformRoles, qaqcMetricEntries,
+  organizationSettings, permissions, platformRoles, projects, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries, targetBenchmarks, users,
   userWorkspaceRoles, workspaceRolePermissions, workspaceRoles,
 } from "@workspace/db";
@@ -783,6 +786,40 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 
 // Per-application administration
 router.use("/admin", asyncHandler(qaqcAdminTask));
+async function csatNumberSources(req: Request) {
+  const scope = req.permissionProjectScope;
+  const rows = await db.select().from(projects).where(and(eq(projects.organizationId, org(req)),
+    isNull(projects.deletedAt), req.permissionAdminBypass || scope?.unrestricted ? undefined :
+      inArray(projects.id, scope?.projectIds ?? [])));
+  return rows.map(project => ({ key: project.id, kind: "project" as const,
+    label: `${project.code} — ${project.name}`, sourceValue: auditProjectNumberSourceValue(project.customFields) }));
+}
+async function csatNumberResponse(req: Request) {
+  const sources = await csatNumberSources(req);
+  const state = await readCsatNumbering(org(req));
+  return { ...state, sources, ranges: Object.fromEntries(sources.filter(source => state.ranges[source.key])
+    .map(source => [source.key, state.ranges[source.key]])) };
+}
+router.get("/admin/csat-numbering", asyncHandler(async (req, res) => {
+  res.json(api.GetCsatNumberingResponse.parse(await csatNumberResponse(req)));
+}));
+router.put("/admin/csat-numbering", asyncHandler(async (req, res) => {
+  if (!req.permissionAdminBypass && !req.permissionProjectScope?.unrestricted) throw new HttpError(403, "Organization-wide CSAT format configuration requires an organization-wide role assignment");
+  const pattern = body<CsatPattern>(api.UpdateCsatNumberingBody, req);
+  const before = await readCsatNumbering(org(req));
+  const saved = await saveCsatNumbering(org(req), pattern);
+  await audit(req, "update", "csat_reference_numbering", org(req), before.pattern, saved.pattern);
+  res.json(api.UpdateCsatNumberingResponse.parse(saved.pattern));
+}));
+router.put("/admin/csat-numbering/ranges", asyncHandler(async (req, res) => {
+  const range = body<CsatRange>(api.UpdateCsatNumberRangeBody, req);
+  if (!(await csatNumberSources(req)).some(source => source.key === range.projectId)) throw new HttpError(404, "Project is not available in your QA/QC administration scope");
+  const before = await readCsatNumbering(org(req));
+  const saved = await saveCsatNumbering(org(req), undefined, range);
+  await audit(req, "update", "csat_reference_number_range", range.projectId,
+    before.ranges[range.projectId]?.[String(range.year)] ?? 0, saved.ranges[range.projectId]?.[String(range.year)]);
+  res.json(api.UpdateCsatNumberRangeResponse.parse(await csatNumberResponse(req)));
+}));
 router.use("/admin/users", qaqcUserProfileRouter);
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
@@ -825,8 +862,8 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const rows = visibleRows.slice(offset, offset + limit);
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
-    const visibleAssigned = assigned.filter((r) => canManageAssignmentScope(req, r.assignment.projectIds, r.assignment.businessUnitIds));
-    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/qaqc/admin/users/${u.id}/signature` : null, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
+    const visibleAssigned = assigned.filter((r) => canManageAssignmentScope(req, r.assignment.projectIds, r.assignment.businessUnitIds, r.assignment.departmentIds));
+    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/qaqc/admin/users/${u.id}/signature` : null, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.departmentIds?.length ? "department" as const : r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.departmentIds?.length ? r.assignment.departmentIds : r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
   }));
   res.json(paginated(items, visibleRows.length, page, limit));
 }));
@@ -839,23 +876,23 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   if (!target[0] || !role[0]) throw new HttpError(404, "User or role not found");
   const [existing] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.userId, String(req.params.userId)), eq(userWorkspaceRoles.workspaceRoleId, v.roleId), isNull(userWorkspaceRoles.deletedAt))).limit(1);
   if (v.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
-  const scopes = { businessUnitIds: [], projectIds: v.scopeType === "project" ? await assertProjectScopeInOrg(db, org(req), v.scopeIds) : [] };
-  assertCanManageAssignmentScope(req, scopes.projectIds, scopes.businessUnitIds);
+  const scopes = { businessUnitIds: [], projectIds: v.scopeType === "project" ? await assertProjectScopeInOrg(db, org(req), v.scopeIds) : [],
+    departmentIds: v.scopeType === "department" ? await validateRoleDepartments(org(req), v.scopeIds) : [] };
+  if (existing) assertCanManageAssignmentScope(req, existing.projectIds, existing.businessUnitIds, existing.departmentIds);
+  assertCanManageAssignmentScope(req, scopes.projectIds, scopes.businessUnitIds, scopes.departmentIds);
   const [row] = existing ? await db.update(userWorkspaceRoles).set({ ...scopes, status: "active", updatedAt: new Date() }).where(eq(userWorkspaceRoles.id, existing.id)).returning() : await db.insert(userWorkspaceRoles).values({ organizationId: org(req), userId: String(req.params.userId), workspaceRoleId: v.roleId, ...scopes }).returning();
   await audit(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
 router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
   // Role administration is organization-scoped for Super Admin; a user's
   // legacy project_id must not reapply operational Drona restrictions here.
-  const user: any = isSuperAdminRoleAdministration(req)
-    ? (await db.select().from(users).where(and(
+  const user: any = (await db.select().from(users).where(and(
       eq(users.id, String(req.params.userId)), eq(users.organizationId, org(req)), isNull(users.deletedAt),
-    )).limit(1))[0]
-    : await activeRow(req, users, String(req.params.userId));
+    )).limit(1))[0];
   if (!user) throw new HttpError(404, "User not found");
   const [assignment] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), eq(userWorkspaceRoles.workspaceRoleId, String(req.params.id)), isNull(userWorkspaceRoles.deletedAt))).limit(1);
   if (!assignment) throw new HttpError(404, "Role assignment not found");
-  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds);
+  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds);
   const now = new Date();
   await db.update(userWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(userWorkspaceRoles.id, assignment.id));
   const remaining = await db.select({ id: userWorkspaceRoles.id }).from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), isNull(userWorkspaceRoles.deletedAt))).limit(1);

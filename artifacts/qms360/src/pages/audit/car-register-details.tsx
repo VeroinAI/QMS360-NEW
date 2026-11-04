@@ -6,6 +6,7 @@ import { getListCarActivityQueryKey, useListCarActivity } from "@workspace/api-c
 import type { CarRegisterEntry } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CarApprovalDetails } from "./car-approval-details";
 
 export function CarResponseDetails({ entry, auditAreaLabel, evidence }: { entry: CarRegisterEntry; auditAreaLabel: string; evidence: ReactNode }) {
   const fields: [string, ReactNode][] = [
@@ -42,6 +43,7 @@ export function CarDisplayDialog({ entry, onClose, reviewNotes }: { entry: CarRe
         <dt className="text-xs font-medium text-muted-foreground">{responseFieldLabel(label!)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{value || "—"}</dd>
       </div>)}</dl>
       {reviewNotes}
+      {car && <CarApprovalDetails car={car}/>}
       <div className="flex justify-end"><Button variant="outline" onClick={onClose}>Close</Button></div>
     </DialogContent>
   </Dialog>;

@@ -9,4 +9,7 @@ import type { AuditPlanUserOption } from './auditPlanUserOption';
 
 export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
+  historicalUsers?: AuditPlanUserOption[];
+  leadUsers?: AuditPlanUserOption[];
+  teamUsers?: AuditPlanUserOption[];
 }

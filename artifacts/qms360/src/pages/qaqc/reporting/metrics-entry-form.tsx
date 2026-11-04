@@ -1,3 +1,4 @@
+import { NativeSelection } from '@/components/ui/native-selection';
 import { useContext, useId, useState, type ReactNode } from 'react';
 import { monthlySections } from '@workspace/field-controls';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
@@ -68,7 +69,7 @@ function ManpowerDiscipline({ path }: { path: Path }) {
   const duplicate = !!value && selectedElsewhere.has(String(value).trim().toLowerCase());
   const legacy = value && !options.some(d => d.value === value);
   return <Field id={id} label="Department" required>
-    <select id={id} data-report-field={[...path, 'department'].join('.')} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
+    <NativeSelection id={id} data-report-field={[...path, 'department'].join('.')} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
       aria-invalid={duplicate || undefined} disabled={f.readOnly} value={value} onChange={e => {
         if (selectedElsewhere.has(e.target.value.trim().toLowerCase())) return;
         f.set(path, { ...getIn(f.data, path), department: e.target.value, departmentSource: 'discipline_master' });
@@ -76,7 +77,7 @@ function ManpowerDiscipline({ path }: { path: Path }) {
       <option value="">Select discipline</option>
       {legacy && <option value={value}>{value} (previously saved)</option>}
       {options.filter(d => d.value).map(d => <option key={d.value} value={d.value} disabled={selectedElsewhere.has(d.value.trim().toLowerCase())}>{d.label ?? d.value}</option>)}
-    </select>
+    </NativeSelection>
     {duplicate && <p role="alert" className="text-xs text-destructive">This department is already selected in another Quality Manpower row. Select a different department or remove the duplicate row.</p>}
     {!options.length && <p className="text-xs text-muted-foreground">No active disciplines configured in Discipline Master.</p>}
   </Field>;

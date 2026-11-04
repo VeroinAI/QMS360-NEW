@@ -20,3 +20,32 @@ Revision percentages use the cumulative total of the revision's own document cat
 **Why:** The user explicitly replaced the original combined-denominator rule for the Daily Submission revision section.
 
 **How to apply:** Keep the entry form, daily report PDF and dashboard revision charts consistent. Use all statuses within the matching category's total, not only approved documents. A zero matching-category total yields 0.0%, regardless of the other category's total.
+
+Daily report sign-off keeps Prepared by and Submitted on, removes the entire
+Report ID tile, and adds completed intermediate approvals as Reviewed by/on in
+ascending action-date order, followed by the actual final Approved by/on.
+Use the current Daily submission cycle and organization-local approval times;
+assigned reviewers and old sent-back cycles must not certify the current report.
+
+**Why:** The business requested the same reviewer/final-approver distinction as
+the Monthly Report for every generated Daily Submission report.
+
+**How to apply:** Keep downloads and newly generated email report attachments on
+the shared Daily report layout. Never fabricate missing legacy approval evidence.
+Leave workflow routing and already frozen email attachments unchanged.
+
+Daily report and dashboard PDFs share the current-cycle sign-off evidence:
+Prepared by/Submitted on, chronological Reviewed by/on, then actual final
+Approved by/on. Include available signer-profile images under names, matched
+by user ID within the report organization, never by display name. The dashboard
+adds a separate landscape sign-off page without replacing its chart pages.
+
+**Why:** The business explicitly requested signatures and equivalent sign-off
+details for both Daily downloads and their email attachments. This request uses
+attached user-profile signatures; it does not define immutable historical
+signature snapshots like the separate CAR policy.
+
+**How to apply:** Preserve missing-signature gaps without invented images.
+Use the exact report approval-cycle rules for the dashboard too. Profile images
+are read at generation time, so replacing a profile signature affects future
+exports; do not describe these images as historically frozen evidence.

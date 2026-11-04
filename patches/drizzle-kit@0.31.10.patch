@@ -1,0 +1,52 @@
+diff --git a/api.js b/api.js
+index f4ecb91959f62fc938416a0585458c0a710af161..faaf04e6a0091b1e14eb597446f06988a7aedae7 100644
+--- a/api.js
++++ b/api.js
+@@ -23466,7 +23466,7 @@ WHERE
+         FROM
+           pg_stat_user_indexes idx
+         LEFT JOIN
+-          pg_constraint con ON con.conindid = idx.indexrelid
++          pg_constraint con ON con.conindid = idx.indexrelid AND con.contype IN ('p', 'u', 'x')
+         WHERE idx.relname = '${tableName}' and schemaname = '${tableSchema}'
+         group by index_name, table_name,schemaname, generated_by_constraint;`
+             );
+@@ -75272,7 +75272,11 @@ var pushSchema = async (imports, drizzleInstance, schemaFilters, tablesFilter, e
+   );
+   const db = {
+     query: async (query, params) => {
+-      const res = await drizzleInstance.execute(sql.raw(query));
++      // Keep introspection bindings (notably composite-PK schema/table names).
++      // This workspace uses node-postgres; sql.raw alone drops these values.
++      const res = params?.length
++        ? await drizzleInstance.$client.query(query, params)
++        : await drizzleInstance.execute(sql.raw(query));
+       return res.rows;
+     }
+   };
+diff --git a/api.mjs b/api.mjs
+index a940272dfb05accf57a472c46c52652ec9ad0080..d9b32a32224f2c4e101d2c22adebbfc91b020233 100644
+--- a/api.mjs
++++ b/api.mjs
+@@ -23482,7 +23482,7 @@ WHERE
+         FROM
+           pg_stat_user_indexes idx
+         LEFT JOIN
+-          pg_constraint con ON con.conindid = idx.indexrelid
++          pg_constraint con ON con.conindid = idx.indexrelid AND con.contype IN ('p', 'u', 'x')
+         WHERE idx.relname = '${tableName}' and schemaname = '${tableSchema}'
+         group by index_name, table_name,schemaname, generated_by_constraint;`
+             );
+@@ -75301,7 +75301,11 @@ var pushSchema = async (imports, drizzleInstance, schemaFilters, tablesFilter, e
+   );
+   const db = {
+     query: async (query, params) => {
+-      const res = await drizzleInstance.execute(sql.raw(query));
++      // Keep introspection bindings (notably composite-PK schema/table names).
++      // This workspace uses node-postgres; sql.raw alone drops these values.
++      const res = params?.length
++        ? await drizzleInstance.$client.query(query, params)
++        : await drizzleInstance.execute(sql.raw(query));
+       return res.rows;
+     }
+   };

@@ -1,0 +1,2 @@
+ALTER TABLE "app1_qaqc"."user_workspace_roles" ADD COLUMN "department_ids" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "app3_audit"."user_workspace_roles" ADD COLUMN "department_ids" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL;

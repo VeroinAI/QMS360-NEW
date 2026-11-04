@@ -1,8 +1,12 @@
+export * from "./email-report-catalog";
+export * from "./daily-discipline-input";
+export * from "./ncr-ageing";
 export * from "./qaqc-monthly-sections";
 export { plannedDate, datedActivities, auditPlanDateErrors, planActivityFieldValues, auditPlanReplayMatches, type DatedActivity } from "./audit-plan-dates";
 export * from "./audit-permissions";
 export * from "./reference-number-fields";
 export * from "./audit-plan-dates";
+export * from "./meeting-attendees";
 export * from "./audit-activity-auditees";
 // Shared registry of admin-controllable forms and fields per application.
 // This is the single source of truth for which form/field keys are valid in
@@ -189,6 +193,8 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
         { key: "scope", label: "Scope" },
         { key: "objectives", label: "Objectives" },
         { key: "criteria", label: "Criteria" },
+        { key: "auditMethods", label: "Audit Method" },
+        { key: "auditCriteria", label: "Audit Criteria" },
         { key: "auditDate", label: "Audit date" },
         { key: "location", label: "Location" },
         { key: "leadAuditorId", label: "Lead auditor" },

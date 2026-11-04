@@ -16,6 +16,8 @@ import { readPlanNumberState } from "../src/lib/audit-plan-numbering";
 import { readReportNumberState } from "../src/lib/audit-report-numbering";
 import { readFindingNumberState } from "../src/lib/audit-finding-numbering";
 import { carWordReportData } from "../src/lib/car-word-report-data";
+import { renderCarWordReport } from "../src/lib/car-word-report";
+import { strFromU8, unzipSync } from "fflate";
 
 let server: Server, base: string, orgId: string, userId: string, projectId: string, missingProjectId: string;
 let token: string, otherToken: string, employeeToken: string, employeeId: string, departmentId: string, browserAuditId: string;
@@ -81,17 +83,19 @@ beforeAll(async () => {
   await db.insert(applicationAccess).values(people.map(person => ({
     organizationId: orgId, username: person.username, canOpenAudit: true, status: "active",
   })));
-  const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: "CAR operator" }).returning();
+  const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: "CAR operator", roleAuthorizationLevel: 1 }).returning();
   const [permission] = await db.insert(auditPermissions).values({ organizationId: orgId, key: "audit_team_lead", label: "Audit Team Lead", category: "audit", description: "Lead reviewer" }).returning();
   await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id, grant: "full" });
+  const [approval] = await db.insert(auditPermissions).values({ organizationId: orgId, key: "audit.cars.approve_reject", label: "CAR approval", category: "audit" }).returning();
+  await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: approval!.id, grant: "full" });
   await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId, workspaceRoleId: role!.id });
   const projectRows = await db.insert(projects).values([
-    { organizationId: orgId, name: "CAR numbering project", code: `CP${suffix}`, customFields: { costCentre: "CC100" } },
+    { organizationId: orgId, name: "CAR numbering project", code: `CP${suffix}`, customFields: { qmsAdditionalData: { contractProjectNumber: "CC100" } } },
     { organizationId: orgId, name: "CAR missing Cost Center", code: `CM${suffix}` },
   ]).returning();
   projectId = projectRows[0]!.id; missingProjectId = projectRows[1]!.id;
   const [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, name: "Department Master", code: "Department", appKey: "audit" }).returning();
-  const [department] = await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value: "ENG", label: "Engineering label" }).returning();
+  const [department] = await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value: "ENG", label: "Engineering label", metadata: { costId: "ENG" } }).returning();
   departmentId = department!.id;
   const [areaGroup] = await db.insert(masterDataGroups).values({ organizationId: orgId, name: "Audit Area", code: "Audit Area", appKey: "audit" }).returning();
   await db.insert(masterDataValues).values({ organizationId: orgId, groupId: areaGroup!.id, value: "Construction", label: "Construction" });
@@ -120,6 +124,42 @@ afterAll(async () => {
 });
 
 describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering", () => {
+  it("uses Finding Date for CAR creation and atomically recalculates existing deadlines on correction", async () => {
+    const f = await makeAudit();
+    const path = `/audits/${f.audit.id}/finding-items/${f.itemIds[0]}/date`;
+    const saved = await api("PATCH", path, { findingDate: "2026-10-01" });
+    expect(saved.status).toBe(200);
+    expect(saved.body.checklist[0].findingDate).toBe("2026-10-01");
+    const created = await api("POST", "/car-register/start", { auditId: f.audit.id, itemId: f.itemIds[0] });
+    expect(created.status).toBe(200);
+    expect(created.body.dueDate).toBe("2026-10-03");
+    const carId = created.body.id;
+    const [car] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, carId));
+    expect(car!.createdAt.toISOString().slice(0,10)).not.toBe("2026-10-01");
+    await db.update(correctiveActionReports).set({ extensionStatus: "approved", extensionDueDate: "2026-11-15" })
+      .where(eq(correctiveActionReports.id, carId));
+    expect((await api("PATCH", path, { findingDate: "2026-10-10" })).status).toBe(200);
+    const [updated] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, carId));
+    expect(updated!.dueDate).toBe("2026-10-12");
+    expect(updated!.extensionDueDate).toBe("2026-11-15");
+    expect(updated!.extensionStatus).toBe("approved");
+    expect((await api("GET", `/cars/${carId}`)).body.dueDate.slice(0,10)).toBe("2026-10-12");
+    const register = await api("GET", "/car-register");
+    expect(register.status).toBe(200);
+    const entry = register.body.items.find((entry: any) => entry.itemId === f.itemIds[0]);
+    expect(entry.dueDate).toBe("2026-10-12");
+    const logs = await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.entityId, f.audit.id));
+    expect(logs.filter(log=>log.action==="update_finding_date")).toHaveLength(2);
+  });
+  it("rejects invalid Finding Dates and unauthorized changes without altering findings", async () => {
+    const f = await makeAudit();
+    const path = `/audits/${f.audit.id}/finding-items/${f.itemIds[0]}/date`;
+    for (const findingDate of ["2026-02-30", "2026-13-01", "", "2026-10-01T00:00:00Z"])
+      expect((await api("PATCH", path, { findingDate })).status).toBe(422);
+    expect((await api("PATCH", path, { findingDate: "2026-10-01" }, employeeToken)).status).toBe(403);
+    const [unchanged] = await db.select().from(audits).where(eq(audits.id, f.audit.id));
+    expect((unchanged!.checklistState as any)[0].findingDate).toBeUndefined();
+  });
   it("exposes independent settings and prevents non-admin maintenance", async () => {
     const settings = await api("GET", "/admin/car-numbering");
     expect(settings.status).toBe(200); expect(settings.body.pattern).toEqual(pattern);
@@ -247,10 +287,48 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect([await readPlanNumberState(orgId), await readReportNumberState(orgId), await readFindingNumberState(orgId)]).toEqual(other);
     await saveCarNumbering(orgId, pattern);
   });
+  it("maps CAR download reference, activity label only and parent Schedule Name without changing records", async () => {
+    const f = await makeAudit(2040);
+    const [programme] = await db.insert(auditSchedules).values({
+      organizationId: orgId, year: 2040, title: "Containing Schedule Name",
+      status: JSON.stringify({ programme: true }),
+    }).returning();
+    // Resolve the actual shared group rather than creating a second area list.
+    const groups = await db.select().from(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
+    const group = groups.find(row => row.code === "Audit Area")!;
+    await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group.id,
+      value: "design_engg", label: "Design and Engineering" });
+    await db.update(auditSchedules).set({ status: JSON.stringify({
+      ...JSON.parse(f.schedule.status!), parentId: programme!.id, qaqcReference: "QAM-IA/40-012",
+    }) }).where(eq(auditSchedules.id, f.schedule.id));
+    const state = (f.audit.checklistState as any[]).map(item => ({ ...item, auditArea: "design_engg" }));
+    await db.update(audits).set({ checklistState: state }).where(eq(audits.id, f.audit.id));
+    const req = { currentUser: { id: userId, organizationId: orgId, platformRoleName: "Org Admin" },
+      permissionProjectScope: { unrestricted: true, projectIds: [] },
+      permissionFullProjectScope: { unrestricted: true, projectIds: [] } } as any;
+    const input = { auditId: f.audit.id, itemId: f.itemIds[0]! };
+    const data = await carWordReportData(req, input);
+    expect(data.auditReference).toBe("QAM-IA/40-012");
+    expect(data.area).toBe("Design and Engineering");
+    expect(data.source).toBe("Containing Schedule Name");
+    const xml = strFromU8(unzipSync(await renderCarWordReport(data))["word/document.xml"]!);
+    for (const value of ["QAM-IA/40-012", "Design and Engineering", "Containing Schedule Name"]) expect(xml).toContain(value);
+    expect(xml).not.toContain("design_engg");
+    expect(xml).not.toContain("Clause 9.1");
+    expect(xml).not.toContain(f.audit.referenceNumber);
+    const findings = await db.select().from(auditFindings).where(eq(auditFindings.auditId, f.audit.id));
+    expect(findings).toHaveLength(0);
+    const created = await api("POST", "/car-register/start", input);
+    expect(created.status).toBe(200);
+    const withCar = await carWordReportData(req, { ...input, carId: created.body.id });
+    expect([withCar.auditReference, withCar.area, withCar.source])
+      .toEqual([data.auditReference, data.area, data.source]);
+  });
   it("honors CAR module actions for the assigned user without substituting other module grants", async () => {
     const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: `Module response ${suffix}` }).returning();
     const grant = async (key: string) => {
-      const [permission] = await db.insert(auditPermissions).values({ organizationId: orgId, key, label: key, category: "audit" }).returning();
+      const existing = await db.select().from(auditPermissions).where(eq(auditPermissions.organizationId, orgId));
+      const permission = existing.find(row => row.key === key) ?? (await db.insert(auditPermissions).values({ organizationId: orgId, key, label: key, category: "audit" }).returning())[0]!;
       await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id });
     };
     await grant("audit.cars.view_all"); await grant("audit.cars.create_edit");
@@ -267,6 +345,11 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect((await api("PUT", `/cars/${review.carId}`, { ...response, saveAndSubmit: true })).status).toBe(200);
     expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(403);
     await grant("audit.cars.approve_reject");
+    await db.update(auditWorkspaceRoles).set({ roleAuthorizationLevel: 1 }).where(eq(auditWorkspaceRoles.id, role!.id));
+    // Later grants do not insert reviewers into an already submitted snapshot.
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(403);
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "query", comments: "Please revise" })).status).toBe(200);
+    expect((await api("POST", `/cars/${review.carId}/submit`)).status).toBe(200);
     expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(200);
   });
 });

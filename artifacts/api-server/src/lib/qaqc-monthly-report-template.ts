@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import { strFromU8, unzipSync } from "fflate";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
+import { monthlySignatories } from "./qaqc-monthly-signatories";
 
 export const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const UNMAPPED = "To be mapped";
@@ -92,8 +93,8 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   const month = period(report.period), project = text(report.projectName);
   put(0, 0, 0, project, 1); put(0, 0, 0, `Cost centre  ${text(report.costCentre)}`, 2);
   put(0, 0, 1, month, 1);
-  put(3, 0, 0, decimal(pqi.accumulated), 1);
-  put(3, 0, 0, `${variance(pqi.variance, "pts")} vs last month`, 2, tone(pqi.variance));
+  put(3, 0, 0, percent(pqi.accumulated), 1);
+  put(3, 0, 0, `${variance(pqi.variance, "pp")} vs last month`, 2, tone(pqi.variance));
   for (const [col, key] of [[1, "external_ncr"], [2, "internal_ncr"]] as const) {
     put(3, 0, col, metrics[key]?.open, 1);
     put(3, 0, col, `${text(metrics[key]?.issued)} issued · ${text(metrics[key]?.closed)} closed`, 2);
@@ -149,9 +150,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     const v = metrics[key] ?? {};
     metricRows.forEach(([r, field, pct]) => put(23, r, col + 1, pct ? percent(v[field]) : v[field]));
     put(23, 14, col + 1, variance(v.variance), 0, tone(v.variance));
-    put(23, 15, col + 1, col < 2 ? text(v.open) : "n/a");
+    put(23, 15, col + 1, text(v.open));
   });
-  para(24, "Cumulative closure % = closed ÷ accumulated issued (100% when nothing issued). Closure rate this month = closed this month ÷ issued this month, using the saved system calculation. Variance = change in cumulative closure %, in percentage points (pp). Open count and ageing are tracked for NCRs only.");
+  para(24, "Cumulative closure % = closed ÷ accumulated issued (100% when nothing issued). Closure rate this month = closed this month ÷ issued this month, using the saved system calculation. Variance = change in cumulative closure %, in percentage points (pp). Open items = accumulated issued − accumulated closed. Ageing is tracked for NCRs only.");
   // The PDF now mirrors the entry screen's three saved ageing buckets.
   const ageingColumns = ["NCR type", "0-15 days", "15-45 days", "Over 45 days", "Total aged", "Total vs Open"];
   const ageingWidths = [2038, 1400, 1400, 1400, 1400, 2000];
@@ -177,10 +178,11 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
       known ? sum === open ? "2E7D32" : "C0392B" : "66666A");
   });
   [pqi.previous,pqi.accumulated,pqi.variance,pqi.monthly].forEach((v,i) => put(29,0,i,
-    i === 2 && num(v) !== undefined && Number(v) > 0 ? `+${decimal(v)}` : decimal(v),1,i === 2 ? tone(v) : undefined));
+    i === 2 ? num(v) === undefined ? MISSING_DATA : `${Number(v)>0?"+":""}${decimal(v)} pp` : percent(v),1,i === 2 ? tone(v) : undefined));
+  put(29,0,2,"Variance (percentage points)",0);
   put(29,0,2,num(pqi.variance) === undefined ? MISSING_DATA : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
   const downloadPqi = report.monthlyDownloadPqi;
-  const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : decimal(downloadPqi?.average);
+  const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : percent(downloadPqi?.average);
   const reportingPeriod = period(report.period).replace(/ (\d{4})$/, ", $1");
   put(31,0,1,`${downloadAverage}${downloadPqi ? ` (Total monthly report for reporting period (${reportingPeriod}) submitted -> ${downloadPqi.projectCount})` : ""}`,0);
   put(31,0,1,"Average of saved ‘Acc. till this month’ scores from authorized submitted/approved project reports for this month, calculated at download time.",1);
@@ -251,8 +253,37 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
   put(53,0,1,report.submittedByName,1); put(53,0,1,report.submittedByDesignation?.trim() || null,2);
-  put(53,0,2,reportDate(report.submittedAt),1); put(53,0,2,`Report ID  ${text(report.referenceNumber ?? report.id)}`,2);
+  put(53,0,2,reportDate(report.submittedAt),1);
+  const submittedDateCell = cells(53,0)[2]!;
+  children(submittedDateCell,"p").slice(2).forEach(p => submittedDateCell.removeChild(p));
+  // Preserve the source's lavender sign-off tiles and flow each approval row
+  // together. Reviewers precede the final approver, even for multi-level flows.
+  const signatories = monthlySignatories(report);
+  const signoffTable = blocks[53]!;
+  const sourceRow = children(signoffTable,"tr")[0]!;
+  const signatures = new Map<Element,Uint8Array>();
+  const submittedSignature = report.userSignatures?.[report.submittedById ?? ""];
+  if(submittedSignature) signatures.set(children(sourceRow,"tc")[1]!,submittedSignature);
+  for (const signatory of [...signatories.filter(s => !s.final), ...signatories.filter(s => s.final)]) {
+    const row = sourceRow.cloneNode(true) as Element;
+    children(row,"tc").forEach(cell => row.removeChild(cell));
+    const sourceCells = children(sourceRow,"tc");
+    for (const [index, label, value] of [
+      [1, signatory.final ? "APPROVED BY" : "REVIEWED BY", signatory.name],
+      [2, signatory.final ? "APPROVED ON" : "REVIEWED ON", reportDate(signatory.at)],
+    ] as const) {
+      const cell = sourceCells[index]!.cloneNode(true) as Element;
+      child(child(cell,"tcPr"),"tcW")!.setAttributeNS(W,"w:w","4819");
+      const paragraphs = children(cell,"p");
+      set(paragraphs[0]!,label); set(paragraphs[1]!,value);
+      paragraphs.slice(2).forEach(p => cell.removeChild(p));
+      row.appendChild(cell);
+    }
+    signoffTable.appendChild(row);
+    const image=report.userSignatures?.[signatory.userId ?? ""];
+    if(image) signatures.set(children(row,"tc")[0]!,image);
+  }
   // Explicitly remove the reviewer appendix, sample header, comments and sample footer.
   for (const block of blocks.slice(54)) if (block.localName !== "sectPr") body.removeChild(block);
-  return { body, project, month };
+  return { body, project, month, signoffTable, signatures };
 }

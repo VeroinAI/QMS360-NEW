@@ -26,29 +26,83 @@ Protected Audit approval emails must use the workflow queue only, not a second g
 
 **How to apply:** Apply content templates inside the existing participant-scoped approval queue. Do not copy the example document's To/CC lists into new recipient rules.
 
-Administrators may now explicitly select CC workspace roles independently of
-the To mode. Resolve them in the event's application and tenant, using active
-roles, assignments and users. Apply them in both generic and protected Audit
-queues, without changing To recipients or duplicating workflow dispatch.
+Administrators may explicitly select CC recipients using the same recipient
+modes as To, but must choose a different mode for CC. This is a mode-level
+restriction, even when two role selections would resolve to different people.
+Existing role-only CC rules retain delivery until edited; flag conflicts on
+edit instead of silently deleting their CC audience. Resolve CC in the event's
+application and tenant, using active roles, assignments and users. Apply CC in
+both generic and protected Audit queues without changing To, Reply-To or
+duplicating workflow dispatch.
+
+**Why:** The user expanded CC beyond workspace roles and explicitly prohibited
+selecting the same Recipient mode for To and CC.
+
+**How to apply:** Enforce this on both the editor and new/updated rules. Preserve
+stored legacy delivery, organization isolation and To-over-CC address deduplication.
 
 **Why:** The user requested CC-role maintenance in Edit Rule and actual delivery
 for triggered emails. This explicitly configured audience is distinct from
 automatically copying sample-document recipients.
 
-Lessons Learned submission emails must include the form PDF as an actual
-attachment, using the same report as the form's Download PDF action.
+Event Email Rules explicitly control report attachments, including Lessons
+submission and configured Audit approval emails. No report selection means no
+attachment; selecting reports attaches all selected supported PDF/PPT files to the
+same event email. Multiple selection must not create separate messages.
 
-**Why:** The business requested the downloadable form in the existing email sent
-for approval, without changing unrelated workflows. A download link alone does
-not fulfill this requirement.
+**Why:** The user superseded the earlier automatic Lessons submission-PDF rule
+with optional, event-specific attachment selection across QMS360. An automatic
+PDF must not override an administrator's No attachment choice.
 
-**How to apply:** Preserve the configured submission recipients and templates.
-Keep a private submitted-report snapshot available for queued delivery retries;
-do not add PDFs to Lessons review emails or other application events as a side
-effect.
+**How to apply:** Preserve recipients, CC, templates and protected approval
+audiences. Permit only reports supported for the selected event, validate on
+the server, keep private snapshots for retries, and retry selected-report
+failures rather than sending without the report. Independent scheduled
+distribution and already queued messages retain their existing behavior.
+Retain completed snapshots when a later selected report fails; retry only the
+unfinished generation and never send an incomplete attachment set. Preserve
+legacy single selections; an explicit empty multi-selection clears them.
 
 Lessons Learned “Reject” is a legacy email-event label for the Send back review outcome, not a separate permanent rejection state. Existing rules and selected-event placeholders must continue to recognize both names.
 
 **Why:** Administrators configured a Reject template while the review workflow emitted Send back; the unmatched rule caused a remarks-only fallback email instead of the saved template.
 
 **How to apply:** Keep this compatibility specific to Lessons Learned. Preserve rule priority, actor filters and recipients; do not treat Audit rejection and send-back events as equivalent. Approval dates remain approval-only; use Reviewed at for send-back dates.
+
+Final-level approvals must be separately configurable for Audit Reports, CAR responses,
+CAR extensions, Monthly QA/QC reports and Daily Submissions. Monthly and Daily final
+events are independent. Preserve existing Programme/Schedule protected email delivery.
+An explicit final-stage rule supersedes the older approval rule, including when disabled;
+without a final rule, retain the older approval rule rather than losing existing emails.
+Keep domain approval history unchanged when classifying email events.
+
+**Why:** The user requested configurable last-approver events across Audit and QA/QC
+without disrupting other development or existing email behavior.
+
+**How to apply:** Classify from the saved terminal review outcome, never the approver's
+role name or level number. Intermediate approvals, send-back and rejection must not
+emit final events. Keep selected reports, recipient scope and one-rule dispatch semantics.
+
+Monthly and Daily report email rules must be independently configurable for all report actions, not only final approval. Preserve shared legacy rules as fallbacks for non-submission actions rather than editing saved configurations.
+
+**Why:** The user confirmed implementation after pointing out that shared events cannot distinguish the two reports' subjects, bodies or recipients; rule names alone do not determine matching.
+
+**How to apply:** For non-submission actions, prefer the matching report-specific rule before considering the shared fallback, retaining actor filters and priority within each group. An explicitly disabled matching specific rule blocks the shared fallback. Dispatch one rule only and preserve audit history and the separate final-approval events.
+
+CSAT, Monthly and Daily submission emails must use separate report-specific events. Never dispatch the shared legacy submission event or use it as a fallback. Existing saved shared rules remain for history only.
+
+**Why:** The user explicitly rejected shared submission events because they could send another report type's wording or recipients. Missing dedicated rules must result in no rule email, not a shared email.
+
+**How to apply:** CSAT uses `qaqc.csat_report.submit`; Monthly and Daily use their corresponding report-specific submission events. Preserve domain history and non-submit event behavior. Require administrators to configure dedicated rules rather than automatically copying shared recipients.
+
+Report attachment choices must include each existing event-specific PDF separately: Monthly report and dashboard, Daily report and dashboard, and CSAT survey only. Multiple selected reports belong on the same email.
+
+**Why:** The user needs the dashboard PDFs as selectable attachments, not just the main report, and explicitly requires multiple documents together.
+
+**How to apply:** Reuse the established download renderers, restrict choices to the triggering report type, and retain retryable generation of every selected attachment before SMTP. Do not invent dashboard choices for CSAT or ambiguous shared legacy events.
+
+Every email path, including scheduled approved-report distribution, must explicitly select the established Monthly or Daily report/dashboard download layout. Generic technical exports are not business email attachments.
+
+**Why:** A business-reported email attachment contained a 28-page raw workflow/data listing while the download buttons produced the correct branded documents. Fixing only event-rule dispatch leaves scheduled distribution capable of producing the wrong format.
+
+**How to apply:** Verify real generated PDFs against the named download layouts, not only mocked renderer calls. Preserve raw-data exports for their existing explicit use, and preserve already-sent or frozen retry attachments rather than rewriting email history.

@@ -1,4 +1,9 @@
+import { emailReportOptions, selectedEmailReports } from '@workspace/field-controls';
+import { EmailRuleAttachmentEditor } from './email-rule-attachment-editor';
+import { NativeSelection } from '@/components/ui/native-selection';
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { EmailRuleCcEditor, initialCcDraft, ccRecipientFromDraft, ccModeError, recipientModeForDraft } from './email-rule-cc-editor';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListEmailRulesQueryKey,
@@ -310,10 +315,11 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     receiverEmail: rule?.receiverEmail ?? '',
     roleName: rule?.recipientConfig?.roleName ?? '',
     roleNames: [...new Set([...(rule?.recipientConfig?.roleNames ?? []), ...(rule?.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])])],
-    ccRoleNames: rule?.recipientConfig?.ccRoleNames ?? [],
+    cc: initialCcDraft(rule?.recipientConfig),
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
     subjectTemplate: rule?.recipientConfig?.subjectTemplate ?? '',
     bodyTemplate: rule?.recipientConfig?.bodyTemplate ?? '',
+    reportAttachments: selectedEmailReports(rule?.recipientConfig),
     bodyRichText: (rule?.recipientConfig?.bodyRichText ?? null) as EmailRichDocument | null,
   });
 
@@ -326,6 +332,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
   );
 
   const save = () => {
+    if (ccModeError(draft.cc.mode, recipientModeForDraft(draft.receiverMode), draft.eventType)) return;
     const payload = {
       name: draft.name.trim(),
       enabled: draft.enabled,
@@ -343,9 +350,12 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       receiverName: draft.receiverMode === 'external' ? draft.receiverName.trim() : null,
       receiverEmail: draft.receiverMode === 'external' ? draft.receiverEmail.trim() : null,
       recipientConfig: {
-        ccRoleNames: [...new Set(draft.ccRoleNames)],
+        ccRoleNames: [],
+        ccRecipient: ccRecipientFromDraft(draft.cc),
         subjectTemplate: draft.subjectTemplate,
         bodyTemplate: draft.bodyTemplate,
+        reportAttachment: null,
+        reportAttachments: emailReportOptions(draft.eventType).filter(option => draft.reportAttachments.includes(option.value)).map(option => option.value),
         bodyRichText: draft.bodyRichText,
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
         ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
@@ -431,7 +441,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
             <div className="space-y-3">
               <div>
                 <Label>Event type</Label>
-                <select
+                <NativeSelection
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                   value={draft.eventType}
                   onChange={event => {
@@ -439,7 +449,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     const linkedModeSelected = draft.receiverMode === 'linked_approver' || draft.receiverMode === 'linked_creator';
                     set({
                       eventType,
-                      ...(eventType.split('.')[0] !== eventApp ? { roleNames: [], roleName: '', ccRoleNames: [] } : {}),
+                      reportAttachments: draft.reportAttachments.filter(value => emailReportOptions(eventType).some(option => option.value === value)),
+                      ...(eventType.split('.')[0] !== eventApp ? { roleNames: [], roleName: '', cc: {...draft.cc, roleNames: [], roleName: ''} } : {}),
                       ...(eventType === FINAL_AUDIT_SCHEDULE_EVENT
                         ? { receiverMode: 'role' as const }
                         : (isAuditApprovalEvent(eventType) || (linkedModeSelected && !eventType.startsWith('lessons.lesson_form.')))
@@ -449,7 +460,19 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 >
                   <option value="">Select an event...</option>
                   {events.map(ev => <option key={ev.value} value={ev.value}>{emailRuleEventLabel(ev)} ({ev.value})</option>)}
-                </select>
+                </NativeSelection>
+                {/^qaqc\.(monthly_report|daily_report)\./.test(draft.eventType) && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Applies only to {draft.eventType.startsWith('qaqc.monthly_report.') ? 'Monthly QA/QC reports' : 'Daily Submissions'}.
+                    {' '}A matching report-specific rule takes precedence over shared legacy rules. Disabling it also blocks the shared fallback.
+                  </p>
+                )}
+                {draft.eventType.startsWith('qaqc.qaqc_report.') && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Shared legacy event for Monthly, Daily and CSAT reports where applicable. Use a Monthly or Daily event to configure separate content and recipients; matching report-specific rules take precedence.
+                  </p>
+                )}
+                <EmailRuleAttachmentEditor eventType={draft.eventType} value={draft.reportAttachments} onChange={reportAttachments => set({ reportAttachments })} />
                 {(!draft.eventType || draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) && (
                   <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                     {draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT ? (
@@ -550,7 +573,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   {roleOptionsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading {eventApp.toUpperCase()} roles...</p>}
                   {roleOptionsQuery.error && <p className="text-sm text-destructive">{message(roleOptionsQuery.error)}</p>}
                   {!roleOptionsQuery.isLoading && !roleOptionsQuery.error && roleOptionsQuery.data?.length === 0 && hasRoleApplication && <p className="text-sm text-muted-foreground">No active workspace roles are available for this application.</p>}
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <SearchableSelectionList label="Search receiver roles">
                     {roleOptionsQuery.data?.map(role => (
                       <label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
                         <input
@@ -563,7 +586,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                         {role.name}
                       </label>
                     ))}
-                  </div>
+                  </SearchableSelectionList>
                   <p className="text-xs text-muted-foreground">Users assigned any selected active role in the event’s application will receive the email.</p>
                 </div>
               )}
@@ -577,29 +600,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
               )}
             </div>
           </div>
-          <div className="space-y-2 rounded-xl border p-4">
-            <Label>CC — Application workspace roles (optional)</Label>
-            <p className="text-xs text-muted-foreground">Active users assigned any selected role will receive a copy. Existing To recipients stay unchanged. Selected CC roles also receive approval and send-back emails, including their review comments.</p>
-            {roleOptionsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading roles...</p>}
-            {roleOptionsQuery.error && <p role="alert" className="text-sm text-destructive">{message(roleOptionsQuery.error)}</p>}
-            <div className="grid gap-2 sm:grid-cols-2">
-              {roleOptionsQuery.data?.map(role => (
-                <label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                  <input type="checkbox" checked={draft.ccRoleNames.includes(role.name)} onChange={event => set({
-                    ccRoleNames: event.target.checked ? [...new Set([...draft.ccRoleNames, role.name])] : draft.ccRoleNames.filter(name => name !== role.name),
-                  })} />
-                  {role.name}
-                </label>
-              ))}
-            </div>
-            {!roleOptionsQuery.isLoading && !roleOptionsQuery.error && !roleOptionsQuery.data?.length && <p className="text-sm text-muted-foreground">No active roles are available for this application.</p>}
-            {draft.ccRoleNames.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => set({ ccRoleNames: [] })}>Clear CC roles</Button>}
-          </div>
+          <EmailRuleCcEditor value={draft.cc} onChange={patch=>set({cc:{...draft.cc,...patch}})}
+            toMode={recipientModeForDraft(draft.receiverMode)} eventType={draft.eventType} users={users} projects={projects}
+            roles={roleOptionsQuery.data??[]} rolesLoading={roleOptionsQuery.isLoading} rolesError={roleOptionsQuery.error?message(roleOptionsQuery.error):undefined}/>
           <EmailRuleTemplateEditor template={draft} onChange={set} eventType={draft.eventType} definitions={placeholdersQuery.data ?? []} definitionsLoading={placeholdersQuery.isLoading} definitionsError={!!placeholdersQuery.error} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!draft.name.trim() || !draft.eventType || busy} onClick={save}>
+          <Button disabled={!draft.name.trim() || !draft.eventType || busy || !!ccModeError(draft.cc.mode, recipientModeForDraft(draft.receiverMode), draft.eventType)} onClick={save}>
             <Save className="mr-2 h-4 w-4" />
             {draft.subjectTemplate.trim() || draft.bodyTemplate.trim() ? 'Save rule & template' : isNew ? 'Create rule' : 'Save changes'}
           </Button>
@@ -642,14 +650,14 @@ function EmailSimulator() {
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-[2fr_2fr_auto] items-end">
           <div>
             <Label>Event</Label>
-            <select
+            <NativeSelection
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
               value={eventType}
               onChange={event => setEventType(event.target.value)}
             >
               <option value="">Select event...</option>
               {events.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
-            </select>
+            </NativeSelection>
           </div>
           <div>
             <Label>Created by</Label>

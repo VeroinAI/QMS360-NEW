@@ -24,3 +24,14 @@ Approval email audiences follow the existing role and participant policy.
 **How to apply:** Load current defaults when opening a new memo, keep the headings
 read-only while that popup is open, and keep approval email delivery and saved memo snapshots
 independent from subsequent configuration changes.
+
+Editable Subject and Memo reuse the most recent saved submission on reopening;
+unlike From/To, they do not take live organization defaults. New or legacy gaps
+fall back independently to the schedule title and an empty memo. Cancelled edits
+are not retained.
+
+**Why:** Resubmission should let users amend the last submitted content rather than
+retype it, without mixing unsaved drafts or another schedule's memo.
+
+**How to apply:** Initialize editable content once per popup opening, separately
+from asynchronous heading loading; only a successful submission replaces saved content.

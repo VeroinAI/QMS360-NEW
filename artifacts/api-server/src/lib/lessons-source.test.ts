@@ -51,6 +51,6 @@ describe("Lessons project / department isolation", () => {
     expect(scope).toEqual({ unrestricted: false, projectIds: ["p2"], allDepartmentsAllowed: true });
     expect(lessonInScope(scope, department)).toBe(true);
     expect(lessonInScope(scope, project)).toBe(false);
-    expect(restrictScope({ dronaProjectIds: ["p2"] } as any, "qaqc", { unrestricted: true, projectIds: [] })).toEqual({ unrestricted: false, projectIds: ["p2"] });
+    expect(restrictScope({ dronaProjectIds: ["p2"] } as any, "qaqc", { unrestricted: true, projectIds: [] })).toEqual({ unrestricted: false, projectIds: ["p2"], allDepartmentsAllowed: true });
   });
 });

@@ -61,9 +61,9 @@ describe("Monthly dashboard PDF supplied presentation and workbook", () => {
     expect(m.charts[7]!.hide).toBe("OSD not applicable");
     expect(m.values["Gov value 2"]).toBe("N/A");
     expect(m.values["PQP value 2"]).toBe("Not applicable");
-    expect(m.values["QMS date 1"]).toBe("To be mapped");
+    expect(m.values["QMS date 1"]).toBe("");
     expect(m.values["QMS detail 1"]).toContain("Actual register remarks");
-    expect(m.values["Meeting outcome 1"]).toBe("To be mapped");
+    expect(m.values["Meeting outcome 1"]).toBe("");
     expect(m.values["Manpower note"]).toContain("all except Mechanical");
     expect(monthlyDashboardData({ ...report, data: {}, computed: {}, monthlyDownloadPqi: undefined }).values["KPI PQI value"]).toBe("To be mapped");
   });
@@ -74,17 +74,37 @@ describe("Monthly dashboard PDF supplied presentation and workbook", () => {
     (r.data as any).qmsReports = Array.from({ length: 5 }, () => data.qmsReports[0]);
     const m = monthlyDashboardData(r);
     expect(m.statusMismatch).toBe(true);
-    expect(m.values["Meeting outcome 4"]).toContain("+ 3 more");
+    expect(m.values["Meeting name 4"]).toContain("+ 3 more");
+    expect(m.values["Meeting outcome 4"]).toBe("");
     expect(m.values["QMS detail 3"]).toContain("+ 2 more");
   });
-  it("renders five landscape pages through the existing export dispatcher without illustrative values", async () => {
+  it("omits the removed meeting outcome and QMS date mappings even when legacy values exist", () => {
+    const r = structuredClone(report);
+    (r.data as any).meetings = [{ type: "Project Quality Meeting", lastDate: "2026-10-10", outcome: "Legacy outcome", remarks: "Legacy remarks" }];
+    (r.data as any).qmsReports[0].date = "2026-10-11";
+    const m = monthlyDashboardData(r);
+    for (let i = 1; i <= 4; i++) expect(m.values[`Meeting outcome ${i}`]).toBe("");
+    for (let i = 1; i <= 3; i++) expect(m.values[`QMS date ${i}`]).toBe("");
+    expect(m.values["Meeting name 1"]).toBe("Project Quality Meeting");
+    expect(m.values["Meeting date 1"]).toBe("10-10-2026");
+    expect(m.values["QMS name 1"]).toBe("Actual QMS document");
+    expect(m.values["QMS detail 1"]).toContain("Actual register remarks");
+  });
+  it("renders five chart pages plus landscape sign-off without illustrative values", async () => {
     const draw = vi.spyOn(PDFPage.prototype, "drawText");
     try {
       const bytes = await exportQaqcReportPdf(report, { templateId: "monthly-dashboard" });
       const pdf = await PDFDocument.load(bytes);
-      expect(pdf.getPageCount()).toBe(5);
+      expect(pdf.getPageCount()).toBe(6);
       for (const page of pdf.getPages()) expect(page.getSize()).toEqual({ width: 960, height: 540 });
       const text = draw.mock.calls.map(c => c[0]).join(" ");
+      const governancePage = draw.mock.contexts.find(page =>
+        draw.mock.calls.some((call, i) => draw.mock.contexts[i] === page && call[0] === "Governance & resources"));
+      expect(governancePage).toBeTruthy();
+      const governanceText = draw.mock.calls.filter((_, i) => draw.mock.contexts[i] === governancePage).map(call => call[0]).join(" ");
+      expect(governanceText).not.toContain("To be mapped");
+      expect(governanceText).toContain("Internal Meeting");
+      expect(governanceText).toContain("Actual QMS document");
       for (const s of ["Example Construction Project", "October 2026", "Actual QMS document", "Monthly Dashboard", "37.5"]) expect(text).toContain(s);
       for (const s of ["Al Nakheel", "SAMPLE DATA", "Document Control Audit Report", "Stable quality performance", "ALG-NKC", "192 attendees", "90.4"]) expect(text).not.toContain(s);
       expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
@@ -94,7 +114,7 @@ describe("Monthly dashboard PDF supplied presentation and workbook", () => {
   });
   it("renders incomplete and long-value legacy drafts without invalid chart geometry", async () => {
     const bytes = await exportQaqcReportPdf({ ...report, state: "draft", projectName: "Long project name ".repeat(25), data: { narrative: "Long assessment ".repeat(200) }, computed: {}, baseline: {} }, { templateId: "monthly-dashboard" });
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(5);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(6);
     await writeFile("../../generated-artifacts/monthly-dashboard-empty-preview.pdf", bytes);
   });
 });

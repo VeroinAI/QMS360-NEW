@@ -14,3 +14,9 @@ The new dashboard's portfolio annotation follows the mapping workbook's form-sty
 **Why:** The new workbook explicitly maps the dashboard to the form's portfolio coverage display. Earlier requirements for the separate Monthly Report PDF explicitly allowed an average before all active projects reported.
 
 **How to apply:** Keep both policies independent and preserve tenant, project and full-versus-own visibility when calculating either aggregate. Do not replace one export's policy globally to make them identical.
+
+On Governance & resources, omit meeting outcome/remarks sublines and QMS Document Register date annotations entirely, even if legacy records contain values. Keep meeting names/dates and register names/details.
+
+**Why:** The user explicitly removed these four highlighted “To be mapped” annotations and their mappings, not missing-value wording throughout the report.
+
+**How to apply:** Suppress these presentation fields with explicit blanks so template samples cannot reappear. Preserve other missing-data indicators and exports.

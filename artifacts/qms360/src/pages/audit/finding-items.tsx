@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { findingPriorityActions, type FindingPriorityAction } from "@workspace/field-controls";
-import { Download, FileText, Plus, Upload } from "lucide-react";
+import { Download, FileText, Lock, Plus, Upload, X } from "lucide-react";
 import {
   customFetch,
   getGetAuditQueryKey,
@@ -16,26 +16,30 @@ import {
   useListAuditEvidence,
   useListAuditMeetingAttendees,
 } from "@workspace/api-client-react";
-import type { AuditFindingItemInput, ChecklistItem } from "@workspace/api-client-react";
+import type { AuditFindingItemInput, AuditFindingRegisterItem, ChecklistItem } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLov } from "@/lib/use-lov";
 import { checklistFindings } from "./checklist-workbook";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
+import { FindingDate } from "./finding-date";
+import { EMPTY_FINDING_FILTERS, filterFindingRows, findingFilterOptions, type FindingFilters } from "./finding-register";
+import { FINDING_TAB_COLUMNS, FINDING_TAB_FILTERS, projectFindingTab } from "./finding-tab-projection";
 
 const findingOptions = checklistFindings.filter(value => value !== "Not applicable");
 const findingSchema = z.object({
+  findingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Finding Date is required"),
   clause: z.string().trim().min(1, "Clause is required"),
   auditArea: z.string().min(1, "Audit Area is required"),
   description: z.string(),
   auditFinding: z.enum(["Minor NC", "Moderate NC", "Major NC", "OFI"], { required_error: "Audit Findings is required" }),
+  riskLevel: z.enum(["Low", "Medium", "High"], { required_error: "Risk Level is required", invalid_type_error: "Risk Level is required" }),
   actionTakerId: z.string().min(1, "Action Taker is required"),
   recommendedPriorityAction: z.enum(findingPriorityActions).or(z.literal("")),
 }).superRefine((value, ctx) => {
@@ -46,14 +50,21 @@ const findingSchema = z.object({
 });
 type FindingForm = z.infer<typeof findingSchema>;
 const emptyForm = (): FindingForm => ({
-  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], actionTakerId: "", recommendedPriorityAction: "",
+  findingDate: "",
+  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], riskLevel: undefined as unknown as FindingForm["riskLevel"], actionTakerId: "", recommendedPriorityAction: "",
 });
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
 const supportedFile = (file: File) =>
   /\.(xlsx?|docx?|pdf|pptx?|png|jpe?g|gif|webp)$/i.test(file.name) ||
   file.type.startsWith("image/");
 
-export function FindingsGrid({ auditId, items }: { auditId: string; items: ChecklistItem[] }) {
+const ALL = "__all";
+const dash = <span className="text-muted-foreground">—</span>;
+const cell = "border-r border-b border-border/60 px-3 py-2 align-top";
+
+export function FindingsGrid({ auditId, items, auditTitle = "", registerRows, awaitingSubmission = true }: {
+  auditId: string; items: ChecklistItem[]; auditTitle?: string; registerRows?: readonly AuditFindingRegisterItem[] | null; awaitingSubmission?: boolean;
+}) {
   const permissions = useAuditCapabilities();
   const readOnly = !permissions.can("findings", "create_edit");
   const { toast } = useToast();
@@ -76,18 +87,37 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
   const uploadReference = useRef(crypto.randomUUID());
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const findings = items.filter(item => {
-    const classification = item.auditFinding || item.result;
-    return !!classification && classification.trim().toLowerCase() !== "not applicable";
-  });
+  const [filters, setFilters] = useState<FindingFilters>(EMPTY_FINDING_FILTERS);
   const filesById = new Map((evidence.data?.items ?? []).map(entry => [entry.id, entry]));
   const eligibleUsers = users.data ?? [];
   const userName = (id: string) => {
     const user = eligibleUsers.find(option => option.id === id);
-    return user ? user.fullName : `Assigned user ID: ${id} (not in active users)`;
+    const recordedName = registerRows?.filter(row => row.auditExecutionId === auditId)
+      .flatMap(row => row.actionTakers).find(person => person.id === id)?.name;
+    return user?.fullName || recordedName || `Assigned user ID: ${id} (not in active users)`;
   };
+  const rows = useMemo(() => projectFindingTab({
+    auditId, auditTitle, items, registerRows,
+    areaLabel: v => areas.options.find(a => a.value === v)?.label ?? v,
+    userName: id => eligibleUsers.find(u => u.id === id)?.fullName ?? null,
+  }), [auditId, auditTitle, items, registerRows, areas.options, eligibleUsers]);
+  const options = useMemo(() => findingFilterOptions(rows.map(r => r.reg)), [rows]);
+  const visible = useMemo(() => {
+    const keep = new Set(filterFindingRows(rows.map(r => r.reg), { ...filters, search: "" }).map(r => r.id));
+    return rows.filter(r => keep.has(r.reg.id));
+  }, [rows, filters]);
+  const optionList: Record<(typeof FINDING_TAB_FILTERS)[number][0], { value: string; label: string }[]> = {
+    auditTitle: options.auditTitles, projectDepartment: options.projectDepartments, auditArea: options.auditAreas,
+    findingType: options.findingTypes, riskLevel: options.riskLevels, auditTeamLead: options.leads, actionTaker: options.actionTakers,
+  };
+  const activeFilters = FINDING_TAB_FILTERS.filter(([k]) => filters[k]).length;
   const syncAudit = (updated: unknown) => {
-    qc.setQueryData(getGetAuditQueryKey(auditId), updated);
+    // Mutation responses omit read-only register metadata; keep the previous projection until refetch.
+    qc.setQueryData(getGetAuditQueryKey(auditId), (prev: unknown) => {
+      const before = prev as { findingRegister?: unknown } | undefined;
+      const next = updated as Record<string, unknown>;
+      return next && next.findingRegister === undefined && before?.findingRegister !== undefined ? { ...next, findingRegister: before.findingRegister } : next;
+    });
     void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
   };
   const reset = () => {
@@ -147,8 +177,10 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
         setUploadedId(fileId); // A failed record save can be retried without uploading the file twice.
       }
       const payload: AuditFindingItemInput = {
+        findingDate: values.findingDate,
         clause: values.clause, auditArea: values.auditArea, description: values.description.trim(),
         auditFinding: values.auditFinding, actionTakerId: values.actionTakerId,
+        riskLevel: values.riskLevel,
         recommendedPriorityAction: values.recommendedPriorityAction,
         evidenceIds: fileId ? [fileId] : [], clientReference: uploadReference.current,
       };
@@ -209,28 +241,55 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       <Button disabled={readOnly} type="button" data-testid="button-add-finding" onClick={() => setOpen(true)}><Plus className="mr-2 size-4" aria-hidden="true"/>Add Finding</Button>
     </CardHeader>
     <CardContent>
-      <div className="overflow-x-auto rounded-md border" role="region" aria-label="Audit findings spreadsheet" tabIndex={0}>
-        <Table className="min-w-[1240px] border-collapse text-sm">
-          <TableHeader><TableRow className="bg-muted/50">
-            {["Finding No.", "Clause", "Audit Area", "Description", "Audit Findings", "Evidence", "Action Taker", "Recommended priority actions"].map(column =>
-              <TableHead key={column} scope="col" className="h-10 border-r border-b border-border/60 px-3 text-xs font-semibold uppercase tracking-wide last:border-r-0">{column}</TableHead>)}
-          </TableRow></TableHeader>
-          <TableBody>
-            {findings.map(item => <TableRow key={item.id} data-testid={`row-finding-${item.id}`} className="hover:bg-muted/30">
-              <TableCell data-testid={`text-finding-number-${item.id}`} className="w-40 whitespace-nowrap border-r border-b border-border/60 px-3 align-top font-mono text-xs">{item.findingNumber || <span className="text-muted-foreground">Not numbered</span>}</TableCell>
-              <TableCell data-testid={`text-clause-${item.id}`} className="w-28 border-r border-b border-border/60 px-3 align-top font-medium">{item.clause || "—"}</TableCell>
-              <TableCell data-testid={`text-audit-area-${item.id}`} className="w-44 border-r border-b border-border/60 px-3 align-top">{areas.options.find(area => area.value === item.auditArea)?.label ?? item.auditArea ?? "—"}</TableCell>
-              <TableCell data-testid={`text-description-${item.id}`} className="min-w-64 max-w-sm whitespace-pre-wrap border-r border-b border-border/60 px-3 align-top">{item.description || item.notes || "—"}</TableCell>
-              <TableCell data-testid={`text-finding-${item.id}`} className="w-36 border-r border-b border-border/60 px-3 align-top font-medium">{item.auditFinding || item.result}</TableCell>
-              <TableCell className="w-48 border-r border-b border-border/60 px-3 align-top">
-                {item.evidenceIds?.length ? item.evidenceIds.map(id => {
-                  const entry = filesById.get(id);
-                  return entry?.storageUrl
-                    ? <button key={id} type="button" data-testid={`button-download-evidence-${item.id}-${id}`} className="mb-1 flex items-start gap-1.5 text-left text-primary underline-offset-2 hover:underline focus-visible:underline" onClick={() => void download(entry.storageUrl!, entry.fileName)}><Download className="mt-0.5 size-3.5 shrink-0" aria-hidden="true"/><span className="break-all">{entry.fileName}</span></button>
-                    : <span key={id} className="mb-1 block text-muted-foreground" data-testid={`text-unavailable-evidence-${item.id}-${id}`}>File unavailable ({id})</span>;
-                }) : "—"}
-              </TableCell>
-              <TableCell className="w-64 border-r border-b border-border/60 px-3 align-top">
+      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7" data-testid="finding-filters">
+        {FINDING_TAB_FILTERS.map(([key, label]) => <div key={key} className="space-y-1">
+          <label id={`finding-filter-label-${key}`} className="block break-words text-[11px] font-semibold uppercase leading-4 tracking-wide text-muted-foreground">{label}</label>
+          <Select value={filters[key] || ALL} onValueChange={v => setFilters(f => ({ ...f, [key]: v === ALL ? "" : v }))}>
+            <SelectTrigger aria-labelledby={`finding-filter-label-${key}`} data-testid={`filter-finding-${key}`} className="h-9"><SelectValue/></SelectTrigger>
+            <SelectContent><SelectItem value={ALL}>All</SelectItem>{optionList[key].map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>)}
+      </div>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span role="status" data-testid="text-finding-count">Showing {visible.length} of {rows.length} findings</span>
+        <Button type="button" size="sm" variant="ghost" data-testid="button-clear-finding-filters" disabled={!activeFilters} onClick={() => setFilters(EMPTY_FINDING_FILTERS)}><X className="mr-1 size-3.5" aria-hidden="true"/>Clear filters</Button>
+      </div>
+      <div className="overflow-x-auto rounded-md border" role="region" aria-label="Audit findings spreadsheet" tabIndex={0} data-testid="region-findings-scroll">
+        <table className="w-full min-w-[2100px] border-collapse text-sm">
+          <thead><tr className="bg-primary text-primary-foreground">
+            {FINDING_TAB_COLUMNS.map(column =>
+              <th key={column} scope="col" className="h-10 whitespace-nowrap border-r border-primary-foreground/20 px-3 text-left text-xs font-semibold uppercase tracking-wide last:border-r-0">{column}</th>)}
+          </tr></thead>
+          <tbody>
+            {visible.map(row => {
+              const r = row.reg;
+              const common = <>
+                <td data-testid={`text-audit-id-${row.key}`} className={`${cell} whitespace-nowrap font-mono text-xs`}>{r.auditId || dash}</td>
+                <td className={`${cell} min-w-48`}>{r.auditTitle || dash}</td>
+                <td className={`${cell} min-w-44`}>{r.projectDepartment || dash}</td>
+                <td data-testid={`text-clause-${row.key}`} className={`${cell} w-28 font-medium`}>{r.clauseReference || dash}</td>
+                <td data-testid={`text-audit-area-${row.key}`} className={`${cell} w-44`}>{r.auditArea || dash}</td>
+                <td data-testid={`text-description-${row.key}`} className={`${cell} min-w-64 max-w-sm whitespace-pre-wrap`}>{r.description || dash}</td>
+                <td data-testid={`text-finding-${row.key}`} className={`${cell} w-32 font-medium`}>{r.findingType || dash}</td>
+                <td data-testid={`text-risk-${row.key}`} className={`${cell} w-28`}>{r.riskLevel || dash}</td>
+                <td className={`${cell} min-w-40`}>{r.auditTeamLeadName || dash}</td>
+              </>;
+              if (row.kind === "legacy") return <tr key={row.key} data-testid={`row-legacy-finding-${row.key}`} className="bg-muted/20">
+                <td data-testid={`text-finding-number-${row.key}`} className={`${cell} w-40 whitespace-nowrap font-mono text-xs`}>{r.findingNumber || dash}
+                  <span className="mt-1 flex items-center gap-1 font-sans text-[11px] text-muted-foreground"><Lock className="size-3" aria-hidden="true"/>Legacy, read-only</span></td>
+                {common}
+                <td className={`${cell} min-w-56`}>{r.actionTakers.length ? r.actionTakers.map(a => a.name || a.id).join(", ") : dash}</td>
+                <td className={cell}>{dash}</td><td className={cell}>{dash}</td><td className="border-b border-border/60 px-3 py-2 align-top">{dash}</td>
+              </tr>;
+              const item = row.item;
+              const numberOnSubmission = awaitingSubmission && item.source !== "finding"
+                && !item.findingNumber?.trim()
+                && ["Minor NC", "Moderate NC", "Major NC", "OFI"].includes(item.auditFinding || item.result || "");
+              return <tr key={item.id} data-testid={`row-finding-${item.id}`} className="hover:bg-muted/30">
+              <td data-testid={`text-finding-number-${item.id}`} className={`${cell} w-40 whitespace-nowrap font-mono text-xs`}>{item.findingNumber?.trim() || <span className="block max-w-44 whitespace-normal font-sans text-muted-foreground">{numberOnSubmission ? "Finding ID will be generated on submission for approval." : "Not numbered"}</span>}
+              </td>
+              {common}
+              <td className={`${cell} w-64`}>
                 <Select value={assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId || ""} onValueChange={value => void assignUser(item, { actionTakerId: value })} disabled={readOnly || users.isLoading || !!users.error || !!assigningId || !eligibleUsers.length}>
                   <SelectTrigger data-testid={`select-action-taker-${item.id}`} aria-label={`Action Taker for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder={users.isLoading ? "Loading users…" : "Assign a user"}>{(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) ? userName(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId!) : undefined}</SelectValue></SelectTrigger>
                   <SelectContent>
@@ -240,8 +299,17 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                   </SelectContent>
                 </Select>
                 {assigningId === item.id && <span role="status" className="mt-1 block text-xs text-muted-foreground">Saving assignment…</span>}
-              </TableCell>
-              <TableCell className="min-w-64 border-b border-border/60 px-3 align-top">
+              </td>
+              <td className={`${cell} min-w-44`} data-testid={`finding-date-${item.id}`}><FindingDate auditId={auditId} itemId={item.id} value={item.findingDate} readOnly={readOnly}/></td>
+              <td className={`${cell} w-48`}>
+                {item.evidenceIds?.length ? item.evidenceIds.map(id => {
+                  const entry = filesById.get(id);
+                  return entry?.storageUrl
+                    ? <button key={id} type="button" data-testid={`button-download-evidence-${item.id}-${id}`} className="mb-1 flex items-start gap-1.5 text-left text-primary underline-offset-2 hover:underline focus-visible:underline" onClick={() => void download(entry.storageUrl!, entry.fileName)}><Download className="mt-0.5 size-3.5 shrink-0" aria-hidden="true"/><span className="break-all">{entry.fileName}</span></button>
+                    : <span key={id} className="mb-1 block text-muted-foreground" data-testid={`text-unavailable-evidence-${item.id}-${id}`}>File unavailable ({id})</span>;
+                }) : dash}
+              </td>
+              <td className="min-w-64 border-b border-border/60 px-3 py-2 align-top">
                 <Select value={assignmentDrafts[item.id]?.recommendedPriorityAction || item.recommendedPriorityAction || ""}
                   onValueChange={value => void assignUser(item, { recommendedPriorityAction: value as FindingPriorityAction })}
                   disabled={readOnly || !!assigningId || !(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) || users.isLoading || !!users.error}>
@@ -250,15 +318,21 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                 </Select>
                 {assignmentDrafts[item.id] && !assignmentDrafts[item.id].recommendedPriorityAction && <p role="alert" className="mt-1 text-xs text-destructive">Select a priority action to save this assignment.</p>}
                 {assignmentDrafts[item.id]?.recommendedPriorityAction && assigningId !== item.id && <p className="mt-1 text-xs text-muted-foreground">Unsaved changes. <button type="button" className="underline" onClick={() => void assignUser(item, {})}>Retry save</button></p>}
-              </TableCell>
-            </TableRow>)}
-            {!findings.length && <TableRow><TableCell colSpan={8} className="py-12 text-center">
+              </td>
+            </tr>;
+            })}
+            {!visible.length && <tr><td colSpan={FINDING_TAB_COLUMNS.length} className="py-12 text-center">
               <FileText className="mx-auto mb-3 size-7 text-muted-foreground" aria-hidden="true"/>
-              <p data-testid="text-no-findings" className="font-medium">No findings recorded yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">Add a finding here, or record one while completing the checklist.</p>
-            </TableCell></TableRow>}
-          </TableBody>
-        </Table>
+              {rows.length ? <>
+                <p data-testid="text-no-matching-findings" className="font-medium">No findings match these filters</p>
+                <p className="mt-1 text-sm text-muted-foreground">Clear one or more filters to see more findings.</p>
+              </> : <>
+                <p data-testid="text-no-findings" className="font-medium">No findings recorded yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">Add a finding here, or record one while completing the checklist.</p>
+              </>}
+            </td></tr>}
+          </tbody>
+        </table>
       </div>
       {(users.error || areas.error || evidence.error) && <div role="alert" data-testid="status-findings-error" className="mt-3 flex flex-wrap items-center gap-2 text-sm text-destructive">
         Some finding details could not be loaded.
@@ -268,12 +342,14 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
     </CardContent>
     <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl" onEscapeKeyDown={event => { if (saving) event.preventDefault(); }} onInteractOutside={event => { if (saving) event.preventDefault(); }}>
-        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. The Audit Finding number is assigned by the server on successful Save Finding, based on the finding type, the source from the linked Plan and the linked Schedule From Date year.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. CAR due dates use Finding Date: Major NC +2 days, Minor NC +3 days, OFI +4 days. Finding numbering still uses the linked Schedule From Date year.</DialogDescription></DialogHeader>
         <Form {...form}><form onSubmit={event => void save(event)} className="space-y-4">
+          <FormField control={form.control} name="findingDate" render={({ field }) => <FormItem><FormLabel>Finding Date *</FormLabel><FormControl><Input {...field} type="date" required data-testid="input-finding-date"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="clause" render={({ field }) => <FormItem><FormLabel>Clause *</FormLabel><FormControl><Input {...field} data-testid="input-finding-clause" placeholder="Enter audit clause" autoFocus/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="auditArea" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Area *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={areas.isLoading || !!areas.error || !areas.options.length}><FormControl><SelectTrigger data-testid="select-finding-audit-area" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select Audit Area"/></SelectTrigger></FormControl><SelectContent>{areas.options.map(area => <SelectItem key={area.value} value={area.value}>{area.label}</SelectItem>)}</SelectContent></Select><FormMessage/>{areas.error && <p className="text-sm text-destructive">Unable to load Audit Areas. <button type="button" data-testid="button-retry-audit-areas" className="underline" onClick={() => void areas.refetch()}>Retry</button></p>}{!areas.isLoading && !areas.error && !areas.options.length && <p className="text-sm text-muted-foreground">No active Audit Areas are configured.</p>}</FormItem>}/>
           <FormField control={form.control} name="description" render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} data-testid="input-finding-description" rows={3} placeholder="Describe what was observed"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="auditFinding" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Findings *</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-classification" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select a finding"/></SelectTrigger></FormControl><SelectContent>{findingOptions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
+          <FormField control={form.control} name="riskLevel" render={({ field }) => <FormItem><FormLabel>Risk Level *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-risk-level" aria-required="true"><SelectValue placeholder="Select risk level"/></SelectTrigger></FormControl><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="actionTakerId" render={({ field, fieldState }) => <FormItem><FormLabel>Action Taker *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={users.isLoading || !!users.error || !eligibleUsers.length}><FormControl><SelectTrigger data-testid="select-finding-action-taker" aria-invalid={!!fieldState.error}><SelectValue placeholder={users.isLoading ? "Loading Audit users…" : "Select an Audit user"}/></SelectTrigger></FormControl><SelectContent>{eligibleUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><FormMessage/>{users.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" data-testid="button-retry-audit-users" className="underline" onClick={() => void users.refetch()}>Retry</button></p>}{!users.isLoading && !users.error && !eligibleUsers.length && <p className="text-sm text-muted-foreground">No eligible Audit users are available.</p>}</FormItem>}/>
           <FormField control={form.control} name="recommendedPriorityAction" render={({ field, fieldState }) => <FormItem>
             <FormLabel>Recommended priority actions{form.watch("actionTakerId") ? " *" : ""}</FormLabel>

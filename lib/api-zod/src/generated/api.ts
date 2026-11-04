@@ -8,6 +8,189 @@
 import * as zod from 'zod';
 
 
+export const getCsatNumberingResponsePatternPrefixMax = 80;
+
+export const getCsatNumberingResponsePatternSeparatorMax = 80;
+
+export const getCsatNumberingResponsePatternPaddingMax = 12;
+
+
+
+export const GetCsatNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getCsatNumberingResponsePatternPrefixMax),
+  "separator": zod.string().max(getCsatNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getCsatNumberingResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+export const updateCsatNumberingBodyPrefixMax = 80;
+
+export const updateCsatNumberingBodySeparatorMax = 80;
+
+export const updateCsatNumberingBodyPaddingMax = 12;
+
+
+
+export const UpdateCsatNumberingBody = zod.object({
+  "prefix": zod.string().max(updateCsatNumberingBodyPrefixMax),
+  "separator": zod.string().max(updateCsatNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberingBodyPaddingMax)
+})
+
+export const updateCsatNumberingResponsePrefixMax = 80;
+
+export const updateCsatNumberingResponseSeparatorMax = 80;
+
+export const updateCsatNumberingResponsePaddingMax = 12;
+
+
+
+export const UpdateCsatNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateCsatNumberingResponsePrefixMax),
+  "separator": zod.string().max(updateCsatNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberingResponsePaddingMax)
+})
+
+
+
+export const updateCsatNumberRangeBodyYearMin = 1900;
+export const updateCsatNumberRangeBodyYearMax = 9999;
+
+export const updateCsatNumberRangeBodyLastNumberMin = 0;
+export const updateCsatNumberRangeBodyLastNumberMax = 999999999998;
+
+
+
+export const UpdateCsatNumberRangeBody = zod.object({
+  "projectId": zod.string().min(1),
+  "year": zod.number().min(updateCsatNumberRangeBodyYearMin).max(updateCsatNumberRangeBodyYearMax),
+  "lastNumber": zod.number().min(updateCsatNumberRangeBodyLastNumberMin).max(updateCsatNumberRangeBodyLastNumberMax)
+})
+
+export const updateCsatNumberRangeResponsePatternPrefixMax = 80;
+
+export const updateCsatNumberRangeResponsePatternSeparatorMax = 80;
+
+export const updateCsatNumberRangeResponsePatternPaddingMax = 12;
+
+
+
+export const UpdateCsatNumberRangeResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(updateCsatNumberRangeResponsePatternPrefixMax),
+  "separator": zod.string().max(updateCsatNumberRangeResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberRangeResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+export const GetDailyOpeningProjectsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "label": zod.string(),
+  "loaded": zod.boolean(),
+  "blocked": zod.boolean(),
+  "goLiveDate": zod.string().nullable(),
+  "reason": zod.string().optional()
+})).optional(),
+  "fields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string()
+})).optional()
+})
+
+
+export const saveDailyOpeningManualBodyReasonMin = 3;
+export const saveDailyOpeningManualBodyReasonMax = 1000;
+
+
+
+export const SaveDailyOpeningManualBody = zod.object({
+  "confirmed": zod.literal(true),
+  "projectId": zod.string(),
+  "goLiveDate": zod.string(),
+  "reason": zod.string().min(saveDailyOpeningManualBodyReasonMin).max(saveDailyOpeningManualBodyReasonMax),
+  "data": zod.record(zod.string(), zod.unknown())
+})
+
+export const SaveDailyOpeningManualResponse = zod.object({
+  "applied": zod.number()
+})
+
+
+export const DownloadDailyOpeningTemplateQueryParams = zod.object({
+  "goLiveDate": zod.coerce.string()
+})
+
+export const DownloadDailyOpeningTemplateResponse = zod.unknown()
+
+
+export const previewDailyOpeningWorkbookBodyFileBase64Max = 2800000;
+
+
+
+export const PreviewDailyOpeningWorkbookBody = zod.object({
+  "fileBase64": zod.string().max(previewDailyOpeningWorkbookBodyFileBase64Max)
+})
+
+export const PreviewDailyOpeningWorkbookResponse = zod.object({
+  "valid": zod.boolean(),
+  "rows": zod.array(zod.object({
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "goLiveDate": zod.string(),
+  "reason": zod.string(),
+  "rowNumber": zod.number(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "errors": zod.array(zod.string()).optional()
+})),
+  "errors": zod.array(zod.string()),
+  "fields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string()
+}))
+})
+
+
+export const applyDailyOpeningWorkbookBodyItemsMax = 500;
+
+
+
+export const ApplyDailyOpeningWorkbookBody = zod.object({
+  "confirmed": zod.literal(true),
+  "items": zod.array(zod.object({
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "goLiveDate": zod.string(),
+  "reason": zod.string(),
+  "rowNumber": zod.number(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "errors": zod.array(zod.string()).optional()
+})).min(1).max(applyDailyOpeningWorkbookBodyItemsMax)
+})
+
+export const ApplyDailyOpeningWorkbookResponse = zod.object({
+  "applied": zod.number().optional()
+})
+
+
 export const GetQaqcHistoricalBulkTemplateQueryParams = zod.object({
   "period": zod.coerce.string()
 })
@@ -124,6 +307,35 @@ export const GetQaqcHistoricalTemplateQueryParams = zod.object({
 })
 
 export const GetQaqcHistoricalTemplateResponse = zod.unknown()
+
+
+export const GetQaqcConsolidatedDashboardQueryParams = zod.object({
+  "view": zod.enum(['monthly', 'daily']).optional(),
+  "period": zod.coerce.string().optional(),
+  "date": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "mode": zod.enum(['cumulative', 'movement']).optional(),
+  "projectId": zod.coerce.string().optional(),
+  "sbg": zod.coerce.string().optional(),
+  "bu": zod.coerce.string().optional(),
+  "projectGroup": zod.coerce.string().optional()
+})
+
+export const GetQaqcConsolidatedDashboardResponse = zod.object({
+  "view": zod.enum(['monthly', 'daily']),
+  "period": zod.string(),
+  "mode": zod.enum(['cumulative', 'movement']),
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "projects": zod.array(zod.record(zod.string(), zod.unknown())),
+  "periods": zod.array(zod.string()),
+  "coverage": zod.record(zod.string(), zod.unknown()),
+  "monthly": zod.record(zod.string(), zod.unknown()),
+  "daily": zod.record(zod.string(), zod.unknown()),
+  "records": zod.array(zod.record(zod.string(), zod.unknown())),
+  "warnings": zod.array(zod.string())
+})
 
 
 /**
@@ -445,6 +657,20 @@ export const ListDronaProjectMasterQueryParams = zod.object({
   "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
 })
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataSbgMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataBuMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataProjectGroupMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractValueMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataPtsNumberMax = 500;
+
 export const listDronaProjectMasterResponseItemsItemAdditionalDataNameMax = 500;
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataClientMax = 500;
@@ -495,6 +721,13 @@ export const ListDronaProjectMasterResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataProjectGroupMax).nullish(),
+  "consultant": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataNameMax).nullish(),
   "client": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax).nullable(),
@@ -568,6 +801,20 @@ export const GetProjectAdditionalDataParams = zod.object({
   "projectId": zod.coerce.string().regex(getProjectAdditionalDataPathProjectIdRegExp)
 })
 
+export const getProjectAdditionalDataResponseAdditionalDataSbgMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataBuMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataProjectGroupMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataProjectManagerMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataContractValueMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataPtsNumberMax = 500;
+
 export const getProjectAdditionalDataResponseAdditionalDataNameMax = 500;
 
 export const getProjectAdditionalDataResponseAdditionalDataClientMax = 500;
@@ -617,6 +864,13 @@ export const GetProjectAdditionalDataResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(getProjectAdditionalDataResponseAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(getProjectAdditionalDataResponseAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(getProjectAdditionalDataResponseAdditionalDataProjectGroupMax).nullish(),
+  "consultant": zod.string().max(getProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(getProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(getProjectAdditionalDataResponseAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(getProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
   "client": zod.string().max(getProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
@@ -661,6 +915,20 @@ export const UpdateProjectAdditionalDataParams = zod.object({
 })
 
 export const updateProjectAdditionalDataBodyCostCentreMax = 100;
+
+export const updateProjectAdditionalDataBodyAdditionalDataSbgMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataBuMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataProjectGroupMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataConsultantMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataProjectManagerMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataContractValueMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataPtsNumberMax = 500;
 
 export const updateProjectAdditionalDataBodyAdditionalDataNameMax = 500;
 
@@ -707,6 +975,13 @@ export const updateProjectAdditionalDataBodyClosureTargetsPqiMax = 100;
 export const UpdateProjectAdditionalDataBody = zod.object({
   "costCentre": zod.string().max(updateProjectAdditionalDataBodyCostCentreMax).nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataProjectGroupMax).nullish(),
+  "consultant": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractorMax).nullable(),
@@ -727,6 +1002,20 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "pqi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsPqiMin).max(updateProjectAdditionalDataBodyClosureTargetsPqiMax).nullish()
 }).optional()
 })
+
+export const updateProjectAdditionalDataResponseAdditionalDataSbgMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataBuMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataProjectGroupMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataProjectManagerMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataContractValueMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataPtsNumberMax = 500;
 
 export const updateProjectAdditionalDataResponseAdditionalDataNameMax = 500;
 
@@ -774,6 +1063,13 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "id": zod.string(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataProjectGroupMax).nullish(),
+  "consultant": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
@@ -795,6 +1091,21 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
 }).optional(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary List active Department Master options within application administration scope
+ */
+export const ListRoleAssignmentDepartmentsQueryParams = zod.object({
+  "application": zod.enum(['qaqc', 'lessons', 'audit'])
+})
+
+export const ListRoleAssignmentDepartmentsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "code": zod.string()
+})
+export const ListRoleAssignmentDepartmentsResponse = zod.array(ListRoleAssignmentDepartmentsResponseItem)
 
 
 /**
@@ -5042,7 +5353,7 @@ export const ListQaqcRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5067,7 +5378,7 @@ export const CreateQaqcRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(createQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5097,7 +5408,7 @@ export const UpdateQaqcRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(updateQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5152,7 +5463,7 @@ export const ListQaqcUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5204,7 +5515,7 @@ export const AssignQaqcUserRoleParams = zod.object({
 
 export const AssignQaqcUserRoleBody = zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 })
 
@@ -5258,7 +5569,7 @@ export const ListQaqcAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
@@ -6205,6 +6516,27 @@ export const ListLessonFormActivityResponse = zod.object({
 
 
 /**
+ * @summary Complete approval history for an authorized lesson, newest first
+ */
+export const GetLessonApprovalHistoryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetLessonApprovalHistoryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actorId": zod.string().nullish(),
+  "actorName": zod.string(),
+  "actorDesignation": zod.string().nullish(),
+  "occurredAt": zod.coerce.date(),
+  "comments": zod.string().nullish(),
+  "signatureUrl": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Create photo upload intent; maximum five per category
  */
 export const CreateLessonPhotoIntentParams = zod.object({
@@ -6697,7 +7029,7 @@ export const ListLessonsRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6722,7 +7054,7 @@ export const CreateLessonsRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(createLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6752,7 +7084,7 @@ export const UpdateLessonsRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(updateLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6807,7 +7139,7 @@ export const ListLessonsUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6909,7 +7241,7 @@ export const ListLessonsAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
@@ -7784,6 +8116,7 @@ export const CreateAuditProgrammeResponse = zod.object({
  * @summary List active Audit users assigned a role marked Audit Team Lead
  */
 export const ListAuditTeamLeadsResponseItem = zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
@@ -7797,6 +8130,7 @@ export const ListAuditTeamLeadsResponse = zod.array(ListAuditTeamLeadsResponseIt
  * @summary List active Audit users assigned a role marked Product / Process Owner
  */
 export const ListAuditProcessProductOwnersResponseItem = zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
@@ -8401,6 +8735,8 @@ export const ListAuditPlansResponse = zod.object({
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
+  "auditMethods": zod.array(zod.enum(['Interviews', 'Observation of activities', 'Sample-based review of records', 'Site / store walk-down', 'Supplier or third-party verification'])).optional(),
+  "auditCriteria": zod.array(zod.enum(['ISO 9001:2015', 'ISO 45001:2018', 'ISO/IEC 17025:2017', 'Client specifications (e.g. PTS, SOW)', 'Project Quality Plan', 'Company procedures: [list]', 'Approved drawings and specifications'])).optional().describe('Dedicated criteria selections, independent of legacy criteria and Audit Type'),
   "qaqcReference": zod.string(),
   "description": zod.string().nullish(),
   "startDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
@@ -8474,6 +8810,8 @@ export const CreateAuditPlanBody = zod.object({
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
+  "auditMethods": zod.array(zod.enum(['Interviews', 'Observation of activities', 'Sample-based review of records', 'Site / store walk-down', 'Supplier or third-party verification'])).optional(),
+  "auditCriteria": zod.array(zod.enum(['ISO 9001:2015', 'ISO 45001:2018', 'ISO/IEC 17025:2017', 'Client specifications (e.g. PTS, SOW)', 'Project Quality Plan', 'Company procedures: [list]', 'Approved drawings and specifications'])).optional().describe('Dedicated criteria selections, independent of legacy criteria and Audit Type'),
   "qaqcReference": zod.string(),
   "description": zod.string().nullish(),
   "startDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
@@ -8513,8 +8851,15 @@ export const CreateAuditPlanBody = zod.object({
 export const CreateAuditPlanResponse = zod.void()
 
 
+export const GetAuditScheduleActivityOptionsQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "department": zod.coerce.string().optional(),
+  "retainedScheduleId": zod.coerce.string().optional()
+})
+
 export const GetAuditScheduleActivityOptionsResponse = zod.object({
   "users": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
@@ -8522,19 +8867,48 @@ export const GetAuditScheduleActivityOptionsResponse = zod.object({
   "roles": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string()
-}))
+})),
+  "historicalUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional()
 })
 
 
 /**
- * @summary List active organization users available to Audit Plan master fields
+ * @summary List eligible Audit participants for an authorized individual audit
  */
+export const GetAuditPlanOptionsQueryParams = zod.object({
+  "scheduleId": zod.coerce.string()
+})
+
 export const GetAuditPlanOptionsResponse = zod.object({
   "users": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
-}))
+})),
+  "historicalUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional(),
+  "leadUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional(),
+  "teamUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional()
 })
 
 
@@ -8552,7 +8926,7 @@ export const ListAuditPlanNotificationRolesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMax).multipleOf(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -8603,6 +8977,8 @@ export const GetAuditPlanResponse = zod.object({
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
+  "auditMethods": zod.array(zod.enum(['Interviews', 'Observation of activities', 'Sample-based review of records', 'Site / store walk-down', 'Supplier or third-party verification'])).optional(),
+  "auditCriteria": zod.array(zod.enum(['ISO 9001:2015', 'ISO 45001:2018', 'ISO/IEC 17025:2017', 'Client specifications (e.g. PTS, SOW)', 'Project Quality Plan', 'Company procedures: [list]', 'Approved drawings and specifications'])).optional().describe('Dedicated criteria selections, independent of legacy criteria and Audit Type'),
   "qaqcReference": zod.string(),
   "description": zod.string().nullish(),
   "startDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
@@ -8679,6 +9055,8 @@ export const UpdateAuditPlanBody = zod.object({
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
+  "auditMethods": zod.array(zod.enum(['Interviews', 'Observation of activities', 'Sample-based review of records', 'Site / store walk-down', 'Supplier or third-party verification'])).optional(),
+  "auditCriteria": zod.array(zod.enum(['ISO 9001:2015', 'ISO 45001:2018', 'ISO/IEC 17025:2017', 'Client specifications (e.g. PTS, SOW)', 'Project Quality Plan', 'Company procedures: [list]', 'Approved drawings and specifications'])).optional().describe('Dedicated criteria selections, independent of legacy criteria and Audit Type'),
   "qaqcReference": zod.string(),
   "description": zod.string().nullish(),
   "startDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
@@ -8748,6 +9126,8 @@ export const UpdateAuditPlanResponse = zod.object({
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
+  "auditMethods": zod.array(zod.enum(['Interviews', 'Observation of activities', 'Sample-based review of records', 'Site / store walk-down', 'Supplier or third-party verification'])).optional(),
+  "auditCriteria": zod.array(zod.enum(['ISO 9001:2015', 'ISO 45001:2018', 'ISO/IEC 17025:2017', 'Client specifications (e.g. PTS, SOW)', 'Project Quality Plan', 'Company procedures: [list]', 'Approved drawings and specifications'])).optional().describe('Dedicated criteria selections, independent of legacy criteria and Audit Type'),
   "qaqcReference": zod.string(),
   "description": zod.string().nullish(),
   "startDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
@@ -8820,15 +9200,21 @@ export const ExportAuditPlanReportResponse = zod.unknown()
 
 
 /**
- * @summary Send an Audit Plan to Audit Execution and inform selected roles
+ * @summary Send an Audit Plan to Audit Execution and inform saved circulation roles
  */
 export const SendAuditPlanForExecutionParams = zod.object({
   "id": zod.coerce.string()
 })
 
 export const SendAuditPlanForExecutionBody = zod.object({
-  "roleIds": zod.array(zod.string())
+  "roleIds": zod.array(zod.string()).optional().describe('Legacy input, ignored. Recipients are derived from saved Audit Plan Circulation.')
 })
+
+export const sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin = 0;
+export const sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMin = 0;
+export const sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -8880,32 +9266,87 @@ export const sendAuditPlanForExecutionResponseReportDetailsRowsMaxOne = 200;
 
 export const SendAuditPlanForExecutionResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -8982,6 +9423,12 @@ export const listAuditsResponseOneTotalMin = 0;
 
 
 
+export const listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMin = 0;
+export const listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMultipleOf = 1;
+
+export const listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMin = 0;
+export const listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9037,32 +9484,87 @@ export const ListAuditsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9175,29 +9677,33 @@ export const createAuditBodyReportDetailsRowsMaxOne = 200;
 export const CreateAuditBody = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9264,6 +9770,12 @@ export const GetAuditParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getAuditResponseExecutionSummaryFindingCountMin = 0;
+export const getAuditResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const getAuditResponseExecutionSummaryOpenFindingCountMin = 0;
+export const getAuditResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const getAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const getAuditResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9314,32 +9826,87 @@ export const getAuditResponseReportDetailsRowsMaxOne = 200;
 
 export const GetAuditResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(getAuditResponseExecutionSummaryFindingCountMin).multipleOf(getAuditResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(getAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(getAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9455,29 +10022,33 @@ export const updateAuditBodyReportDetailsRowsMaxOne = 200;
 export const UpdateAuditBody = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9555,6 +10126,7 @@ export const ListAuditMeetingAttendeesParams = zod.object({
 })
 
 export const ListAuditMeetingAttendeesResponseItem = zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
@@ -9568,6 +10140,12 @@ export const ListAuditMeetingAttendeesResponse = zod.array(ListAuditMeetingAtten
 export const CompleteAuditParams = zod.object({
   "id": zod.coerce.string()
 })
+
+export const completeAuditResponseExecutionSummaryFindingCountMin = 0;
+export const completeAuditResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const completeAuditResponseExecutionSummaryOpenFindingCountMin = 0;
+export const completeAuditResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const completeAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -9619,32 +10197,87 @@ export const completeAuditResponseReportDetailsRowsMaxOne = 200;
 
 export const CompleteAuditResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(completeAuditResponseExecutionSummaryFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(completeAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9703,6 +10336,216 @@ export const CompleteAuditResponse = zod.object({
 
 
 /**
+ * @summary Approve the current Audit Report level or send the report back for correction
+ */
+export const ReviewAuditReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const reviewAuditReportBodyRemarksMax = 4000;
+
+
+
+export const ReviewAuditReportBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "remarks": zod.string().max(reviewAuditReportBodyRemarksMax).optional()
+})
+
+export const reviewAuditReportResponseExecutionSummaryFindingCountMin = 0;
+export const reviewAuditReportResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const reviewAuditReportResponseExecutionSummaryOpenFindingCountMin = 0;
+export const reviewAuditReportResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const reviewAuditReportResponseReportDetailsValuesMaxOne = 10000;
+
+export const reviewAuditReportResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const reviewAuditReportResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const ReviewAuditReportResponse = zod.object({
+  "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryOpenFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
+  "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "findingDate": zod.string().nullish(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMin).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMin).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(reviewAuditReportResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(reviewAuditReportResponseReportDetailsRowsItemMaxOne))).max(reviewAuditReportResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Save editable report-only details
  */
 export const SaveAuditReportDetailsParams = zod.object({
@@ -9721,6 +10564,12 @@ export const SaveAuditReportDetailsBody = zod.object({
   "values": zod.record(zod.string(), zod.string().max(saveAuditReportDetailsBodyValuesMaxOne)),
   "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(saveAuditReportDetailsBodyRowsItemMaxOne))).max(saveAuditReportDetailsBodyRowsMaxOne))
 })
+
+export const saveAuditReportDetailsResponseExecutionSummaryFindingCountMin = 0;
+export const saveAuditReportDetailsResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMin = 0;
+export const saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -9772,32 +10621,87 @@ export const saveAuditReportDetailsResponseReportDetailsRowsMaxOne = 200;
 
 export const SaveAuditReportDetailsResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9918,11 +10822,13 @@ export const UpdateAuditChecklistParams = zod.object({
 
 export const UpdateAuditChecklistBodyItem = zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -9954,8 +10860,15 @@ export const CreateAuditChecklistItemBody = zod.object({
   "question": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional()
 })
+
+export const createAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const createAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -10007,32 +10920,87 @@ export const createAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const CreateAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10109,8 +11077,15 @@ export const EditAuditChecklistItemBody = zod.object({
   "question": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional()
 })
+
+export const editAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const editAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -10162,32 +11137,87 @@ export const editAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const EditAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10256,6 +11286,12 @@ export const DeleteAuditChecklistItemParams = zod.object({
   "itemId": zod.coerce.string().min(1)
 })
 
+export const deleteAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const deleteAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10306,32 +11342,87 @@ export const deleteAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const DeleteAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10412,6 +11503,12 @@ export const ImportAuditChecklistItemsBodyItem = zod.object({
 })
 export const ImportAuditChecklistItemsBody = zod.array(ImportAuditChecklistItemsBodyItem).min(1).max(500)
 
+export const importAuditChecklistItemsResponseExecutionSummaryFindingCountMin = 0;
+export const importAuditChecklistItemsResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMin = 0;
+export const importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10462,32 +11559,87 @@ export const importAuditChecklistItemsResponseReportDetailsRowsMaxOne = 200;
 
 export const ImportAuditChecklistItemsResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10552,6 +11704,7 @@ export const CreateAuditFindingItemParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const createAuditFindingItemBodyFindingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const createAuditFindingItemBodyClientReferenceMax = 100;
@@ -10559,15 +11712,23 @@ export const createAuditFindingItemBodyClientReferenceMax = 100;
 
 
 export const CreateAuditFindingItemBody = zod.object({
+  "findingDate": zod.string().regex(createAuditFindingItemBodyFindingDateRegExp).optional(),
   "clause": zod.string().min(1),
   "auditArea": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional(),
   "actionTakerId": zod.string(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']),
   "clientReference": zod.string().min(1).max(createAuditFindingItemBodyClientReferenceMax).optional()
 })
+
+export const createAuditFindingItemResponseExecutionSummaryFindingCountMin = 0;
+export const createAuditFindingItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const createAuditFindingItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const createAuditFindingItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -10619,32 +11780,87 @@ export const createAuditFindingItemResponseReportDetailsRowsMaxOne = 200;
 
 export const CreateAuditFindingItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10715,6 +11931,12 @@ export const AssignAuditFindingActionTakerBody = zod.object({
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional().describe('Required if the finding has no existing priority action; saved together with the Action Taker')
 })
 
+export const assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMin = 0;
+export const assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMin = 0;
+export const assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10765,32 +11987,87 @@ export const assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne = 200;
 
 export const AssignAuditFindingActionTakerResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -10848,6 +12125,212 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
 })
 
 
+export const UpdateAuditFindingDateParams = zod.object({
+  "id": zod.coerce.string(),
+  "itemId": zod.coerce.string()
+})
+
+export const updateAuditFindingDateBodyFindingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateAuditFindingDateBody = zod.object({
+  "findingDate": zod.string().regex(updateAuditFindingDateBodyFindingDateRegExp)
+})
+
+export const updateAuditFindingDateResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditFindingDateResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const updateAuditFindingDateResponseReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditFindingDateResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditFindingDateResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const UpdateAuditFindingDateResponse = zod.object({
+  "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
+  "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "findingDate": zod.string().nullish(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditFindingDateResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditFindingDateResponseReportDetailsRowsItemMaxOne))).max(updateAuditFindingDateResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
 /**
  * @summary Attach or replace the single organization chart
  */
@@ -10862,6 +12345,12 @@ export const ReplaceAuditOrganizationChartBody = zod.object({
   "evidenceId": zod.string().min(1),
   "previousId": zod.string().nullable()
 })
+
+export const replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMin = 0;
+export const replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMin = 0;
+export const replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
@@ -10913,32 +12402,87 @@ export const replaceAuditOrganizationChartResponseReportDetailsRowsMaxOne = 200;
 
 export const ReplaceAuditOrganizationChartResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -11028,6 +12572,12 @@ export const UpdateAuditGoodPracticesBody = zod.object({
 })).max(updateAuditGoodPracticesBodyRowsMax)
 })
 
+export const updateAuditGoodPracticesResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditGoodPracticesResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11078,32 +12628,87 @@ export const updateAuditGoodPracticesResponseReportDetailsRowsMaxOne = 200;
 
 export const UpdateAuditGoodPracticesResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -11196,6 +12801,12 @@ export const UpdateAuditOverallProjectProgressBody = zod.object({
 })).min(updateAuditOverallProjectProgressBodyRowsMin).max(updateAuditOverallProjectProgressBodyRowsMax)
 })
 
+export const updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11246,32 +12857,87 @@ export const updateAuditOverallProjectProgressResponseReportDetailsRowsMaxOne = 
 
 export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -11362,6 +13028,12 @@ export const UpdateAuditDocumentStatusBody = zod.object({
   "remarks": zod.string().max(updateAuditDocumentStatusBodyRemarksMax).optional()
 })
 
+export const updateAuditDocumentStatusResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditDocumentStatusResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11412,32 +13084,87 @@ export const updateAuditDocumentStatusResponseReportDetailsRowsMaxOne = 200;
 
 export const UpdateAuditDocumentStatusResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -11644,6 +13371,18 @@ export const CreateFindingCarsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11652,7 +13391,7 @@ export const CreateFindingCarsResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11699,6 +13438,18 @@ export const ListCorrectiveActionReportsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11707,7 +13458,7 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11733,6 +13484,11 @@ export const listCarRegisterQueryLimitMax = 200;
 
 
 export const ListCarRegisterQueryParams = zod.object({
+  "carNumber": zod.coerce.string().optional(),
+  "projectDepartment": zod.coerce.string().optional(),
+  "findingType": zod.coerce.string().optional(),
+  "riskLevel": zod.coerce.string().optional(),
+  "actionTakerId": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
   "scheduleId": zod.coerce.string().optional(),
   "auditTitle": zod.coerce.string().optional(),
@@ -11760,6 +13516,15 @@ export const ListCarRegisterResponse = zod.object({
   "auditArea": zod.string(),
   "description": zod.string(),
   "classification": zod.string(),
+  "findingNumber": zod.string().nullish(),
+  "riskLevel": zod.string().nullish(),
+  "actionTakerId": zod.string().nullish(),
+  "assignedAt": zod.coerce.date().nullish(),
+  "actualClosedAt": zod.coerce.date().nullish(),
+  "pendingWith": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "canNumber": zod.boolean().optional(),
   "actionTakerName": zod.string(),
   "evidenceIds": zod.array(zod.string()),
   "status": zod.string(),
@@ -11768,6 +13533,18 @@ export const ListCarRegisterResponse = zod.object({
   "legacy": zod.boolean().optional(),
   "car": zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11776,7 +13553,7 @@ export const ListCarRegisterResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11814,7 +13591,31 @@ export const ListCarRegisterResponse = zod.object({
   "departments": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string()
-}))
+})),
+  "carNumbers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "projectDepartments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "auditFindings": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "riskLevels": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "statuses": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional()
 })
 
 
@@ -11838,6 +13639,18 @@ export const StartFindingCarBody = zod.object({
 
 export const StartFindingCarResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11846,7 +13659,7 @@ export const StartFindingCarResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11869,6 +13682,18 @@ export const OpenCarEditSessionParams = zod.object({
 
 export const OpenCarEditSessionResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11877,7 +13702,7 @@ export const OpenCarEditSessionResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11930,6 +13755,18 @@ export const GetCorrectiveActionReportParams = zod.object({
 
 export const GetCorrectiveActionReportResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11938,7 +13775,7 @@ export const GetCorrectiveActionReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11973,6 +13810,18 @@ export const UpdateCorrectiveActionReportBody = zod.object({
 
 export const UpdateCorrectiveActionReportResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11981,7 +13830,7 @@ export const UpdateCorrectiveActionReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -11999,17 +13848,99 @@ export const UpdateCorrectiveActionReportResponse = zod.object({
 
 
 /**
- * @summary Submit CAR
+ * @summary Issue a missing number for an existing saved CAR without changing its workflow
+ */
+export const GenerateMissingCarNumberParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GenerateMissingCarNumberResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date().nullable(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Submit CAR for configured approval
  */
 export const SubmitCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const SubmitCorrectiveActionReportResponse = zod.unknown()
+export const SubmitCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date().nullable(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
 
 
 /**
- * @summary Team Lead closes or returns CAR
+ * @summary Review CAR at its pending approval level
  */
 export const ReviewCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
@@ -12020,7 +13951,43 @@ export const ReviewCorrectiveActionReportBody = zod.object({
   "comments": zod.string().nullish()
 })
 
-export const ReviewCorrectiveActionReportResponse = zod.unknown()
+export const ReviewCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date().nullable(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
 
 
 /**
@@ -12169,6 +14136,48 @@ export const GetAuditOpenVsClosedReportResponse = zod.object({
 
 
 /**
+ * @summary Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+ */
+export const listAuditFindingRegisterQueryPageDefault = 1;
+
+export const listAuditFindingRegisterQueryLimitDefault = 20;
+export const listAuditFindingRegisterQueryLimitMax = 200;
+
+
+
+export const ListAuditFindingRegisterQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditFindingRegisterQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditFindingRegisterQueryLimitMax).default(listAuditFindingRegisterQueryLimitDefault)
+})
+
+export const ListAuditFindingRegisterResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary Get findings log report
  */
 export const getAuditFindingsLogReportQueryPageDefault = 1;
@@ -12313,6 +14322,12 @@ export const GetGeneratedAuditReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMin = 0;
+export const getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMultipleOf = 1;
+
+export const getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMin = 0;
+export const getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -12364,32 +14379,87 @@ export const getGeneratedAuditReportResponseAuditReportDetailsRowsMaxOne = 200;
 export const GetGeneratedAuditReportResponse = zod.object({
   "audit": zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
-  "projectId": zod.string(),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
   "description": zod.string().nullish(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional(),
@@ -12461,6 +14531,18 @@ export const GetGeneratedAuditReportResponse = zod.object({
 })),
   "cars": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12469,7 +14551,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12673,7 +14755,7 @@ export const ListAuditRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -12698,7 +14780,7 @@ export const CreateAuditRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(createAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -12728,7 +14810,7 @@ export const UpdateAuditRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(updateAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -12783,7 +14865,7 @@ export const ListAuditUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -12838,7 +14920,7 @@ export const AssignAuditUserRoleParams = zod.object({
 
 export const AssignAuditUserRoleBody = zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 })
 
@@ -12892,7 +14974,7 @@ export const ListAuditAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
@@ -13688,6 +15770,20 @@ export const MarkAuditNotificationReadResponse = zod.void()
 
 
 export const listEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const listEmailRulesResponseRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const listEmailRulesResponseRecipientConfigCcRecipientNameMax = 200;
+
+export const listEmailRulesResponseRecipientConfigCcRecipientEmailMax = 320;
+
+export const listEmailRulesResponseRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const listEmailRulesResponseRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const listEmailRulesResponseRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const listEmailRulesResponseRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const listEmailRulesResponseRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const listEmailRulesResponseRecipientConfigCcRoleNamesItemMax = 200;
 
 export const listEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
@@ -13695,6 +15791,8 @@ export const listEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
 export const listEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const listEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
+
+export const listEmailRulesResponseRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13708,6 +15806,15 @@ export const ListEmailRulesResponseItem = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(listEmailRulesResponseRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(listEmailRulesResponseRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(listEmailRulesResponseRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(listEmailRulesResponseRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(listEmailRulesResponseRecipientConfigCcRecipientRoleNamesItemMax)).max(listEmailRulesResponseRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(listEmailRulesResponseRecipientConfigCcRecipientProjectIdsItemRegExp)).max(listEmailRulesResponseRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(listEmailRulesResponseRecipientConfigCcRoleNamesItemMax)).max(listEmailRulesResponseRecipientConfigCcRoleNamesMax).optional(),
@@ -13715,6 +15822,8 @@ export const ListEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(listEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(listEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(listEmailRulesResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -13728,6 +15837,20 @@ export const ListEmailRulesResponse = zod.array(ListEmailRulesResponseItem)
 export const createEmailRuleBodyPriorityMin = 0;
 
 export const createEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const createEmailRuleBodyRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createEmailRuleBodyRecipientConfigCcRecipientNameMax = 200;
+
+export const createEmailRuleBodyRecipientConfigCcRecipientEmailMax = 320;
+
+export const createEmailRuleBodyRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const createEmailRuleBodyRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const createEmailRuleBodyRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const createEmailRuleBodyRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createEmailRuleBodyRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const createEmailRuleBodyRecipientConfigCcRoleNamesItemMax = 200;
 
 export const createEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
@@ -13735,6 +15858,8 @@ export const createEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
 export const createEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
+
+export const createEmailRuleBodyRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13746,6 +15871,15 @@ export const CreateEmailRuleBody = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(createEmailRuleBodyRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(createEmailRuleBodyRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(createEmailRuleBodyRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(createEmailRuleBodyRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(createEmailRuleBodyRecipientConfigCcRecipientRoleNamesItemMax)).max(createEmailRuleBodyRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(createEmailRuleBodyRecipientConfigCcRecipientProjectIdsItemRegExp)).max(createEmailRuleBodyRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(createEmailRuleBodyRecipientConfigCcRoleNamesItemMax)).max(createEmailRuleBodyRecipientConfigCcRoleNamesMax).optional(),
@@ -13753,6 +15887,8 @@ export const CreateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(createEmailRuleBodyRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -13761,6 +15897,20 @@ export const CreateEmailRuleBody = zod.object({
 })
 
 export const createEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const createEmailRuleResponseRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createEmailRuleResponseRecipientConfigCcRecipientNameMax = 200;
+
+export const createEmailRuleResponseRecipientConfigCcRecipientEmailMax = 320;
+
+export const createEmailRuleResponseRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const createEmailRuleResponseRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const createEmailRuleResponseRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const createEmailRuleResponseRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createEmailRuleResponseRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const createEmailRuleResponseRecipientConfigCcRoleNamesItemMax = 200;
 
 export const createEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
@@ -13768,6 +15918,8 @@ export const createEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
 export const createEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
+
+export const createEmailRuleResponseRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13781,6 +15933,15 @@ export const CreateEmailRuleResponse = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(createEmailRuleResponseRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(createEmailRuleResponseRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(createEmailRuleResponseRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(createEmailRuleResponseRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(createEmailRuleResponseRecipientConfigCcRecipientRoleNamesItemMax)).max(createEmailRuleResponseRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(createEmailRuleResponseRecipientConfigCcRecipientProjectIdsItemRegExp)).max(createEmailRuleResponseRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(createEmailRuleResponseRecipientConfigCcRoleNamesItemMax)).max(createEmailRuleResponseRecipientConfigCcRoleNamesMax).optional(),
@@ -13788,6 +15949,8 @@ export const CreateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(createEmailRuleResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -13804,6 +15967,20 @@ export const UpdateEmailRuleParams = zod.object({
 export const updateEmailRuleBodyPriorityMin = 0;
 
 export const updateEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const updateEmailRuleBodyRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateEmailRuleBodyRecipientConfigCcRecipientNameMax = 200;
+
+export const updateEmailRuleBodyRecipientConfigCcRecipientEmailMax = 320;
+
+export const updateEmailRuleBodyRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const updateEmailRuleBodyRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const updateEmailRuleBodyRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const updateEmailRuleBodyRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateEmailRuleBodyRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const updateEmailRuleBodyRecipientConfigCcRoleNamesItemMax = 200;
 
 export const updateEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
@@ -13811,6 +15988,8 @@ export const updateEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
 export const updateEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
+
+export const updateEmailRuleBodyRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13822,6 +16001,15 @@ export const UpdateEmailRuleBody = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(updateEmailRuleBodyRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(updateEmailRuleBodyRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(updateEmailRuleBodyRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(updateEmailRuleBodyRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(updateEmailRuleBodyRecipientConfigCcRecipientRoleNamesItemMax)).max(updateEmailRuleBodyRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(updateEmailRuleBodyRecipientConfigCcRecipientProjectIdsItemRegExp)).max(updateEmailRuleBodyRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(updateEmailRuleBodyRecipientConfigCcRoleNamesItemMax)).max(updateEmailRuleBodyRecipientConfigCcRoleNamesMax).optional(),
@@ -13829,6 +16017,8 @@ export const UpdateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(updateEmailRuleBodyRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -13837,6 +16027,20 @@ export const UpdateEmailRuleBody = zod.object({
 })
 
 export const updateEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const updateEmailRuleResponseRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateEmailRuleResponseRecipientConfigCcRecipientNameMax = 200;
+
+export const updateEmailRuleResponseRecipientConfigCcRecipientEmailMax = 320;
+
+export const updateEmailRuleResponseRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const updateEmailRuleResponseRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const updateEmailRuleResponseRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const updateEmailRuleResponseRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateEmailRuleResponseRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const updateEmailRuleResponseRecipientConfigCcRoleNamesItemMax = 200;
 
 export const updateEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
@@ -13844,6 +16048,8 @@ export const updateEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
 export const updateEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
+
+export const updateEmailRuleResponseRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13857,6 +16063,15 @@ export const UpdateEmailRuleResponse = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(updateEmailRuleResponseRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(updateEmailRuleResponseRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(updateEmailRuleResponseRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(updateEmailRuleResponseRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(updateEmailRuleResponseRecipientConfigCcRecipientRoleNamesItemMax)).max(updateEmailRuleResponseRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(updateEmailRuleResponseRecipientConfigCcRecipientProjectIdsItemRegExp)).max(updateEmailRuleResponseRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(updateEmailRuleResponseRecipientConfigCcRoleNamesItemMax)).max(updateEmailRuleResponseRecipientConfigCcRoleNamesMax).optional(),
@@ -13864,6 +16079,8 @@ export const UpdateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(updateEmailRuleResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -13884,6 +16101,20 @@ export const ReorderEmailRulesBody = zod.object({
 })
 
 export const reorderEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const reorderEmailRulesResponseRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const reorderEmailRulesResponseRecipientConfigCcRecipientNameMax = 200;
+
+export const reorderEmailRulesResponseRecipientConfigCcRecipientEmailMax = 320;
+
+export const reorderEmailRulesResponseRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const reorderEmailRulesResponseRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const reorderEmailRulesResponseRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const reorderEmailRulesResponseRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const reorderEmailRulesResponseRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const reorderEmailRulesResponseRecipientConfigCcRoleNamesItemMax = 200;
 
 export const reorderEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
@@ -13891,6 +16122,8 @@ export const reorderEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
 export const reorderEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const reorderEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
+
+export const reorderEmailRulesResponseRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -13904,6 +16137,15 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(reorderEmailRulesResponseRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(reorderEmailRulesResponseRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(reorderEmailRulesResponseRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(reorderEmailRulesResponseRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(reorderEmailRulesResponseRecipientConfigCcRecipientRoleNamesItemMax)).max(reorderEmailRulesResponseRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(reorderEmailRulesResponseRecipientConfigCcRecipientProjectIdsItemRegExp)).max(reorderEmailRulesResponseRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(reorderEmailRulesResponseRecipientConfigCcRoleNamesItemMax)).max(reorderEmailRulesResponseRecipientConfigCcRoleNamesMax).optional(),
@@ -13911,6 +16153,8 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(reorderEmailRulesResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -14120,6 +16364,20 @@ export const SimulateEmailRuleBody = zod.object({
 })
 
 export const simulateEmailRuleResponseRuleOneEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientUserIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientNameMax = 200;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientEmailMax = 320;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNameMax = 200;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNamesItemMax = 200;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNamesMax = 100;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientProjectIdsItemRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientProjectIdsMax = 100;
+
 export const simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesItemMax = 200;
 
 export const simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesMax = 100;
@@ -14127,6 +16385,8 @@ export const simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesMax = 100
 export const simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax = 250;
 
 export const simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax = 20000;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigReportAttachmentsMax = 10;
 
 
 
@@ -14142,6 +16402,15 @@ export const SimulateEmailRuleResponse = zod.object({
   "createdByUserId": zod.string().nullish(),
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
+  "ccRecipient": zod.object({
+  "mode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
+  "userId": zod.string().regex(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientUserIdRegExp).optional(),
+  "name": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientNameMax).optional(),
+  "email": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientEmailMax).optional(),
+  "roleName": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNameMax).optional(),
+  "roleNames": zod.array(zod.string().min(1).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNamesItemMax)).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientRoleNamesMax).optional(),
+  "projectIds": zod.array(zod.string().regex(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientProjectIdsItemRegExp)).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRecipientProjectIdsMax).optional()
+}).optional(),
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
   "ccRoleNames": zod.array(zod.string().min(1).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesItemMax)).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesMax).optional(),
@@ -14149,6 +16418,8 @@ export const SimulateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('qaqc_dashboard_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'qaqc_dashboard_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(simulateEmailRuleResponseRuleOneRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),

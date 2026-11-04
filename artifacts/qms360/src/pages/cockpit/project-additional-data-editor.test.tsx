@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { ProjectAdditionalDataEditor } from './project-additional-data-editor';
+import { normaliseProjectAdditionalData, ProjectAdditionalDataEditor } from './project-additional-data-editor';
 import { projectContactErrors } from './project-contact-validation';
 import type { DronaProjectMasterRecord } from '@workspace/api-client-react';
 
@@ -11,6 +11,49 @@ const record = { id: 'project-1', additionalData: { email: 'quality@example.com'
 const props = { record, canEdit: true, onSaved: vi.fn(), onPendingChange: vi.fn(), onCancel: vi.fn() };
 
 describe('Project Additional Data contact fields', () => {
+  it('includes all three dashboard classifications in the save payload with trimmed values', () => {
+    const result = normaliseProjectAdditionalData({
+      sbg: ' Construction ', bu: ' Infrastructure ', projectGroup: ' Central ',
+      consultant: ' Consultant A ', projectManager: ' Manager B ', client: ' Client C ',
+    });
+    expect(result).toMatchObject({
+      sbg: 'Construction', bu: 'Infrastructure', projectGroup: 'Central',
+      consultant: 'Consultant A', projectManager: 'Manager B', client: 'Client C',
+    });
+  });
+  it('sends explicit null classifications to clear saved values', () => {
+    expect(normaliseProjectAdditionalData({ sbg: '  ', bu: '', projectGroup: null }))
+      .toMatchObject({ sbg: null, bu: null, projectGroup: null });
+  });
+  it('does not mark reopened classification values as unsaved changes', () => {
+    const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props}
+      record={{ ...record, additionalData: { ...record.additionalData!, sbg: 'Construction', bu: 'Infrastructure', projectGroup: 'Central' } }} />);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="button-save-project-additional-data"/);
+  });
+  it('renders saved dashboard classification fields and retains view-only restrictions', () => {
+    const dimensions = { sbg: 'Construction', bu: 'Infrastructure', projectGroup: 'Central' };
+    for (const canEdit of [true, false]) {
+      const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} canEdit={canEdit}
+        record={{ ...record, additionalData: { ...record.additionalData!, ...dimensions } }} />);
+      for (const [key, label] of [['sbg', 'SBG'], ['bu', 'BU'], ['projectGroup', 'Project Group']] as const) {
+        expect(html).toContain(`for="project-additional-${key}">${label}`);
+        expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*value="${dimensions[key]}"`));
+        if (!canEdit) expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*disabled=""`));
+      }
+    }
+  });
+  it('renders the new optional fields with saved values and preserves read-only access', () => {
+    const additionalData = { ...record.additionalData!, consultant: 'Consultant A', projectManager: 'Manager B', contractValue: 'SAR 1,500,000.50', ptsNumber: 'PTS-0012' };
+    for (const canEdit of [true, false]) {
+      const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} canEdit={canEdit} record={{ ...record, additionalData }} />);
+      for (const [key, label] of [['consultant', 'Consultant'], ['projectManager', 'Project Manager'], ['contractValue', 'Contract Value'], ['ptsNumber', 'PTS #']] as const) {
+        expect(html).toContain(`for="project-additional-${key}">${label}`);
+        expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*value="${additionalData[key]}"`));
+        expect(html).not.toMatch(new RegExp(`id="project-additional-${key}"[^>]*required=""`));
+        if (!canEdit) expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*disabled=""`));
+      }
+    }
+  });
   it('renders all five project closure targets with saved zero and decimal values', () => {
     const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, closureTargets: { external_ncr: 0, internal_ncr: 100, rfi: 97.5, rmi: null, pqi: 80 } }} />);
     expect(html).toContain('Closure Target (%)');

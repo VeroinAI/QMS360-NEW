@@ -99,6 +99,21 @@ describe('Monthly metrics landing report list', () => {
     expect(html).not.toContain('Previous Reviewer');
     expect(html).not.toContain('Unselected Reviewer');
   });
+  it('highlights only a submitted row actually assigned to the signed-in user',()=>{
+    const value=mocks.list.getMockImplementation()!();
+    value.data.items[1]={...value.data.items[1],state:'submitted',approverId:'creator'};
+    mocks.list.mockReturnValue(value);
+    const html=render();
+    expect(html).toContain('Assigned to you');
+    expect(html).toContain('bg-accent/5');
+    expect((html.match(/Assigned to you/g)??[])).toHaveLength(1);
+  });
+  it.each(['draft','approved','sent_back'] as const)('does not highlight a stale approver assignment on %s',state=>{
+    const value=mocks.list.getMockImplementation()!();
+    value.data.items[1]={...value.data.items[1],state,approverId:'creator'};
+    mocks.list.mockReturnValue(value);
+    expect(render()).not.toContain('Assigned to you');
+  });
   it.each(['draft', 'approved', 'sent_back'] as const)('shows no pending approval for %s reports', state => {
     expect(pendingMonthlyApproval({
       state, approverId: 'reviewer', approverName: 'Old Reviewer',

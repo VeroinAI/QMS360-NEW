@@ -2,6 +2,17 @@
 name: QA/QC role authorization policy
 description: Default-role editing, legacy compatibility and QA/QC-only scope boundaries
 ---
+QA/QC Metrics and Daily landing-page assignment highlighting identifies only
+the selected current approver of a submitted report, not all eligible users in
+that approval level or later levels. Other report states have no pending-action
+highlight, even if an old approver remains recorded.
+
+**Why:** The user requested the same “Assigned to you” behavior as Lessons Learned
+for the logged-in person whose approval is currently pending.
+
+**How to apply:** Keep the indicator separate from access grants and the approval
+workflow; highlighting must never widen project or organization visibility.
+
 Keep QA/QC default role identities and protected metadata stable while allowing administrators to change their activity permissions in place.
 
 **Why:** The user needs to configure the existing QAQC Representative role, not clone it or replace existing user assignments when saving permissions.
@@ -30,19 +41,25 @@ QA/QC monthly reports support section-restricted shared editing. Unauthorized se
 
 **Why:** The user explicitly chose read-only visibility and shared contributions rather than hidden sections or creator-only editing.
 
-**How to apply:** Keep existing project and report-state boundaries. Section permissions are additive across roles; an unconfigured whole-report edit role retains legacy section access. Enable section restrictions on each broad role that should be limited. Preserve creator submission/deletion and reviewer responsibilities. Validate the complete report at submission, not as a prerequisite for another contributor's draft save.
+**How to apply:** Keep existing project and report-state boundaries. Section permissions are additive across roles; an unconfigured whole-report edit role retains legacy section access. Enable section restrictions on each broad role that should be limited. Preserve creator-only deletion and reviewer responsibilities. Validate the complete report at submission, not as a prerequisite for another contributor's draft save.
 
-On the QA/QC Metrics landing page and its document editor, only Draft documents
-may be edited; Display opens read-only even when the viewer could edit a draft.
-Keep the separate full monthly-report submission/review workflow's sent-back
-correction rules unchanged.
+Monthly report submission is role-based, not creator-only. A different user with Monthly Reports Submit permission for the report's project may review the contributors' saved data and submit for approval.
 
-**Why:** The user explicitly required Draft-only editing for the revised Metrics
-landing page while asking not to impact other development.
+**Why:** The user explicitly clarified that multiple users prepare a Monthly document and a different user reviews it before submitting it for approval.
+
+**How to apply:** Honor the existing activity-specific submit grant and its own project scope; do not infer submit rights from edit or approval rights. Preserve contributor identity and record the actual submitter independently. Keep creator-only Daily/CSAT submission, creator-only deletion, full-report validation and approval-level routing unchanged.
+
+On the QA/QC Metrics landing page and its document editor, Draft and Sent Back
+monthly reports may be edited and submitted by appropriately authorized users.
+Display explicitly opens read-only; Submitted and Approved remain read-only.
+
+**Why:** The user superseded the earlier Draft-only landing-page rule after it
+prevented a properly authorized representative from correcting and resubmitting
+a sent-back monthly report in production.
 
 **How to apply:** Reuse monthly-report RBAC and existing section/project scope.
-Do not interpret the landing page's Draft-only rule as a global removal of
-sent-back corrections, or as permission to expose legacy metric transactions.
+Do not require the monthly submitter to be the original creator, weaken backend
+validation, or expose legacy metric transactions. Keep other applications unchanged.
 
 QA/QC approval roles require a positive whole-number level when saved; existing roles without a level remain readable. Monthly Metrics and Daily Submissions use sequential approval. CSAT instead uses final locked submission without approval, per [CSAT policy](csat-submission-origin-policy.md).
 

@@ -1,5 +1,6 @@
 import { AGEING_BUCKETS, MEETING_TYPES, METRICS, PQP_STATUSES, monthlyBaseline, type Obj } from './reporting-types';
 import { normaliseAdditionalMetrics, validateAdditionalMetrics } from './additional-metrics-validation';
+import { duplicateNcrAgeingRows } from '@workspace/field-controls';
 
 const hasValue = (v: unknown) => v !== undefined && v !== null && v !== '';
 const integer = (v: unknown, min = 0) => typeof v === 'number' && Number.isInteger(v) && v >= min;
@@ -70,6 +71,8 @@ export function validateMetricsEntry(data: Obj, baseline: Obj = {}, options: { r
       continue;
     }
     const ageing: Obj[] = metric.ageing ?? [];
+    for (const { index, firstIndex } of duplicateNcrAgeingRows(ageing))
+      issues.push(`${label} ageing ${index + 1}: Ageing Bucket is already used for this BU in row ${firstIndex + 1}. Choose a different bucket.`);
     let total = 0;
     let validAgeing = true;
     for (const [i, row] of ageing.entries()) {

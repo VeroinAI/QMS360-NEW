@@ -5,6 +5,74 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface DailyOpeningProject {
+  id: string;
+  name: string;
+  label: string;
+  loaded: boolean;
+  blocked: boolean;
+  /** @nullable */
+  goLiveDate: string | null;
+  reason?: string;
+}
+
+export interface DailyOpeningUpload {
+  /** @maxLength 2800000 */
+  fileBase64: string;
+}
+
+export interface DailyOpeningField {
+  key: string;
+  label: string;
+}
+
+export type DailyOpeningManualInputData = { [key: string]: unknown };
+
+export interface DailyOpeningManualInput {
+  confirmed: true;
+  projectId: string;
+  goLiveDate: string;
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  reason: string;
+  data: DailyOpeningManualInputData;
+}
+
+export type DailyOpeningRowData = { [key: string]: unknown };
+
+export interface DailyOpeningRow {
+  projectId: string;
+  projectName?: string;
+  goLiveDate: string;
+  reason: string;
+  rowNumber: number;
+  data: DailyOpeningRowData;
+  errors?: string[];
+}
+
+export type DailyOpeningPreviewFieldsItem = {
+  key: string;
+  label: string;
+};
+
+export interface DailyOpeningPreview {
+  valid: boolean;
+  rows: DailyOpeningRow[];
+  errors: string[];
+  fields: DailyOpeningPreviewFieldsItem[];
+}
+
+export interface DailyOpeningApply {
+  confirmed: true;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  items: DailyOpeningRow[];
+}
+
 export interface QaqcHistoricalBulkUpload {
   period: string;
   /** @maxLength 2800000 */
@@ -466,6 +534,43 @@ export const EmailEventRuleRecipientMode = {
   linked_creator: 'linked_creator',
 } as const;
 
+export type EmailCcRecipientMode = typeof EmailCcRecipientMode[keyof typeof EmailCcRecipientMode];
+
+
+export const EmailCcRecipientMode = {
+  all_users: 'all_users',
+  internal_user: 'internal_user',
+  external_email: 'external_email',
+  workspace_role: 'workspace_role',
+  project_members: 'project_members',
+  project_role: 'project_role',
+  linked_approver: 'linked_approver',
+  linked_creator: 'linked_creator',
+} as const;
+
+export interface EmailCcRecipient {
+  mode: EmailCcRecipientMode;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  userId?: string;
+  /** @maxLength 200 */
+  name?: string;
+  /** @maxLength 320 */
+  email?: string;
+  /** @maxLength 200 */
+  roleName?: string;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 200
+     */
+  roleNames?: string[];
+  /**
+     * @maxItems 100
+     * @items.pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  projectIds?: string[];
+}
+
 export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMode[keyof typeof EmailRecipientConfigSenderMode];
 
 
@@ -475,12 +580,43 @@ export const EmailRecipientConfigSenderMode = {
 } as const;
 
 /**
+ * Legacy single report selection. Used only when reportAttachments is omitted.
+ * @nullable
+ */
+export type EmailRecipientConfigReportAttachment = typeof EmailRecipientConfigReportAttachment[keyof typeof EmailRecipientConfigReportAttachment] | null;
+
+
+export const EmailRecipientConfigReportAttachment = {
+  lesson_pdf: 'lesson_pdf',
+  qaqc_report_pdf: 'qaqc_report_pdf',
+  qaqc_dashboard_pdf: 'qaqc_dashboard_pdf',
+  audit_schedule_pdf: 'audit_schedule_pdf',
+  audit_plan_pdf: 'audit_plan_pdf',
+  audit_report_pdf: 'audit_report_pdf',
+  audit_report_pptx: 'audit_report_pptx',
+} as const;
+
+export type EmailRecipientConfigReportAttachmentsItem = typeof EmailRecipientConfigReportAttachmentsItem[keyof typeof EmailRecipientConfigReportAttachmentsItem];
+
+
+export const EmailRecipientConfigReportAttachmentsItem = {
+  lesson_pdf: 'lesson_pdf',
+  qaqc_report_pdf: 'qaqc_report_pdf',
+  qaqc_dashboard_pdf: 'qaqc_dashboard_pdf',
+  audit_schedule_pdf: 'audit_schedule_pdf',
+  audit_plan_pdf: 'audit_plan_pdf',
+  audit_report_pdf: 'audit_report_pdf',
+  audit_report_pptx: 'audit_report_pptx',
+} as const;
+
+/**
  * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
  * @nullable
  */
 export type EmailRecipientConfigBodyRichText = { [key: string]: unknown } | null;
 
 export interface EmailRecipientConfig {
+  ccRecipient?: EmailCcRecipient;
   roleName?: string;
   roleNames?: string[];
   /**
@@ -495,6 +631,16 @@ export interface EmailRecipientConfig {
   subjectTemplate?: string;
   /** @maxLength 20000 */
   bodyTemplate?: string;
+  /**
+     * Legacy single report selection. Used only when reportAttachments is omitted.
+     * @nullable
+     */
+  reportAttachment?: EmailRecipientConfigReportAttachment;
+  /**
+     * Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.
+     * @maxItems 10
+     */
+  reportAttachments?: EmailRecipientConfigReportAttachmentsItem[];
   /**
      * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
      * @nullable
@@ -998,6 +1144,41 @@ export type DronaProjectMasterRecordDronaLinksItem = {
 };
 
 export interface ProjectAdditionalData {
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  sbg?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  bu?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectGroup?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  consultant?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectManager?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  contractValue?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  ptsNumber?: string | null;
   /**
      * @maxLength 500
      * @nullable
@@ -2116,6 +2297,7 @@ export const PermissionKey = {
   auditauditsview_all: 'audit.audits.view_all',
   auditauditscreate_edit: 'audit.audits.create_edit',
   auditauditsdelete: 'audit.audits.delete',
+  auditauditsapprove_reject: 'audit.audits.approve_reject',
   auditauditsexport: 'audit.audits.export',
   auditfindingsview_all: 'audit.findings.view_all',
   auditfindingscreate_edit: 'audit.findings.create_edit',
@@ -2169,12 +2351,19 @@ export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeo
 export const RoleAssignmentScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;
 
 export interface RoleAssignment {
   roleId: string;
   scopeType: RoleAssignmentScopeType;
   scopeIds: string[];
+}
+
+export interface RoleDepartmentOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 export type LessonsRoleAssignmentScopeType = typeof LessonsRoleAssignmentScopeType[keyof typeof LessonsRoleAssignmentScopeType];
@@ -2193,7 +2382,8 @@ export interface LessonsRoleAssignment {
 }
 
 export interface SendAuditPlanForExecutionInput {
-  roleIds: string[];
+  /** Legacy input, ignored. Recipients are derived from saved Audit Plan Circulation. */
+  roleIds?: string[];
 }
 
 export type WorkspaceUserStatus = typeof WorkspaceUserStatus[keyof typeof WorkspaceUserStatus];
@@ -3007,6 +3197,21 @@ export interface ApproverScopeInput {
   categorisation?: string;
 }
 
+export interface LessonApprovalHistoryEntry {
+  id: string;
+  action: string;
+  /** @nullable */
+  actorId?: string | null;
+  actorName: string;
+  /** @nullable */
+  actorDesignation?: string | null;
+  occurredAt: string;
+  /** @nullable */
+  comments?: string | null;
+  /** @nullable */
+  signatureUrl?: string | null;
+}
+
 export type LessonLearnedFormSourceType = typeof LessonLearnedFormSourceType[keyof typeof LessonLearnedFormSourceType];
 
 
@@ -3150,6 +3355,8 @@ export interface AuditActivityRoleOption {
 }
 
 export interface AuditPlanUserOption {
+  /** False for retained former meeting attendees shown for display only */
+  canSelect?: boolean;
   id: string;
   fullName: string;
   /** @nullable */
@@ -3159,6 +3366,7 @@ export interface AuditPlanUserOption {
 export interface AuditScheduleActivityOptions {
   users: AuditPlanUserOption[];
   roles: AuditActivityRoleOption[];
+  historicalUsers?: AuditPlanUserOption[];
 }
 
 /**
@@ -3404,6 +3612,9 @@ export type AuditTeamLeadOption = AuditPlanUserOption & ({
 
 export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
+  historicalUsers?: AuditPlanUserOption[];
+  leadUsers?: AuditPlanUserOption[];
+  teamUsers?: AuditPlanUserOption[];
 }
 
 export interface AuditPlanNumberingPattern {
@@ -3418,6 +3629,56 @@ export interface AuditPlanNumberingPattern {
      * @maximum 12
      */
   padding: number;
+}
+
+export interface CsatNumberingPattern {
+  /** @maxLength 80 */
+  prefix: string;
+  /** @maxLength 80 */
+  separator: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  padding: number;
+}
+
+export interface CsatNumberRangeInput {
+  /** @minLength 1 */
+  projectId: string;
+  /**
+     * @minimum 1900
+     * @maximum 9999
+     */
+  year: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999998
+     */
+  lastNumber: number;
+}
+
+export type CsatNumberingSettingsRanges = {[key: string]: {[key: string]: number}};
+
+export type AuditNumberingSourceKind = typeof AuditNumberingSourceKind[keyof typeof AuditNumberingSourceKind];
+
+
+export const AuditNumberingSourceKind = {
+  project: 'project',
+  department: 'department',
+} as const;
+
+export interface AuditNumberingSource {
+  key: string;
+  kind: AuditNumberingSourceKind;
+  label: string;
+  sourceValue: string;
+}
+
+export interface CsatNumberingSettings {
+  pattern: CsatNumberingPattern;
+  ranges: CsatNumberingSettingsRanges;
+  sources: AuditNumberingSource[];
 }
 
 export type AuditFindingNumberingPatternCodes = {[key: string]: string};
@@ -3488,21 +3749,6 @@ export const AuditFindingNumberingSettingsFindingTypesItem = {
 
 export type AuditFindingNumberingSettingsRanges = {[key: string]: {[key: string]: {[key: string]: number}}};
 
-export type AuditNumberingSourceKind = typeof AuditNumberingSourceKind[keyof typeof AuditNumberingSourceKind];
-
-
-export const AuditNumberingSourceKind = {
-  project: 'project',
-  department: 'department',
-} as const;
-
-export interface AuditNumberingSource {
-  key: string;
-  kind: AuditNumberingSourceKind;
-  label: string;
-  sourceValue: string;
-}
-
 export interface AuditFindingNumberingSettings {
   pattern: AuditFindingNumberingPattern;
   findingTypes: AuditFindingNumberingSettingsFindingTypesItem[];
@@ -3546,6 +3792,30 @@ export interface AuditPlanNumberingSettings {
   ranges: AuditPlanNumberingSettingsRanges;
   sources: AuditPlanNumberingSettingsSourcesItem[];
 }
+
+export type AuditPlanAuditMethodsItem = typeof AuditPlanAuditMethodsItem[keyof typeof AuditPlanAuditMethodsItem];
+
+
+export const AuditPlanAuditMethodsItem = {
+  Interviews: 'Interviews',
+  Observation_of_activities: 'Observation of activities',
+  'Sample-based_review_of_records': 'Sample-based review of records',
+  'Site_/_store_walk-down': 'Site / store walk-down',
+  'Supplier_or_third-party_verification': 'Supplier or third-party verification',
+} as const;
+
+export type AuditPlanAuditCriteriaItem = typeof AuditPlanAuditCriteriaItem[keyof typeof AuditPlanAuditCriteriaItem];
+
+
+export const AuditPlanAuditCriteriaItem = {
+  'ISO_9001:2015': 'ISO 9001:2015',
+  'ISO_45001:2018': 'ISO 45001:2018',
+  'ISO/IEC_17025:2017': 'ISO/IEC 17025:2017',
+  'Client_specifications_(eg_PTS,_SOW)': 'Client specifications (e.g. PTS, SOW)',
+  Project_Quality_Plan: 'Project Quality Plan',
+  'Company_procedures:_[list]': 'Company procedures: [list]',
+  Approved_drawings_and_specifications: 'Approved drawings and specifications',
+} as const;
 
 export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
 
@@ -3602,6 +3872,9 @@ export interface AuditPlan {
   /** @minItems 1 */
   auditTypes: string[];
   auditLanguage: string;
+  auditMethods?: AuditPlanAuditMethodsItem[];
+  /** Dedicated criteria selections, independent of legacy criteria and Audit Type */
+  auditCriteria?: AuditPlanAuditCriteriaItem[];
   qaqcReference: string;
   /** @nullable */
   description?: string | null;
@@ -3667,6 +3940,8 @@ export interface AuditPlan {
 
 export interface MeetingMinutes {
   heldAt: string;
+  /** Original meeting wall-clock input retained without shifting its calendar day */
+  readonly heldAtLocal?: string;
   attendees: string[];
   minutes: string;
   evidenceIds?: string[];
@@ -3681,6 +3956,18 @@ export const ChecklistItemAuditFinding = {
   Major_NC: 'Major NC',
   OFI: 'OFI',
   Not_applicable: 'Not applicable',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ChecklistItemRiskLevel = typeof ChecklistItemRiskLevel[keyof typeof ChecklistItemRiskLevel] | null;
+
+
+export const ChecklistItemRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
 } as const;
 
 /**
@@ -3705,12 +3992,16 @@ export const FindingPriorityAction = {
 export interface ChecklistItem {
   id: string;
   /** @nullable */
+  findingDate?: string | null;
+  /** @nullable */
   clause?: string | null;
   auditArea?: string;
   question: string;
   /** @nullable */
   description?: string | null;
   auditFinding?: ChecklistItemAuditFinding;
+  /** @nullable */
+  riskLevel?: ChecklistItemRiskLevel;
   /** Legacy values managed via /platform/master-data/lov/checklist_results */
   result?: string;
   /** @nullable */
@@ -3725,6 +4016,11 @@ export interface ChecklistItem {
   readonly findingNumber?: string;
 }
 
+export interface FindingDateInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  findingDate: string;
+}
+
 export type AuditFindingItemInputAuditFinding = typeof AuditFindingItemInputAuditFinding[keyof typeof AuditFindingItemInputAuditFinding];
 
 
@@ -3735,13 +4031,25 @@ export const AuditFindingItemInputAuditFinding = {
   OFI: 'OFI',
 } as const;
 
+export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel];
+
+
+export const AuditFindingItemInputRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+} as const;
+
 export interface AuditFindingItemInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  findingDate?: string;
   /** @minLength 1 */
   clause: string;
   /** @minLength 1 */
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
+  riskLevel: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;
@@ -3769,6 +4077,15 @@ export const AuditChecklistItemInputAuditFinding = {
   Not_applicable: 'Not applicable',
 } as const;
 
+export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel];
+
+
+export const AuditChecklistItemInputRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+} as const;
+
 export interface AuditChecklistItemInput {
   /** @minLength 1 */
   clause: string;
@@ -3781,6 +4098,7 @@ export interface AuditChecklistItemInput {
   question: string;
   description?: string;
   auditFinding?: AuditChecklistItemInputAuditFinding;
+  riskLevel: AuditChecklistItemInputRiskLevel;
   evidenceIds?: string[];
 }
 
@@ -3964,6 +4282,112 @@ export const AuditStatus = {
   Deleted: 'Deleted',
 } as const;
 
+/**
+ * Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.
+ */
+export type AuditOpeningMeetingBounds = {
+  /** @nullable */
+  readonly fromDate: string | null;
+  /** @nullable */
+  readonly toDate: string | null;
+};
+
+/**
+ * Scoped list projection derived from the linked Plan, Schedule and active finding/CAR records; no additional module permissions required.
+ */
+export interface AuditExecutionSummary {
+  /**
+     * Linked child Schedule QA/QC Reference
+     * @nullable
+     */
+  readonly auditId: string | null;
+  readonly auditTypes: string[];
+  /** @nullable */
+  readonly projectDepartment: string | null;
+  /** @nullable */
+  readonly auditLeadId: string | null;
+  /** @nullable */
+  readonly auditLeadName: string | null;
+  /** @minimum 0 */
+  readonly findingCount: number;
+  /** @minimum 0 */
+  readonly openFindingCount: number;
+}
+
+export type AuditFindingRegisterItemSource = typeof AuditFindingRegisterItemSource[keyof typeof AuditFindingRegisterItemSource];
+
+
+export const AuditFindingRegisterItemSource = {
+  checklist: 'checklist',
+  legacy: 'legacy',
+} as const;
+
+export type AuditFindingRegisterItemActionTakersItem = {
+  id: string;
+  /** @nullable */
+  name: string | null;
+};
+
+export interface AuditFindingRegisterItem {
+  readonly id: string;
+  readonly source: AuditFindingRegisterItemSource;
+  readonly auditExecutionId: string;
+  /** @nullable */
+  readonly findingNumber: string | null;
+  /** @nullable */
+  readonly auditId: string | null;
+  readonly auditTitle: string;
+  /** @nullable */
+  readonly projectDepartment: string | null;
+  /** @nullable */
+  readonly clauseReference: string | null;
+  /** @nullable */
+  readonly auditArea: string | null;
+  /** @nullable */
+  readonly description: string | null;
+  /** @nullable */
+  readonly findingType: string | null;
+  /** @nullable */
+  readonly riskLevel: string | null;
+  /** @nullable */
+  readonly auditTeamLeadId: string | null;
+  /** @nullable */
+  readonly auditTeamLeadName: string | null;
+  readonly actionTakers: AuditFindingRegisterItemActionTakersItem[];
+}
+
+export type AuditReportApprovalStatus = typeof AuditReportApprovalStatus[keyof typeof AuditReportApprovalStatus];
+
+
+export const AuditReportApprovalStatus = {
+  Not_submitted: 'Not submitted',
+  Pending_approval: 'Pending approval',
+  Approved: 'Approved',
+  Sent_back: 'Sent back',
+} as const;
+
+export type AuditReportApprovalPendingApproversItem = {
+  id: string;
+  name: string;
+};
+
+export type AuditReportApprovalHistoryItem = {
+  decision: string;
+  userName: string;
+  level: number;
+  remarks: string;
+  at: string;
+};
+
+export interface AuditReportApproval {
+  readonly status: AuditReportApprovalStatus;
+  /** @nullable */
+  readonly pendingLevel: number | null;
+  readonly pendingApprovers: AuditReportApprovalPendingApproversItem[];
+  readonly canReview: boolean;
+  readonly history: AuditReportApprovalHistoryItem[];
+}
+
 export type AuditReportDetailsValues = {[key: string]: string};
 
 export type AuditReportDetailsRowsItem = {[key: string]: string};
@@ -3977,24 +4401,41 @@ export interface AuditReportDetails {
 
 export interface Audit {
   id: string;
+  executionSummary?: AuditExecutionSummary;
+  /** Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit. */
+  readonly findingRegister?: readonly AuditFindingRegisterItem[];
   planId: string;
   /**
      * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable
      * @nullable
      */
   readonly planNumber?: string | null;
+  /** Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail */
+  readonly planAvailable?: boolean;
+  /**
+     * Linked project name
+     * @nullable
+     */
+  readonly projectName?: string | null;
   /**
      * Immutable server-generated Audit Report number issued on first successful report-details save
      * @nullable
      */
   readonly reportNumber?: string | null;
-  projectId: string;
+  reportApproval?: AuditReportApproval;
+  /**
+     * Null for a department-based Process audit; inherited from the selected Plan
+     * @nullable
+     */
+  projectId: string | null;
   title: string;
   status: AuditStatus;
   /** Whether the current user has Audit edit access in this record scope */
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  /** Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility. */
+  readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
   reportDetails?: AuditReportDetails;
@@ -4002,6 +4443,27 @@ export interface Audit {
   startedAt?: string | null;
   /** @nullable */
   closedAt?: string | null;
+}
+
+export interface AuditFindingRegisterPage {
+  items: AuditFindingRegisterItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type AuditReportApprovalDecisionInputDecision = typeof AuditReportApprovalDecisionInputDecision[keyof typeof AuditReportApprovalDecisionInputDecision];
+
+
+export const AuditReportApprovalDecisionInputDecision = {
+  approve: 'approve',
+  send_back: 'send_back',
+} as const;
+
+export interface AuditReportApprovalDecisionInput {
+  decision: AuditReportApprovalDecisionInputDecision;
+  /** @maxLength 4000 */
+  remarks?: string;
 }
 
 export type AuditReportSectionFieldsItem = {
@@ -4061,6 +4523,33 @@ export interface AuditFinding {
   raisedAt?: string;
 }
 
+export type CarApprovalStatus = typeof CarApprovalStatus[keyof typeof CarApprovalStatus];
+
+
+export const CarApprovalStatus = {
+  Not_submitted: 'Not submitted',
+  Pending_approval: 'Pending approval',
+  Approved: 'Approved',
+  Sent_back: 'Sent back',
+} as const;
+
+export type CarApprovalHistoryItem = {
+  decision: string;
+  userName: string;
+  level: number;
+  remarks: string;
+  at: string;
+};
+
+export interface CarApproval {
+  readonly status: CarApprovalStatus;
+  /** @nullable */
+  readonly pendingLevel: number | null;
+  /** @nullable */
+  readonly finalLevel: number | null;
+  readonly history: CarApprovalHistoryItem[];
+}
+
 export type CorrectiveActionReportStatus = typeof CorrectiveActionReportStatus[keyof typeof CorrectiveActionReportStatus];
 
 
@@ -4094,6 +4583,7 @@ export interface CorrectiveActionReport {
      * @nullable
      */
   readonly carNumber?: string | null;
+  approval?: CarApproval;
   id: string;
   findingId: string;
   responsibleDepartment: string;
@@ -4105,7 +4595,8 @@ export interface CorrectiveActionReport {
   /** @nullable */
   correctiveAction?: string | null;
   status: CorrectiveActionReportStatus;
-  dueDate: string;
+  /** @nullable */
+  dueDate: string | null;
   /** @nullable */
   extensionRequestedTo?: string | null;
   /** @nullable */
@@ -4206,6 +4697,23 @@ export interface CarRegisterEntry {
   auditArea: string;
   description: string;
   classification: string;
+  /** @nullable */
+  findingNumber?: string | null;
+  /** @nullable */
+  riskLevel?: string | null;
+  /** @nullable */
+  actionTakerId?: string | null;
+  /** @nullable */
+  assignedAt?: string | null;
+  /** @nullable */
+  actualClosedAt?: string | null;
+  /** @nullable */
+  pendingWith?: string | null;
+  /** @nullable */
+  createdAt?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  canNumber?: boolean;
   actionTakerName: string;
   evidenceIds: string[];
   status: string;
@@ -4225,6 +4733,12 @@ export interface CarRegisterPage {
   auditTitles: CarRegisterOption[];
   auditTypes: CarRegisterOption[];
   departments: CarRegisterOption[];
+  carNumbers?: CarRegisterOption[];
+  projectDepartments?: CarRegisterOption[];
+  auditFindings?: CarRegisterOption[];
+  riskLevels?: CarRegisterOption[];
+  actionTakers?: CarRegisterOption[];
+  statuses?: CarRegisterOption[];
 }
 
 export type AcceptRejectReviewDecision = typeof AcceptRejectReviewDecision[keyof typeof AcceptRejectReviewDecision];
@@ -4736,6 +5250,23 @@ export const ReportFormatParameter = {
   xlsx: 'xlsx',
 } as const;
 
+export type GetDailyOpeningProjects200 = {
+  items?: DailyOpeningProject[];
+  fields?: DailyOpeningField[];
+};
+
+export type SaveDailyOpeningManual200 = {
+  applied: number;
+};
+
+export type DownloadDailyOpeningTemplateParams = {
+goLiveDate: string;
+};
+
+export type ApplyDailyOpeningWorkbook200 = {
+  applied?: number;
+};
+
 export type GetQaqcHistoricalBulkTemplateParams = {
 period: string;
 };
@@ -4769,6 +5300,79 @@ export type GetQaqcHistoricalTemplateParams = {
 projectId: string;
 period: string;
 };
+
+export type GetQaqcConsolidatedDashboardParams = {
+view?: GetQaqcConsolidatedDashboardView;
+period?: string;
+date?: string;
+from?: string;
+to?: string;
+mode?: GetQaqcConsolidatedDashboardMode;
+projectId?: string;
+sbg?: string;
+bu?: string;
+projectGroup?: string;
+};
+
+export type GetQaqcConsolidatedDashboardView = typeof GetQaqcConsolidatedDashboardView[keyof typeof GetQaqcConsolidatedDashboardView];
+
+
+export const GetQaqcConsolidatedDashboardView = {
+  monthly: 'monthly',
+  daily: 'daily',
+} as const;
+
+export type GetQaqcConsolidatedDashboardMode = typeof GetQaqcConsolidatedDashboardMode[keyof typeof GetQaqcConsolidatedDashboardMode];
+
+
+export const GetQaqcConsolidatedDashboardMode = {
+  cumulative: 'cumulative',
+  movement: 'movement',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200View = typeof GetQaqcConsolidatedDashboard200View[keyof typeof GetQaqcConsolidatedDashboard200View];
+
+
+export const GetQaqcConsolidatedDashboard200View = {
+  monthly: 'monthly',
+  daily: 'daily',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200Mode = typeof GetQaqcConsolidatedDashboard200Mode[keyof typeof GetQaqcConsolidatedDashboard200Mode];
+
+
+export const GetQaqcConsolidatedDashboard200Mode = {
+  cumulative: 'cumulative',
+  movement: 'movement',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200ProjectsItem = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Coverage = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Monthly = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Daily = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200RecordsItem = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200 = {
+  view: GetQaqcConsolidatedDashboard200View;
+  period: string;
+  mode: GetQaqcConsolidatedDashboard200Mode;
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  projects: GetQaqcConsolidatedDashboard200ProjectsItem[];
+  periods: string[];
+  coverage: GetQaqcConsolidatedDashboard200Coverage;
+  monthly: GetQaqcConsolidatedDashboard200Monthly;
+  daily: GetQaqcConsolidatedDashboard200Daily;
+  records: GetQaqcConsolidatedDashboard200RecordsItem[];
+  warnings: string[];
+  [key: string]: unknown;
+ };
 
 export type ListPlatformProjectsParams = {
 /**
@@ -4816,6 +5420,10 @@ export type ListDronaProjectMaster200 = {
   page: number;
   limit: number;
   linkMetadataAvailable: boolean;
+};
+
+export type ListRoleAssignmentDepartmentsParams = {
+application: AppKey;
 };
 
 export type ListRoleAssignmentProjectsParams = {
@@ -5491,6 +6099,10 @@ page?: PageParameter;
 limit?: LimitParameter;
 };
 
+export type GetLessonApprovalHistory200 = {
+  items: LessonApprovalHistoryEntry[];
+};
+
 export type SearchLessonsLogParams = {
 search?: string;
 departmentId?: string;
@@ -5823,6 +6435,16 @@ page?: PageParameter;
 limit?: LimitParameter;
 };
 
+export type GetAuditScheduleActivityOptionsParams = {
+projectId?: string;
+department?: string;
+retainedScheduleId?: string;
+};
+
+export type GetAuditPlanOptionsParams = {
+scheduleId: string;
+};
+
 export type ListAuditsParams = {
 /**
  * @minimum 1
@@ -5861,6 +6483,11 @@ limit?: LimitParameter;
 };
 
 export type ListCarRegisterParams = {
+carNumber?: string;
+projectDepartment?: string;
+findingType?: string;
+riskLevel?: string;
+actionTakerId?: string;
 projectId?: string;
 scheduleId?: string;
 auditTitle?: string;
@@ -5923,6 +6550,18 @@ export type GetAuditOpenVsClosedReportParams = {
 projectId?: ProjectIdParameter;
 from?: FromParameter;
 to?: ToParameter;
+};
+
+export type ListAuditFindingRegisterParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
 };
 
 export type GetAuditFindingsLogReportParams = {

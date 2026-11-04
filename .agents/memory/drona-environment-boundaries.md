@@ -90,17 +90,17 @@ alternatives; repeating those questions does not resolve backend authentication.
 backend contract exists. The approved email-only route is a separate exception,
 not a replacement security guarantee.
 
-On 2026-10-06 the user stated that Drona PRD and UAT are the same environment
-and explicitly authorized proceeding without Drona session/nonce validation,
+On 2026-10-06 the user explicitly authorized proceeding without Drona session/nonce validation,
 using Drona profile.email. This supersedes the previous no-cutover rule for
 that exception, not the requirement to preserve QMS permissions and mappings.
 
 **Why:** The user accepted the exception after the impersonation risk and
 production limitation were explained, then clarified the shared environment.
 
-**How to apply:** Document the bypass honestly, require explicit server-side
-activation, and use one reviewed environment key for that shared AWS target.
-Never label it verified SSO or assume a separate isolated UAT. Keep Replit
+**How to apply:** Document the bypass honestly and require explicit server-side
+activation. The user's later clarification establishes separate Drona QA/UAT
+and PRD targets; review environment keys and identity links separately.
+Never label it verified SSO. Keep Replit
 DEV/QA data and configuration separate. Removing the bypass remains future
 security work when a supported verifier is supplied.
 
@@ -120,6 +120,17 @@ For Drona sessions, membership also caps otherwise-global QMS project grants;
 keep own/full visibility distinctions within that intersection.
 Backend session verification remains unresolved, but no longer blocks the
 explicitly approved email-only implementation/handoff.
+
+Drona QA/UAT and AWS PRD can have different source schemas. The user reports
+`public.user_role_mapping` has both scalar `module` and array `modules` in UAT,
+but only array `modules` in PRD. Use the array as the assignment module source.
+
+**Why:** Depending on the UAT-only scalar column prevented production Add User
+discovery from executing after migration.
+
+**How to apply:** Do not add the missing scalar column or use a scalar fallback.
+Retain configured module-value matching for admin discovery without inventing
+new module gates for session project membership.
 
 The user confirmed on 2026-10-09 that the Drona integration worked, then asked
 for AWS production file-storage and SMTP setup.

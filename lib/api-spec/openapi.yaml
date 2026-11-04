@@ -35,6 +35,63 @@ tags:
   - name: audit-admin
     description: QMS Audit workspace administration
 paths:
+  /qaqc/admin/csat-numbering:
+    get:
+      operationId: getCsatNumbering
+      tags: [qaqc-admin]
+      responses:
+        "200": {description: CSAT reference configuration, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingSettings"}}}}
+    put:
+      operationId: updateCsatNumbering
+      tags: [qaqc-admin]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingPattern"}}}}
+      responses:
+        "200": {description: Saved format, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingPattern"}}}}
+  /qaqc/admin/csat-numbering/ranges:
+    put:
+      operationId: updateCsatNumberRange
+      tags: [qaqc-admin]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberRangeInput"}}}}
+      responses:
+        "200": {description: Saved range, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingSettings"}}}}
+  /qaqc/reporting/daily-historical-balances/projects:
+    get:
+      operationId: getDailyOpeningProjects
+      tags: [qaqc]
+      responses:
+        "200": {description: Authorized project opening-load eligibility and source fields, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/DailyOpeningProject'}}, fields: {type: array, items: {$ref: '#/components/schemas/DailyOpeningField'}}}}}}}
+  /qaqc/reporting/daily-historical-balances/manual:
+    post:
+      operationId: saveDailyOpeningManual
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningManualInput'}}}}
+      responses:
+        "200": {description: One-time manual opening balance saved, content: {application/json: {schema: {type: object, required: [applied], properties: {applied: {type: number}}}}}}
+        "403": {description: Historical edit permission required for this project}
+        "409": {description: Project already loaded or has Daily Submissions}
+        "422": {description: Invalid cutoff date or source balances}
+  /qaqc/reporting/daily-historical-balances/template:
+    get:
+      operationId: downloadDailyOpeningTemplate
+      tags: [qaqc]
+      parameters: [{name: goLiveDate, in: query, required: true, schema: {type: string}}]
+      responses:
+        "200": {description: Column-wise multi-project Excel template, content: {application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {schema: {type: string, format: binary}}}}
+  /qaqc/reporting/daily-historical-balances/preview:
+    post:
+      operationId: previewDailyOpeningWorkbook
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningUpload'}}}}
+      responses:
+        "200": {description: Read-only workbook preview, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningPreview'}}}}
+  /qaqc/reporting/daily-historical-balances/apply:
+    post:
+      operationId: applyDailyOpeningWorkbook
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningApply'}}}}
+      responses:
+        "200": {description: All projects saved atomically, content: {application/json: {schema: {type: object, properties: {applied: {type: number}}}}}}
+        "409": {description: A project is already loaded or has Daily Submissions; nothing saved}
   /qaqc/reporting/historical-balances/bulk-template:
     get:
       operationId: getQaqcHistoricalBulkTemplate
@@ -163,6 +220,43 @@ paths:
           content:
             application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
               schema: {type: string, format: binary}
+  /qaqc/reporting/consolidated-dashboard:
+    get:
+      operationId: getQaqcConsolidatedDashboard
+      tags: [qaqc]
+      parameters:
+        - {name: view, in: query, schema: {type: string, enum: [monthly, daily]}}
+        - {name: period, in: query, schema: {type: string}}
+        - {name: date, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string}}
+        - {name: to, in: query, schema: {type: string}}
+        - {name: mode, in: query, schema: {type: string, enum: [cumulative, movement]}}
+        - {name: projectId, in: query, schema: {type: string}}
+        - {name: sbg, in: query, schema: {type: string}}
+        - {name: bu, in: query, schema: {type: string}}
+        - {name: projectGroup, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Authorized approved-report dashboard and drill-down records
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [view, period, mode, projects, periods, coverage, monthly, daily, records, warnings]
+                properties:
+                  view: {type: string, enum: [monthly, daily]}
+                  period: {type: string}
+                  mode: {type: string, enum: [cumulative, movement]}
+                  from: {type: [string, "null"]}
+                  to: {type: [string, "null"]}
+                  projects: {type: array, items: {type: object, additionalProperties: true}}
+                  periods: {type: array, items: {type: string}}
+                  coverage: {type: object, additionalProperties: true}
+                  monthly: {type: object, additionalProperties: true}
+                  daily: {type: object, additionalProperties: true}
+                  records: {type: array, items: {type: object, additionalProperties: true}}
+                  warnings: {type: array, items: {type: string}}
   /healthz:
     get:
       operationId: healthCheck
@@ -466,6 +560,25 @@ paths:
         "401": {description: Authentication required}
         "403": {description: Administrator access required}
         "404": {description: Project not available within current project access}
+  /platform/role-assignment-departments:
+    get:
+      operationId: listRoleAssignmentDepartments
+      tags: [platform]
+      summary: List active Department Master options within application administration scope
+      parameters:
+        - name: application
+          in: query
+          required: true
+          schema: {$ref: "#/components/schemas/AppKey"}
+      responses:
+        "200":
+          description: Available departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/RoleDepartmentOption"}
+        "403": {description: Application administrator access required}
   /platform/role-assignment-projects:
     get:
       operationId: listRoleAssignmentProjects
@@ -1579,6 +1692,22 @@ paths:
     post: {operationId: reviewLessonForm, tags: [lessons], summary: Review form; remarks are required when sent back, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
   /lessons/forms/{id}/activity:
     get: {operationId: listLessonFormActivity, tags: [lessons], summary: List the audit activity for one lesson (most recent 50), parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+  /lessons/forms/{id}/approval-history:
+    get:
+      operationId: getLessonApprovalHistory
+      tags: [lessons]
+      summary: Complete approval history for an authorized lesson, newest first
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200":
+          description: All recorded approval actions, without the activity timeline limit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/LessonApprovalHistoryEntry"}}
   /lessons/forms/{id}/photos:
     post: {operationId: createLessonPhotoIntent, tags: [lessons], summary: Create photo upload intent; maximum five per category, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonPhotoIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
   /lessons/photos/{id}/confirm:
@@ -1839,6 +1968,10 @@ paths:
   /audit/schedule-activity-options:
     get:
       operationId: getAuditScheduleActivityOptions
+      parameters:
+        - {in: query, name: projectId, schema: {type: string}}
+        - {in: query, name: department, schema: {type: string}}
+        - {in: query, name: retainedScheduleId, schema: {type: string}}
       responses:
         "200":
           description: Active organization Audit roles and eligible Audit users for schedule-local activity assignments
@@ -1846,7 +1979,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/AuditScheduleActivityOptions"}
   /audit/plan-options:
-    get: {operationId: getAuditPlanOptions, tags: [audit], summary: List active organization users available to Audit Plan master fields, responses: {"200": {description: Plan options, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
+    get: {operationId: getAuditPlanOptions, tags: [audit], summary: List eligible Audit participants for an authorized individual audit, parameters: [{in: query, name: scheduleId, required: true, schema: {type: string}}], responses: {"200": {description: Plan options and display-only historical names, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
   /audit/plan-notification-roles:
     get: {operationId: listAuditPlanNotificationRoles, tags: [audit], summary: List active roles available for Audit Plan execution notifications, responses: {"200": {description: Active Audit roles, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Role"}}}}}}}
   /audit/plans/{id}:
@@ -1869,7 +2002,7 @@ paths:
         "403": {description: Access denied}
         "404": {description: Audit plan not found}
   /audit/plans/{id}/send-for-audit:
-    post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution and inform selected roles, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/SendAuditPlanForExecutionInput"}, responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
+    post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution and inform saved circulation roles, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/SendAuditPlanForExecutionInput"}, responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
   /audit/audits:
     get: {operationId: listAudits, tags: [audit], summary: List audits, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPage"}}}
     post: {operationId: createAudit, tags: [audit], summary: Create audit linked to plan, requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"201": {description: Created}}}
@@ -1888,6 +2021,21 @@ paths:
       responses:
         "200": {description: Completed audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
         "403": {description: Audit edit permission required}
+  /audit/audits/{id}/review:
+    post:
+      operationId: reviewAuditReport
+      tags: [audit]
+      summary: Approve the current Audit Report level or send the report back for correction
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuditReportApprovalDecisionInput"}
+      responses:
+        "200": {description: Reviewed report, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "403": {description: Only an authorized reviewer at the current report approval level may act}
+        "409": {description: Report is not awaiting this approval or the next level has no eligible reviewers}
   /audit/audits/{id}/report-details:
     put:
       operationId: saveAuditReportDetails
@@ -1942,6 +2090,14 @@ paths:
     post: {operationId: createAuditFindingItem, tags: [audit], summary: Add a finding-only row to this audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingItemInput"}}}}, responses: {"201": {description: Updated audit with new finding, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/finding-items/{itemId}/action-taker:
     patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/finding-items/{itemId}/date:
+    patch:
+      operationId: updateAuditFindingDate
+      tags: [audit]
+      parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FindingDateInput"}}}}
+      responses:
+        "200": {description: Finding date and linked CAR deadlines updated, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
   /audit/audits/{id}/additional-documents/organization-chart:
     put: {operationId: replaceAuditOrganizationChart, tags: [audit], summary: Attach or replace the single organization chart, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditOrganizationChartInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Organization chart changed since it was viewed}}}
   /audit/audits/{id}/additional-documents/good-practices:
@@ -1974,6 +2130,11 @@ paths:
       operationId: listCarRegister
       tags: [audit]
       parameters:
+        - {name: carNumber, in: query, schema: {type: string}}
+        - {name: projectDepartment, in: query, schema: {type: string}}
+        - {name: findingType, in: query, schema: {type: string}}
+        - {name: riskLevel, in: query, schema: {type: string}}
+        - {name: actionTakerId, in: query, schema: {type: string}}
         - {name: projectId, in: query, schema: {type: string}}
         - {name: scheduleId, in: query, schema: {type: string}}
         - {name: auditTitle, in: query, schema: {type: string}}
@@ -2037,10 +2198,20 @@ paths:
   /audit/cars/{id}:
     get: {operationId: getCorrectiveActionReport, tags: [audit], summary: Get a corrective action report, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Corrective action report, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}, "403": {description: CAR is outside the caller's organization or scope}, "404": {description: CAR not found}}}
     put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Save CAR response, optionally submitting in the same action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarResponseInput"}}}}, responses: {"200": {description: Saved or submitted, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
+  /audit/cars/{id}/number:
+    post:
+      operationId: generateMissingCarNumber
+      tags: [audit]
+      summary: Issue a missing number for an existing saved CAR without changing its workflow
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200":
+          description: Existing or newly assigned CAR number
+          content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
   /audit/cars/{id}/submit:
-    post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+    post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR for configured approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
   /audit/cars/{id}/review:
-    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Team Lead closes or returns CAR, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarReviewInput"}}}}, responses: {"200": {description: Reviewed}}}
+    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Review CAR at its pending approval level, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarReviewInput"}}}}, responses: {"200": {description: Reviewed, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
   /audit/cars/{id}/extension:
     post: {operationId: requestCarExtension, tags: [audit], summary: Request CAR due-date extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Extension"}, responses: {"200": {description: Requested}}}
   /audit/cars/{id}/extension/review:
@@ -2056,6 +2227,18 @@ paths:
     put: {operationId: confirmAuditEvidence, tags: [audit], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
   /audit/reports/open-vs-closed:
     get: {operationId: getAuditOpenVsClosedReport, tags: [audit], summary: Get open versus closed report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/finding-register:
+    get:
+      operationId: listAuditFindingRegister
+      tags: [audit]
+      summary: Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200":
+          description: Authorized finding rows
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuditFindingRegisterPage"}
   /audit/reports/findings-log:
     get: {operationId: getAuditFindingsLogReport, tags: [audit], summary: Get findings log report, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
   /audit/reports/ageing:
@@ -2443,6 +2626,62 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    DailyOpeningProject:
+      type: object
+      required: [id, name, label, loaded, blocked, goLiveDate]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        label: {type: string}
+        loaded: {type: boolean}
+        blocked: {type: boolean}
+        goLiveDate: {type: [string, "null"]}
+        reason: {type: string}
+    DailyOpeningUpload:
+      type: object
+      required: [fileBase64]
+      properties:
+        fileBase64: {type: string, maxLength: 2800000}
+    DailyOpeningField:
+      type: object
+      required: [key, label]
+      properties:
+        key: {type: string}
+        label: {type: string}
+    DailyOpeningManualInput:
+      type: object
+      required: [confirmed, projectId, goLiveDate, reason, data]
+      properties:
+        confirmed: {type: boolean, const: true}
+        projectId: {type: string}
+        goLiveDate: {type: string}
+        reason: {type: string, minLength: 3, maxLength: 1000}
+        data: {type: object, additionalProperties: true}
+    DailyOpeningRow:
+      type: object
+      required: [projectId, goLiveDate, reason, data, rowNumber]
+      properties:
+        projectId: {type: string}
+        projectName: {type: string}
+        goLiveDate: {type: string}
+        reason: {type: string}
+        rowNumber: {type: number}
+        data: {type: object, additionalProperties: true}
+        errors: {type: array, items: {type: string}}
+    DailyOpeningPreview:
+      type: object
+      required: [valid, rows, errors, fields]
+      properties:
+        valid: {type: boolean}
+        rows: {type: array, items: {$ref: '#/components/schemas/DailyOpeningRow'}}
+        errors: {type: array, items: {type: string}}
+        fields: {type: array, items: {type: object, required: [key, label], properties: {key: {type: string}, label: {type: string}}}}
+    DailyOpeningApply:
+      type: object
+      required: [confirmed, items]
+      properties:
+        confirmed: {type: boolean, const: true}
+        items: {type: array, minItems: 1, maxItems: 500, items: {$ref: '#/components/schemas/DailyOpeningRow'}}
     QaqcHistoricalBulkUpload:
       type: object
       additionalProperties: false
@@ -2791,6 +3030,7 @@ components:
     EmailRecipientConfig:
       type: object
       properties:
+        ccRecipient: {$ref: "#/components/schemas/EmailCcRecipient"}
         roleName: {type: string}
         roleNames: {type: array, items: {type: string}, uniqueItems: true}
         ccRoleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
@@ -2798,10 +3038,33 @@ components:
         senderMode: {type: string, enum: [form_creator, approving_user]}
         subjectTemplate: {type: string, maxLength: 250}
         bodyTemplate: {type: string, maxLength: 20000}
+        reportAttachment:
+          type: [string, "null"]
+          enum: [null, lesson_pdf, qaqc_report_pdf, qaqc_dashboard_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
+          description: Legacy single report selection. Used only when reportAttachments is omitted.
+        reportAttachments:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            enum: [lesson_pdf, qaqc_report_pdf, qaqc_dashboard_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
+          description: Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.
         bodyRichText:
           type: [object, "null"]
           additionalProperties: true
           description: Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
+    EmailCcRecipient:
+      type: object
+      required: [mode]
+      properties:
+        mode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role, linked_approver, linked_creator]}
+        userId: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}
+        name: {type: string, maxLength: 200}
+        email: {type: string, maxLength: 320}
+        roleName: {type: string, maxLength: 200}
+        roleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
+        projectIds: {type: array, items: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}, uniqueItems: true, maxItems: 100}
     EmailRuleRoleOption:
       type: object
       required: [id, name]
@@ -3202,6 +3465,13 @@ components:
       additionalProperties: false
       required: [client, contractor, contractProjectNumber, contractSigned, contractPeriod, tcc, pac, fac]
       properties:
+        sbg: {type: ["string", "null"], maxLength: 500}
+        bu: {type: ["string", "null"], maxLength: 500}
+        projectGroup: {type: ["string", "null"], maxLength: 500}
+        consultant: {type: ["string", "null"], maxLength: 500}
+        projectManager: {type: ["string", "null"], maxLength: 500}
+        contractValue: {type: ["string", "null"], maxLength: 500}
+        ptsNumber: {type: ["string", "null"], maxLength: 500}
         name: {type: ["string", "null"], maxLength: 500}
         client: {type: ["string", "null"], maxLength: 500}
         contractor: {type: ["string", "null"], maxLength: 500}
@@ -3791,7 +4061,7 @@ components:
             audit.dashboard.view_all,
             audit.schedules.view_all, audit.schedules.create_edit, audit.schedules.delete, audit.schedules.submit, audit.schedules.approve_reject, audit.schedules.export,
             audit.plans.view_all, audit.plans.create_edit, audit.plans.delete, audit.plans.submit, audit.plans.export,
-            audit.audits.view_all, audit.audits.create_edit, audit.audits.delete, audit.audits.export,
+            audit.audits.view_all, audit.audits.create_edit, audit.audits.delete, audit.audits.approve_reject, audit.audits.export,
             audit.findings.view_all, audit.findings.create_edit, audit.findings.delete, audit.findings.export,
             audit.cars.view_all, audit.cars.create_edit, audit.cars.submit, audit.cars.approve_reject, audit.cars.export,
             audit.reports.view_all, audit.reports.export
@@ -3804,16 +4074,23 @@ components:
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
-      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
+    RoleDepartmentOption:
+      type: object
+      required: [id, name, code]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        code: {type: string}
     LessonsRoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
       properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     SendAuditPlanForExecutionInput:
       type: object
-      required: [roleIds]
       properties:
         roleIds:
+          description: Legacy input, ignored. Recipients are derived from saved Audit Plan Circulation.
           type: array
           uniqueItems: true
           items: {type: string}
@@ -4148,6 +4425,18 @@ components:
         projectId: {type: string}
         disciplineId: {type: string}
         categorisation: {type: string}
+    LessonApprovalHistoryEntry:
+      type: object
+      required: [id, action, actorName, occurredAt]
+      properties:
+        id: {type: string}
+        action: {type: string}
+        actorId: {type: [string, "null"]}
+        actorName: {type: string}
+        actorDesignation: {type: [string, "null"]}
+        occurredAt: {type: string, format: date-time}
+        comments: {type: [string, "null"]}
+        signatureUrl: {type: [string, "null"]}
     LessonLearnedForm:
       type: object
       required: [id, referenceNumber, projectId, title, disciplineId, categorisationId, issueCategory, impact, description, rootCause, correction, correctiveAction, capturedAt, version, conflictFlag, workflowState]
@@ -4217,6 +4506,7 @@ components:
       properties:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
         roles: {type: array, items: {$ref: "#/components/schemas/AuditActivityRoleOption"}}
+        historicalUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditSchedule:
       type: object
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState, currentApprovalRole, approvalRoles, canReview]
@@ -4339,6 +4629,7 @@ components:
       type: object
       required: [id, fullName]
       properties:
+        canSelect: {type: boolean, description: False for retained former meeting attendees shown for display only}
         id: {type: string}
         fullName: {type: string}
         designation: {type: [string, "null"]}
@@ -4354,6 +4645,9 @@ components:
       required: [users]
       properties:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        historicalUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        leadUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        teamUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditPlanNumberingPattern:
       type: object
       required: [prefix, middle, separator, padding]
@@ -4362,6 +4656,27 @@ components:
         middle: {type: string, maxLength: 80}
         separator: {type: string, maxLength: 80}
         padding: {type: number, minimum: 1, maximum: 12}
+    CsatNumberingPattern:
+      type: object
+      required: [prefix, separator, padding]
+      properties:
+        prefix: {type: string, maxLength: 80}
+        separator: {type: string, maxLength: 80}
+        padding: {type: number, minimum: 1, maximum: 12}
+    CsatNumberRangeInput:
+      type: object
+      required: [projectId, year, lastNumber]
+      properties:
+        projectId: {type: string, minLength: 1}
+        year: {type: number, minimum: 1900, maximum: 9999}
+        lastNumber: {type: number, minimum: 0, maximum: 999999999998}
+    CsatNumberingSettings:
+      type: object
+      required: [pattern, ranges, sources]
+      properties:
+        pattern: {$ref: "#/components/schemas/CsatNumberingPattern"}
+        ranges: {type: object, additionalProperties: {type: object, additionalProperties: {type: number}}}
+        sources: {type: array, items: {$ref: "#/components/schemas/AuditNumberingSource"}}
     AuditFindingNumberingPattern:
       type: object
       required: [prefix, separator, padding, codes]
@@ -4441,6 +4756,17 @@ components:
         qaqcScope: {type: string}
         auditTypes: {type: array, minItems: 1, items: {type: string}}
         auditLanguage: {type: string}
+        auditMethods:
+          type: array
+          items:
+            type: string
+            enum: ["Interviews", "Observation of activities", "Sample-based review of records", "Site / store walk-down", "Supplier or third-party verification"]
+        auditCriteria:
+          type: array
+          description: Dedicated criteria selections, independent of legacy criteria and Audit Type
+          items:
+            type: string
+            enum: ["ISO 9001:2015", "ISO 45001:2018", "ISO/IEC 17025:2017", "Client specifications (e.g. PTS, SOW)", "Project Quality Plan", "Company procedures: [list]", "Approved drawings and specifications"]
         qaqcReference: {type: string}
         description: {type: [string, "null"]}
         startDateTime: {type: string, description: "Saved planned date/time, retaining its calendar day and wall-clock time."}
@@ -4485,22 +4811,34 @@ components:
     MeetingMinutes:
       type: object
       required: [heldAt, attendees, minutes]
-      properties: {heldAt: {type: string, format: date-time}, attendees: {type: array, items: {type: string}}, minutes: {type: string}, evidenceIds: {type: array, items: {type: string}}}
+      properties:
+        heldAt: {type: string, format: date-time}
+        heldAtLocal: {type: string, readOnly: true, description: Original meeting wall-clock input retained without shifting its calendar day}
+        attendees: {type: array, items: {type: string}}
+        minutes: {type: string}
+        evidenceIds: {type: array, items: {type: string}}
     ChecklistItem:
       type: object
       required: [id, question]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}, findingNumber: {type: string, readOnly: true, description: "Server-issued number assigned on Save Finding; distinct from clientReference"}}
+      properties: {id: {type: string}, findingDate: {type: [string, "null"]}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, riskLevel: {type: [string, "null"], enum: [Low, Medium, High, null]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}, findingNumber: {type: string, readOnly: true, description: "Server-issued number assigned on Save Finding; distinct from clientReference"}}
     FindingPriorityAction:
       type: string
       enum: ["Contain the risk now", "Correct and close", "Prevent recurrence"]
+    FindingDateInput:
+      type: object
+      required: [findingDate]
+      properties:
+        findingDate: {type: string, pattern: '^\d{4}-\d{2}-\d{2}$'}
     AuditFindingItemInput:
       type: object
-      required: [clause, auditArea, auditFinding, actionTakerId, recommendedPriorityAction]
+      required: [clause, auditArea, auditFinding, riskLevel, actionTakerId, recommendedPriorityAction]
       properties:
+        findingDate: {type: string, pattern: '^\d{4}-\d{2}-\d{2}$'}
         clause: {type: string, minLength: 1}
         auditArea: {type: string, minLength: 1}
         description: {type: string}
         auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI]}
+        riskLevel: {type: string, enum: [Low, Medium, High]}
         evidenceIds: {type: array, items: {type: string}}
         actionTakerId: {type: string}
         recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}
@@ -4513,13 +4851,14 @@ components:
         recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction", description: "Required if the finding has no existing priority action; saved together with the Action Taker"}
     AuditChecklistItemInput:
       type: object
-      required: [clause, auditArea, question]
+      required: [clause, auditArea, question, riskLevel]
       properties:
         clause: {type: string, minLength: 1}
         auditArea: {type: string, minLength: 1, description: "Value in the Audit Area master-data group"}
         question: {type: string, minLength: 1}
         description: {type: string}
         auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}
+        riskLevel: {type: string, enum: [Low, Medium, High]}
         evidenceIds: {type: array, items: {type: string}}
     AuditChecklistImportItem:
       type: object
@@ -4607,7 +4946,116 @@ components:
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
-      properties: {id: {type: string}, planId: {type: string}, planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}, reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}, canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+      properties:
+        id: {type: string}
+        executionSummary: {$ref: "#/components/schemas/AuditExecutionSummary"}
+        findingRegister:
+          type: array
+          readOnly: true
+          description: Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.
+          items: {$ref: "#/components/schemas/AuditFindingRegisterItem"}
+        planId: {type: string}
+        planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}
+        planAvailable: {type: boolean, readOnly: true, description: Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail}
+        projectName: {type: [string, "null"], readOnly: true, description: Linked project name, not its code; null for projectless audits or unavailable projects; supplied on audit detail}
+        reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}
+        reportApproval: {$ref: "#/components/schemas/AuditReportApproval"}
+        projectId: {type: [string, "null"], description: Null for a department-based Process audit; inherited from the selected Plan}
+        title: {type: string}
+        status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}
+        canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}
+        openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}
+        closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}
+        openingMeetingBounds:
+          type: object
+          description: Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.
+          readOnly: true
+          required: [fromDate, toDate]
+          properties:
+            fromDate: {type: [string, "null"]}
+            toDate: {type: [string, "null"]}
+        checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}
+        additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}
+        reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}
+        startedAt: {type: [string, "null"], format: date-time}
+        closedAt: {type: [string, "null"], format: date-time}
+    AuditFindingRegisterPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/AuditFindingRegisterItem"}}
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
+    AuditFindingRegisterItem:
+      type: object
+      readOnly: true
+      required: [id, source, auditExecutionId, findingNumber, auditId, auditTitle, projectDepartment, clauseReference, auditArea, description, findingType, riskLevel, auditTeamLeadId, auditTeamLeadName, actionTakers]
+      properties:
+        id: {type: string}
+        source: {type: string, enum: [checklist, legacy]}
+        auditExecutionId: {type: string}
+        findingNumber: {type: [string, "null"]}
+        auditId: {type: [string, "null"]}
+        auditTitle: {type: string}
+        projectDepartment: {type: [string, "null"]}
+        clauseReference: {type: [string, "null"]}
+        auditArea: {type: [string, "null"]}
+        description: {type: [string, "null"]}
+        findingType: {type: [string, "null"]}
+        riskLevel: {type: [string, "null"]}
+        auditTeamLeadId: {type: [string, "null"]}
+        auditTeamLeadName: {type: [string, "null"]}
+        actionTakers:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties: {id: {type: string}, name: {type: [string, "null"]}}
+    AuditExecutionSummary:
+      type: object
+      readOnly: true
+      description: Scoped list projection derived from the linked Plan, Schedule and active finding/CAR records; no additional module permissions required.
+      required: [auditId, auditTypes, projectDepartment, auditLeadId, auditLeadName, findingCount, openFindingCount]
+      properties:
+        auditId: {type: [string, "null"], description: Linked child Schedule QA/QC Reference, with saved Plan QA/QC Reference as a legacy fallback}
+        auditTypes: {type: array, items: {type: string}}
+        projectDepartment: {type: [string, "null"]}
+        auditLeadId: {type: [string, "null"]}
+        auditLeadName: {type: [string, "null"]}
+        findingCount: {type: number, minimum: 0, multipleOf: 1}
+        openFindingCount: {type: number, minimum: 0, multipleOf: 1}
+    AuditReportApprovalDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [approve, send_back]}
+        remarks: {type: string, maxLength: 4000}
+    AuditReportApproval:
+      type: object
+      readOnly: true
+      required: [status, pendingLevel, pendingApprovers, canReview, history]
+      properties:
+        status: {type: string, enum: [Not submitted, Pending approval, Approved, Sent back]}
+        pendingLevel: {type: [number, "null"]}
+        pendingApprovers:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties: {id: {type: string}, name: {type: string}}
+        canReview: {type: boolean}
+        history:
+          type: array
+          items:
+            type: object
+            required: [decision, userName, level, remarks, at]
+            properties:
+              decision: {type: string}
+              userName: {type: string}
+              level: {type: number}
+              remarks: {type: string}
+              at: {type: string}
     AuditReportDetails:
       type: object
       required: [values, rows]
@@ -4628,11 +5076,31 @@ components:
       type: object
       required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]
       properties: {id: {type: string}, auditId: {type: string}, title: {type: string}, description: {type: string}, clause: {type: [string, "null"]}, classification: {type: string, description: "Values managed via /platform/master-data/lov/nc_classifications"}, priority: {type: string, description: "Values managed via /platform/master-data/lov/finding_priorities"}, riskLevel: {type: string, description: "Values managed via /platform/master-data/lov/risk_levels"}, responsibleDepartments: {type: array, items: {type: string}}, evidenceIds: {type: array, items: {type: string}}, status: {type: string, enum: [Open, CAR Issued, Verified, Closed, Deleted]}, raisedAt: {type: string, format: date-time}}
+    CarApproval:
+      type: object
+      readOnly: true
+      required: [status, pendingLevel, finalLevel, history]
+      properties:
+        status: {type: string, enum: [Not submitted, Pending approval, Approved, Sent back]}
+        pendingLevel: {type: [number, "null"]}
+        finalLevel: {type: [number, "null"]}
+        history:
+          type: array
+          items:
+            type: object
+            required: [decision, userName, level, remarks, at]
+            properties:
+              decision: {type: string}
+              userName: {type: string}
+              level: {type: number}
+              remarks: {type: string}
+              at: {type: string}
     CorrectiveActionReport:
       type: object
       required: [id, findingId, responsibleDepartment, ownerId, status, dueDate]
       properties:
         carNumber: {type: [string, "null"], readOnly: true, description: Assigned on the first successful response save or submission}
+        approval: {$ref: "#/components/schemas/CarApproval"}
         id: {type: string}
         findingId: {type: string}
         responsibleDepartment: {type: string}
@@ -4641,7 +5109,7 @@ components:
         correction: {type: [string, "null"]}
         correctiveAction: {type: [string, "null"]}
         status: {type: string, enum: [Open, Draft, Submitted, Accepted, Rejected, Returned for query, Returned for rework, Extension Requested, Closed]}
-        dueDate: {type: string, format: date}
+        dueDate: {type: [string, "null"], format: date}
         extensionRequestedTo: {type: [string, "null"], format: date}
         extensionReason: {type: [string, "null"]}
         extensionStatus: {type: [string, "null"], enum: [pending, approved, rejected, null]}
@@ -4717,6 +5185,15 @@ components:
         auditArea: {type: string}
         description: {type: string}
         classification: {type: string}
+        findingNumber: {type: [string, "null"]}
+        riskLevel: {type: [string, "null"]}
+        actionTakerId: {type: [string, "null"]}
+        assignedAt: {type: [string, "null"], format: date-time}
+        actualClosedAt: {type: [string, "null"], format: date-time}
+        pendingWith: {type: [string, "null"]}
+        createdAt: {type: [string, "null"], format: date-time}
+        dueDate: {type: [string, "null"], format: date}
+        canNumber: {type: boolean}
         actionTakerName: {type: string}
         evidenceIds: {type: array, items: {type: string}}
         status: {type: string}
@@ -4737,6 +5214,12 @@ components:
         auditTitles: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
         auditTypes: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
         departments: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        carNumbers: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        projectDepartments: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        auditFindings: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        riskLevels: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        actionTakers: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        statuses: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
     AcceptRejectReview:
       type: object
       required: [decision]

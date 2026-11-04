@@ -11,4 +11,5 @@ import type { AuditPlanUserOption } from './auditPlanUserOption';
 export interface AuditScheduleActivityOptions {
   users: AuditPlanUserOption[];
   roles: AuditActivityRoleOption[];
+  historicalUsers?: AuditPlanUserOption[];
 }

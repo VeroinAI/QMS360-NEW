@@ -7,7 +7,7 @@ import { Download } from "lucide-react";
 import {
    customFetch, getGetCorrectiveActionReportQueryKey, getListCarActivityQueryKey, getListCarRegisterQueryKey, useListAuditEvidence, useListCarRegister,
   useReviewCorrectiveActionReport, useStartFindingCar, useUpdateCorrectiveActionReport,
-  useOpenCarEditSession,
+  useOpenCarEditSession, useGetCurrentUser,
 } from "@workspace/api-client-react";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,13 @@ import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useLov } from "@/lib/use-lov";
 import { AuditAttachments } from "./audit-attachments";
+import { ALL, buildCarRegisterParams, CAR_FILTERS, EMPTY_CAR_FILTERS, filterOptions } from "./car-register-filters";
+import type { CarFilterKey, CarFilterState, CarRegisterPageWithOptions } from "./car-register-filters";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
+import { CarApprovalDetails } from "./car-approval-details";
 
 const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
-const STATUSES = ["Open", "Draft", "Submitted", "Returned for query", "Returned for rework", "Accepted", "Rejected", "Extension Requested", "Closed"];
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Please try again.";
 const outcomeLabel = (o?: string | null) => o === "query" ? "Query" : o === "rework" ? "Rework" : o === "reject" ? "Rejected" : o === "accept" ? "Accepted" : o ?? "";
 
@@ -100,6 +102,7 @@ export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, 
       </div>
       {entry && <CarResponseDetails entry={entry} auditAreaLabel={auditAreaLabel ?? entry.auditArea} evidence={evidence ?? "—"} />}
       {car && <CarReviewNotes car={car}/>}
+      {car && <CarApprovalDetails car={car}/>}
       {field("rootCause", responseFieldLabels.rootCause)}{field("correction", responseFieldLabels.correction)}{field("correctiveAction", responseFieldLabels.correctiveAction)}
       {car && <AuditAttachments auditId={car.id} recordType="car" readOnly={viewOnly || update.isPending} onUploadingChange={setUploading}/>}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
@@ -119,16 +122,17 @@ export function CarReviewDialog({ car, open, onClose }: { car: CorrectiveActionR
   const go = () => {
     if (decision !== "accept" && !comments.trim()) { setErr("Comments are required for query or rework."); return; }
     review.mutate({ id: car.id, data: { decision, comments: comments.trim() || null } }, {
-      onSuccess: () => { refresh(); toast({ title: decision === "accept" ? "CAR closed" : decision === "query" ? "Query sent" : "Sent for rework" }); onClose(); },
+      onSuccess: saved => { refresh(); toast({ title: decision === "accept" ? saved.status === "Closed" ? "CAR closed" : "CAR advanced to next Approval Level" : decision === "query" ? "Query sent" : "Sent for rework" }); onClose(); },
       onError: e => { setErr(errorText(e)); refresh(); },
     });
   };
   return <Dialog open={open} onOpenChange={v => { if (!v && !review.isPending) onClose(); }}>
-    <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Review CAR response</DialogTitle><DialogDescription>Accepting closes the CAR immediately.</DialogDescription></DialogHeader>
+    <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Review CAR response{car.approval?.pendingLevel != null ? ` — Level ${car.approval.pendingLevel}` : ""}</DialogTitle><DialogDescription>{car.approval?.pendingLevel != null && car.approval.pendingLevel !== car.approval.finalLevel ? "Accepting advances this response to the next Approval Level without closing the CAR." : "Final acceptance closes the CAR. Query or rework returns the response to the Action Taker."}</DialogDescription></DialogHeader>
+      <CarApprovalDetails car={car}/>
       <div className="space-y-1 text-sm"><p><b>{responseFieldLabels.rootCause}:</b> {car.rootCause}</p><p><b>{responseFieldLabels.correction}:</b> {car.correction}</p><p><b>{responseFieldLabels.correctiveAction}:</b> {car.correctiveAction}</p></div>
       <Select value={decision} onValueChange={v => { setDecision(v as typeof decision); setErr(""); }}>
         <SelectTrigger data-testid="select-review-decision"><SelectValue/></SelectTrigger>
-        <SelectContent><SelectItem value="accept">Accept and close</SelectItem><SelectItem value="query">Query</SelectItem><SelectItem value="rework">Rework</SelectItem></SelectContent></Select>
+        <SelectContent><SelectItem value="accept">{car.approval?.pendingLevel != null && car.approval.pendingLevel !== car.approval.finalLevel ? "Accept and advance" : "Accept and close"}</SelectItem><SelectItem value="query">Query</SelectItem><SelectItem value="rework">Rework</SelectItem></SelectContent></Select>
       <div className="space-y-1"><Label htmlFor="review-comments">Comments{decision !== "accept" ? " *" : ""}</Label><Textarea id="review-comments" data-testid="input-review-comments" rows={3} value={comments} onChange={e => setComments(e.target.value)}/></div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
       <DialogFooter><Button variant="outline" disabled={review.isPending} onClick={onClose}>Cancel</Button><Button data-testid="button-confirm-review" disabled={review.isPending} onClick={go}>{review.isPending ? "Saving…" : "Submit review"}</Button></DialogFooter>
@@ -158,23 +162,20 @@ export function CarRegister() {
   const auditAreas = useLov("Audit Area");
   const refresh = useCarRefresh();
   const [page, setPage] = useState(1);
-  const [projectId, setProjectId] = useState("all");
-  const [scheduleId, setScheduleId] = useState("all");
-  const [auditTitle, setAuditTitle] = useState("all");
-  const [auditType, setAuditType] = useState("all");
-  const [department, setDepartment] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [filters, setFilters] = useState<CarFilterState>(EMPTY_CAR_FILTERS);
   const [legacy, setLegacy] = useState(false);
   const [respond, setRespond] = useState<{ car: CorrectiveActionReport; entry: CarRegisterEntry }>();
   const [reviewing, setReviewing] = useState<CorrectiveActionReport>();
   const [displaying, setDisplaying] = useState<CarRegisterEntry>();
   const [logging, setLogging] = useState<CarRegisterEntry>();
-  const params = { page, limit: LIMIT, includeLegacy: legacy, ...(projectId !== "all" && { projectId }), ...(scheduleId !== "all" && { scheduleId }), ...(auditTitle !== "all" && { auditTitle }), ...(auditType !== "all" && { auditType }), ...(department !== "all" && { department }), ...(status !== "all" && { status }) };
-  const query = useListCarRegister(params, { query: { queryKey: getListCarRegisterQueryKey(params), refetchInterval: 20_000, staleTime: 10_000, refetchOnWindowFocus: true } });
+  const currentUser = useGetCurrentUser();
+  const userKey = currentUser.data?.id;
+  const params = buildCarRegisterParams(filters, page, LIMIT, legacy);
+  const query = useListCarRegister(params, { query: { queryKey: [...getListCarRegisterQueryKey(params), userKey], enabled: !!userKey, refetchInterval: 20_000, staleTime: 10_000, refetchOnWindowFocus: true } });
   const start = useStartFindingCar();
   const editSession = useOpenCarEditSession();
-  const data = query.data;
-  const reset = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
+  const data = query.data as CarRegisterPageWithOptions | undefined;
+  const setFilter = (key: CarFilterKey, value: string) => { setFilters(f => ({ ...f, [key]: value })); setPage(1); };
   const open = (e: CarRegisterEntry) => {
     if (!canEditCarEntry(e)) return;
     if (e.car) {
@@ -196,18 +197,23 @@ export function CarRegister() {
       : auditAreas.options.find(option => option.value === entry.auditArea)?.label ?? entry.auditArea,
     evidence: <Evidence entry={entry} />,
   });
-  const opts = (label: string, list?: { id: string; name: string }[]) => [<SelectItem key="all" value="all">{label}</SelectItem>, ...(list ?? []).map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)];
   return <div className="space-y-5">
     <div><h1 className="text-2xl font-semibold tracking-tight">Corrective Action Register</h1><p className="mt-1 text-sm text-muted-foreground">Audit findings and the corrective action responses raised against them</p></div>
-    <div className="flex flex-wrap items-center gap-3">
-      <Select value={scheduleId} onValueChange={reset(setScheduleId)}><SelectTrigger aria-label="Audit Schedule" className="w-52" data-testid="select-car-schedule"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit schedules", data?.schedules)}</SelectContent></Select>
-      <Select value={auditTitle} onValueChange={reset(setAuditTitle)}><SelectTrigger aria-label="Audit Title" className="w-52" data-testid="select-car-audit-title"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit titles", data?.auditTitles)}</SelectContent></Select>
-      <Select value={auditType} onValueChange={v => { setAuditType(v); setProjectId("all"); setDepartment("all"); setPage(1); }}><SelectTrigger aria-label="Audit Type" className="w-64" data-testid="select-car-audit-type"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit types", data?.auditTypes)}</SelectContent></Select>
-      {auditType !== "Quality Internal Process Audit" && <Select value={projectId} onValueChange={reset(setProjectId)}><SelectTrigger aria-label="Project" className="w-52" data-testid="select-car-project"><SelectValue/></SelectTrigger><SelectContent>{opts("All projects", data?.projects)}</SelectContent></Select>}
-      {(auditType === "all" || auditType === "Quality Internal Process Audit") && <Select value={department} onValueChange={reset(setDepartment)}><SelectTrigger aria-label="Department" className="w-52" data-testid="select-car-department"><SelectValue/></SelectTrigger><SelectContent>{opts("All departments", data?.departments)}</SelectContent></Select>}
-      <Select value={status} onValueChange={reset(setStatus)}><SelectTrigger aria-label="Status" className="w-44" data-testid="select-car-status"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-      <Button variant="ghost" size="sm" data-testid="button-clear-car-filters" onClick={() => { setScheduleId("all"); setAuditTitle("all"); setAuditType("all"); setProjectId("all"); setDepartment("all"); setStatus("all"); setPage(1); }}>Clear filters</Button>
-      <label className="flex items-center gap-2 text-sm"><Checkbox data-testid="checkbox-include-legacy" checked={legacy} onCheckedChange={v => { setLegacy(v === true); setPage(1); }}/>Include historical findings</label>
+    <div className="rounded-lg border border-[hsl(268_30%_88%)] bg-[hsl(270_40%_99%)] p-3" role="group" aria-label="CAR Register filters">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        {CAR_FILTERS.map(f => <div key={f.key} className="min-w-0 space-y-1">
+          <Label htmlFor={`car-filter-${f.testId}`} className="text-xs font-medium text-[hsl(268_40%_30%)]">{f.label}</Label>
+          <Select value={filters[f.key]} onValueChange={v => setFilter(f.key, v)}>
+            <SelectTrigger id={`car-filter-${f.testId}`} aria-label={f.label} className="w-full bg-background" data-testid={`select-car-${f.testId}`}><SelectValue/></SelectTrigger>
+            <SelectContent><SelectItem value={ALL}>All</SelectItem>{filterOptions(data, f.option).map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>)}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm"><Checkbox data-testid="checkbox-include-legacy" checked={legacy} onCheckedChange={v => { setLegacy(v === true); setPage(1); }}/>Include historical findings</label>
+        <Button variant="ghost" size="sm" data-testid="button-clear-car-filters" onClick={() => { setFilters(EMPTY_CAR_FILTERS); setPage(1); }}>Clear filters</Button>
+        {data && <span className="ml-auto text-sm text-muted-foreground" data-testid="text-car-result-count">{data.total} {data.total === 1 ? "result" : "results"}</span>}
+      </div>
     </div>
     {query.isLoading && <Card><CardContent className="animate-pulse py-14 text-center text-muted-foreground">Loading…</CardContent></Card>}
     {query.error && <Card className="border-destructive"><CardContent className="py-8 text-center text-destructive">{errorText(query.error)} <Button size="sm" variant="outline" className="ml-2" onClick={() => void query.refetch()}>Retry</Button></CardContent></Card>}
@@ -216,7 +222,7 @@ export function CarRegister() {
       renderEvidence={entry => <Evidence entry={entry} />} onEdit={open} onDisplay={setDisplaying}
       onOpenResponse={entry => { if (canEditCarEntry(entry)) open(entry); else setDisplaying(entry); }}
       onReview={entry => { if (entry.car) setReviewing(entry.car); }} onLog={setLogging} />}
-    {data && data.items.length > 0 && <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground"><span>{data.total} total</span>
+    {data && data.items.length > 0 && <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground"><span>Page {page} of {Math.max(1, Math.ceil(data.total / LIMIT))}</span>
       <div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page * LIMIT >= data.total} onClick={() => setPage(page + 1)}>Next</Button></div></div>}
     {respond && <CarResponseDialog key={respond.car.id} car={respond.car} {...responseDetails(latestEntry(respond.entry))}
       readOnly={!canEditCarEntry(latestEntry(respond.entry))} open onClose={() => setRespond(undefined)}/>}

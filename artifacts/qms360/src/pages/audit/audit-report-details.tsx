@@ -69,7 +69,7 @@ export function AuditReportDetailsEditor({ audit }: { audit: Audit }) {
     {editorGroups.map(group => <Card key={group.key}>
       <CardHeader><CardTitle className="text-base">{group.label}</CardTitle></CardHeader>
       <CardContent className="space-y-6">
-        {group.fields.length > 0 && <div className="grid gap-4 md:grid-cols-2">{group.fields.map(f => {
+        {group.fields.length > 0 && <div className="grid gap-4 md:grid-cols-2">{group.fields.filter(f => f.key !== "notRepresented").map(f => {
           const id = `rd-${group.key}-${f.key}`;
           return <div key={f.key} className={`space-y-1.5 ${f.type === "textarea" ? "md:col-span-2" : ""}`}><Label htmlFor={id}>{f.label}</Label><Control id={id} field={f} value={data.values[f.key] ?? ""} disabled={disabled} onChange={v => setValue(f.key, v)} /></div>;
         })}</div>}

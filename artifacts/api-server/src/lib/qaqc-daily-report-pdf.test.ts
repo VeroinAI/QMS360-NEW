@@ -5,6 +5,7 @@ import { mkdir,writeFile } from "node:fs/promises";
 import { buildDailyReportDocument } from "./qaqc-daily-report-template";
 import { children,child,attr } from "./qaqc-monthly-report-template";
 import { calculateReport } from "./qaqc-reporting-model";
+import { DAILY_ADDITIONS } from "@workspace/field-controls";
 import { exportQaqcReportPdf,type QaqcReportExport } from "./qaqc-reporting-export";
 
 const disciplines=["Civil","Structural","Mechanical","Electrical","Instrumentation"];
@@ -32,10 +33,23 @@ async function mapped(r=report) {
 const table=(result:Awaited<ReturnType<typeof mapped>>,heading:string)=>result.blocks.find(b=>b.localName==="tbl"&&b.textContent!.startsWith(heading))!;
 const cells=(t:ReturnType<typeof table>,r:number)=>children(children(t,"tr")[r]!,"tc");
 describe("Word-based Daily Submission download",()=>{
+  it("renders new cumulative entries exactly once, matching the cumulative download rather than adding the baseline", async () => {
+    const cumulative = { ...data, dailyDisciplineInputMode: "daily_cumulative_v2", dailySupplementInputMode: "daily_cumulative_v2" };
+    const existing = await mapped();
+    const current = await mapped({ ...report, data: cumulative, computed: calculateReport("daily", cumulative, baseline) });
+    expect(current.text).toBe(existing.text);
+  });
   it("uses actual project identity, team, preparer and organization-local submission time, not sample data",async()=>{
     const {text}=await mapped();
-    for(const s of ["Example Construction","PROJECT-900","CC-900","Example PM","Example PE","Example DC","Actual Preparer","19-10-2026  15:45","Asia/Riyadh","DAILY-900"])expect(text).toContain(s);
+    for(const s of ["Example Construction","PROJECT-900","CC-900","Example PM","Example PE","Example DC","Actual Preparer","19-10-2026  15:45","Asia/Riyadh"])expect(text).toContain(s);
+    expect(text).not.toContain("REPORT ID");expect(text).not.toContain("DAILY-900");
     for(const s of ["Alpha District","AGH-ALPHA","CC-3107","S. Rahman","M. Khan","A. Nair","DDG-20261018","FOR REVIEW ONLY","Display rules for the PDF generator","Sample data is illustrative","First report for this project"])expect(text).not.toContain(s);
+  });
+  it("maps daily additions as movement and cumulative totals in the supplied Word layout",async()=>{
+    const dailyData = { ...data, dailyDisciplineInputMode: DAILY_ADDITIONS };
+    const result = await mapped({ ...report, data: dailyData, computed: calculateReport("daily", dailyData, baseline) });
+    expect(cells(table(result,"CUMULATIVE"),4).map(c=>c.textContent)).toEqual(["Submission total","300","180","40","20","60"]);
+    expect(cells(table(result,"ADDED SINCE"),4).map(c=>c.textContent)).toEqual(["Submission total","+160","+100","+20","+10","+30"]);
   });
   it("maps both summaries and calculates approved share from all five disciplines of both document categories",async()=>{
     const result=await mapped();
@@ -71,7 +85,7 @@ describe("Word-based Daily Submission download",()=>{
     const result=await mapped({...report,projectName:null,projectCode:null,costCentre:null,projectTeam:{},createdByName:null,submittedAt:null,referenceNumber:null,data:{},computed:{},baseline:{}});
     expect(result.text).toContain("To be mapped");expect(result.text).toContain("No revision rows added");
     expect(result.text).not.toContain("S. Rahman");expect(result.text).not.toContain("64.3%");
-    expect(result.text).toContain("daily-example-id");
+    expect(result.text).not.toContain("daily-example-id");
   });
   it("keeps true zero values and zero-denominator percentages, rather than N/A or sample percentages",async()=>{
     const zeros=make(0);
@@ -92,6 +106,77 @@ describe("Word-based Daily Submission download",()=>{
     expect(cells(table(zero,"Document typeRevision no."),1)[5]!.textContent).toBe("0.0%");
     expect(cells(table(zero,"Document typeRevision no."),2)[5]!.textContent).toBe("6.9%");
   });
+  const approvedReport=():QaqcReportExport=>({
+    ...report,state:"approved",baseline:{...baseline,__dailyApproval:{
+      version:1,cycle:2,currentIndex:3,
+      stages:[1,2,3].map(level=>({level,candidates:[{id:`user-${level}`,name:level===3?"Actual Final Approver":`Actual Reviewer ${level}`}]})),
+      history:[
+        {cycle:1,level:1,decision:"approve",userId:"previous-cycle",at:"2026-10-18T10:00:00Z"},
+        {cycle:2,level:3,decision:"approve",userId:"user-3",at:"2026-10-22T22:30:00Z"},
+        {cycle:2,level:2,decision:"approve",userId:"user-2",at:"2026-10-21T10:00:00Z"},
+        {cycle:2,level:1,decision:"approve",userId:"user-1",at:"2026-10-20T10:00:00Z"},
+        {cycle:2,level:1,decision:"submitted",userId:"submitter",at:"2026-10-19T12:45:00Z"},
+      ],
+    }},
+  });
+  it("retains preparation/submission tiles, removes the Report ID tile and adds dated approval tiles in order",async()=>{
+    const result=await mapped(approvedReport()),signoff=table(result,"PREPARED BY");
+    expect(children(signoff,"tr").map(row=>children(row,"tc").map(cell=>cell.textContent))).toEqual([
+      ["PREPARED BYActual PreparerTo be mapped","SUBMITTED ON19-10-2026  15:45Time zone: Asia/Riyadh"],
+      ["REVIEWED BYActual Reviewer 1","REVIEWED ON20-10-2026  13:00"],
+      ["REVIEWED BYActual Reviewer 2","REVIEWED ON21-10-2026  13:00"],
+      ["APPROVED BYActual Final Approver","APPROVED ON23-10-2026  01:30"],
+    ]);
+    expect(result.text).not.toContain("REPORT ID");expect(result.text).not.toContain("daily-example-id");
+    expect(signoff.textContent).not.toContain("Former or unavailable user");
+    expect(children(child(signoff,"tblGrid")!)).toHaveLength(2);
+  });
+  it("does not certify assigned approvers, pending decisions or previous submission cycles",async()=>{
+    for(const state of ["submitted","sent_back","draft"]) {
+      const input=approvedReport();input.state=state;
+      const workflow=input.baseline.__dailyApproval as any;
+      workflow.history=workflow.history.filter((event:any)=>event.cycle===1||event.level!==3);
+      const result=await mapped(input);
+      expect(result.text).toContain("REVIEWED BYActual Reviewer 1");
+      expect(result.text).not.toContain("APPROVED BY");
+      expect(result.text).not.toContain("Actual Final Approver");
+    }
+    const result=await mapped({...report,state:"approved",approverId:"assigned-only"});
+    expect(result.text).not.toContain("APPROVED BY");
+    expect(result.text).not.toContain("REVIEWED BY");
+  });
+  it("supports a single final approval without an intermediate reviewer",async()=>{
+    const input=approvedReport(),workflow=input.baseline.__dailyApproval as any;
+    workflow.stages=workflow.stages.slice(2);
+    workflow.history=workflow.history.filter((event:any)=>event.cycle===2&&event.level===3);
+    const result=await mapped(input);
+    expect(result.text).toContain("APPROVED BYActual Final Approver");
+    expect(result.text).not.toContain("REVIEWED BY");
+  });
+  it("uses actual legacy approval evidence without borrowing names from another report workflow",async()=>{
+    const input={...report,state:"approved",history:[
+      {action:"approve",actorName:"Actual Legacy Approver",createdAt:"2026-10-20T10:00:00Z",after:{state:"approved"}},
+      {action:"approve",actorName:"Prior Cycle Approver",createdAt:"2026-10-18T10:00:00Z",after:{state:"approved"}},
+    ]};
+    const result=await mapped(input);
+    expect(result.text).toContain("APPROVED BYActual Legacy Approver");
+    expect(result.text).not.toContain("Prior Cycle Approver");
+    const foreign=await mapped({...report,baseline:{...baseline,__monthlyApproval:(approvedReport().baseline as any).__dailyApproval}});
+    expect(foreign.text).not.toContain("REVIEWED BY");
+  });
+  it("renders approval tiles and flows long names and many reviewers into readable continuation pages",async()=>{
+    const input=approvedReport(),workflow=input.baseline.__dailyApproval as any;
+    workflow.stages=Array.from({length:20},(_,i)=>({level:i+1,candidates:[{id:`reviewer-${i}`,name:`Daily Reviewer ${i+1} with a long quality management name and designation`}]}));
+    workflow.history=workflow.stages.map((stage:any,i:number)=>({cycle:2,level:stage.level,decision:"approve",userId:`reviewer-${i}`,at:`2026-11-${String(i+1).padStart(2,"0")}T09:00:00Z`}));
+    const result=await mapped(input);
+    expect(children(table(result,"PREPARED BY"),"tr")).toHaveLength(21);
+    const bytes=await exportQaqcReportPdf(input,{templateId:"daily-submission"});
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(4);
+    await mkdir("../../generated-artifacts",{recursive:true});
+    await writeFile("../../generated-artifacts/daily-report-approval-overflow-preview.pdf",bytes);
+    await writeFile("../../generated-artifacts/daily-report-approval-preview.pdf",
+      await exportQaqcReportPdf(approvedReport(),{templateId:"daily-submission"}));
+  },30000);
   it("produces readable styled pages and flows large revision lists without dropping rows",async()=>{
     const normal=await exportQaqcReportPdf(report,{templateId:"daily-submission"});
     const pdf=await PDFDocument.load(normal);expect(pdf.getPageCount()).toBeGreaterThanOrEqual(4);

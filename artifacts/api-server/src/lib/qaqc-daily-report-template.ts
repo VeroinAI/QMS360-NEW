@@ -1,7 +1,9 @@
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import { strFromU8, unzipSync } from "fflate";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
-import { child, children, descendants, monthlyAsset, monthlyDate, UNMAPPED, W } from "./qaqc-monthly-report-template";
+import { dailySignatories } from "./qaqc-monthly-signatories";
+import { dailyDisciplineSnapshot } from "@workspace/field-controls";
+import { attr, child, children, descendants, monthlyAsset, monthlyDate, UNMAPPED, W } from "./qaqc-monthly-report-template";
 
 type Obj = Record<string, any>;
 type Count = number | undefined;
@@ -28,7 +30,7 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
   const files=unzipSync(await monthlyAsset("qaqc-daily-report-template.docx"));
   const doc=new DOMParser().parseFromString(strFromU8(files["word/document.xml"]!),"application/xml");
   const body=descendants(doc.documentElement!,"body")[0]!, blocks=children(body);
-  const d=report.data as Obj, c=report.computed as Obj, b=report.baseline as Obj;
+  const d=dailyDisciplineSnapshot(report.data as Obj,report.baseline as Obj), c=report.computed as Obj, b=report.baseline as Obj;
   const set=(p:Element,v:unknown,color?:string)=>{
     const run=child(p,"r")?.cloneNode(true) as Element|undefined;
     const replacement=run??doc.createElementNS(W,"w:r");
@@ -168,18 +170,56 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
   put(32,0,3,count(allOver30),1);put(32,0,3,`of ${count(allPending)} pending`,2);
   [...buckets,"total"].forEach((bucket,col)=>put(34,22,col+1,count(bucket==="total"?allPending:sum(entities.map(e=>pendingBucket(e,bucket))))));
   put(37,0,0,report.createdByName??report.submittedByName,1);put(37,0,0,UNMAPPED,2);
-  let submitted=UNMAPPED;
-  if(report.submittedAt&&report.organizationTimezone) {
-    const date=new Date(report.submittedAt);
-    if(Number.isFinite(date.getTime())) {
-      const parts=new Intl.DateTimeFormat("en-GB",{timeZone:report.organizationTimezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
-      const part=(key:string)=>parts.find(p=>p.type===key)?.value;
-      submitted=`${part("day")}-${part("month")}-${part("year")}  ${part("hour")}:${part("minute")}`;
+  const approvalDate = (at: Date | string | null | undefined) => {
+    if(at&&report.organizationTimezone) {
+      const date=new Date(at);
+      if(Number.isFinite(date.getTime())) {
+        const parts=new Intl.DateTimeFormat("en-GB",{timeZone:report.organizationTimezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
+        const part=(key:string)=>parts.find(p=>p.type===key)?.value;
+        return `${part("day")}-${part("month")}-${part("year")}  ${part("hour")}:${part("minute")}`;
+      }
     }
+    return UNMAPPED;
+  };
+  put(37,0,1,approvalDate(report.submittedAt),1);put(37,0,1,`Time zone: ${value(report.organizationTimezone)}`,2);
+  const signoffTable=blocks[37]!, sourceRow=children(signoffTable,"tr")[0]!;
+  const sourceCells=children(sourceRow,"tc");
+  // Remove the complete Report ID tile and use the remaining width for the
+  // actual preparer and submission date. Preserve the supplied tile styling.
+  const widths=sourceCells.map(cell=>Number(attr(child(child(cell,"tcPr"),"tcW"),"w")));
+  const halfWidth=String(Math.round(widths.reduce((total,width)=>total+width,0)/2));
+  sourceRow.removeChild(sourceCells[2]!);
+  children(sourceRow,"tc").forEach(cell=>child(child(cell,"tcPr"),"tcW")!.setAttributeNS(W,"w:w",halfWidth));
+  const grid=child(signoffTable,"tblGrid");
+  if(grid) {
+    const columns=children(grid);
+    columns.slice(2).forEach(column=>grid.removeChild(column));
+    children(grid).forEach(column=>column.setAttributeNS(W,"w:w",halfWidth));
   }
-  put(37,0,1,submitted,1);put(37,0,1,`Time zone: ${value(report.organizationTimezone)}`,2);
-  put(37,0,2,report.referenceNumber??report.id,1);
+  const signatories=dailySignatories(report);
+  const signatures=new Map<Element,Uint8Array>();
+  const preparedSignature=report.userSignatures?.[report.createdById ?? report.submittedById ?? ""];
+  if(preparedSignature) signatures.set(children(sourceRow,"tc")[0]!,preparedSignature);
+  for(const signatory of [...signatories.filter(s=>!s.final),...signatories.filter(s=>s.final)]) {
+    const row=sourceRow.cloneNode(true) as Element;
+    children(row,"tc").forEach((cell,index)=>{
+      const paragraphs=children(cell,"p");
+      set(paragraphs[0]!,index===0
+        ? signatory.final?"APPROVED BY":"REVIEWED BY"
+        : signatory.final?"APPROVED ON":"REVIEWED ON");
+      set(paragraphs[1]!,index===0?signatory.name:approvalDate(signatory.at));
+      paragraphs.slice(2).forEach(p=>cell.removeChild(p));
+    });
+    signoffTable.appendChild(row);
+    const image=report.userSignatures?.[signatory.userId ?? ""];
+    if(image) signatures.set(children(row,"tc")[0]!,image);
+  }
+  if(preparedSignature) {
+    const cell=children(sourceRow,"tc")[0]!;
+    const placeholder=children(cell,"p")[2];
+    if(placeholder?.textContent===UNMAPPED) cell.removeChild(placeholder);
+  }
   // Do not issue the designer's sample-data/reviewer instructions.
   blocks.slice(38).filter(e=>e.localName!=="sectPr").forEach(e=>body.removeChild(e));
-  return {body,project,date};
+  return {body,project,date,signoffTable,signatures};
 }

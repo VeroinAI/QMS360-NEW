@@ -37,10 +37,10 @@ function query(result: unknown) {
   return chain;
 }
 
-function ruleAndRecipients(eventType = "lessons.lesson_form.submit", hasApprover = true) {
+function ruleAndRecipients(eventType = "lessons.lesson_form.submit", hasApprover = true, reportAttachment: string | null = null) {
   select.mockReturnValueOnce(query([{
     id: "rule-1", eventType, enabled: true, recipientMode: "linked_approver",
-    recipientConfig: { subjectTemplate: "Review {reference}", bodyTemplate: "Please review" },
+    recipientConfig: { subjectTemplate: "Review {reference}", bodyTemplate: "Please review", reportAttachment },
   }]));
   select.mockReturnValueOnce(query(hasApprover ? [{
     approverEmail: "approver@example.test", approverName: "Assigned Approver", creatorId: "creator-1",
@@ -58,28 +58,27 @@ describe("Lessons submission email PDF", () => {
     emailTemplateContext.mockResolvedValue({ reference: "AGH-QAM-LL-000050" });
   });
 
-  it("queues the PDF for the existing approver, preserving sender and templates", async () => {
-    ruleAndRecipients();
+  it("defers the selected PDF to the worker, preserving approver, sender and templates", async () => {
+    ruleAndRecipients(undefined, true, "lesson_pdf");
     const generate = vi.fn().mockResolvedValue([attachment]);
     await dispatchEmailRule(event, { emailAttachments: generate });
-    expect(generate).toHaveBeenCalledOnce();
+    expect(generate).not.toHaveBeenCalled();
     expect(enqueueEmail).toHaveBeenCalledOnce();
     expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       recipients: [{ email: "approver@example.test", name: "Assigned Approver" }],
       sender: { email: "creator@example.test", name: "Creator" },
-      attachments: [attachment],
-      ruleTemplate: { subjectTemplate: "Review {reference}", bodyTemplate: "Please review" },
+      ruleTemplate: { subjectTemplate: "Review {reference}", bodyTemplate: "Please review", reportAttachment: "lesson_pdf" },
       templateValues: { reference: "AGH-QAM-LL-000050" },
       context: expect.objectContaining({ app: "lessons", eventType: "lessons.lesson_form.submit" }),
     }));
     expect(removeEmailPdfAttachment).not.toHaveBeenCalled();
   });
 
-  it("passes configured role members to CC while retaining the submission PDF and approver", async () => {
+  it("passes configured role members to CC while retaining the selected PDF and approver", async () => {
     select.mockReturnValueOnce(query([{
       id: "cc-rule", eventType: "lessons.lesson_form.submit", enabled: true,
       recipientMode: "external_email", receiverEmail: "approver@example.test",
-      recipientConfig: { ccRoleNames: ["Reviewer"] },
+      recipientConfig: { ccRoleNames: ["Reviewer"], reportAttachment: "lesson_pdf" },
     }]));
     select.mockReturnValueOnce({ from: () => ({
       innerJoin: () => ({ innerJoin: () => ({ where: async () => [{ userId: "reviewer" }] }) }),
@@ -89,7 +88,7 @@ describe("Lessons submission email PDF", () => {
     expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       recipients: [{ email: "approver@example.test", name: undefined }],
       ccRecipients: [{ email: "reviewer@example.test", name: "Reviewer" }],
-      attachments: [attachment],
+      ruleTemplate: expect.objectContaining({ reportAttachment: "lesson_pdf" }),
     }));
   });
 
@@ -130,21 +129,23 @@ describe("Lessons submission email PDF", () => {
     expect(enqueueEmail).toHaveBeenCalledOnce();
   });
 
-  it("logs PDF failures and never silently sends an attachment-free submission email", async () => {
-    ruleAndRecipients();
-    await dispatchEmailRule(event, { emailAttachments: vi.fn().mockRejectedValue(new Error("storage unavailable")) });
-    expect(enqueueEmail).not.toHaveBeenCalled();
-    expect(logError).toHaveBeenCalledWith(expect.objectContaining({
-      error: expect.any(Error), event,
-    }), "Email event rule dispatch failed");
+  it("queues selected-report work without running legacy synchronous PDF generators", async () => {
+    ruleAndRecipients(undefined, true, "lesson_pdf");
+    const generate = vi.fn().mockRejectedValue(new Error("storage unavailable"));
+    await dispatchEmailRule(event, { emailAttachments: generate });
+    expect(generate).not.toHaveBeenCalled();
+    expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      ruleTemplate: expect.objectContaining({ reportAttachment: "lesson_pdf" }),
+    }));
+    expect(logError).not.toHaveBeenCalled();
   });
 
-  it.each([true, false])("cleans up an unqueued PDF when enqueue fails: %s", async fails => {
+  it.each([true, false])("creates no orphan PDF when enqueue fails: %s", async fails => {
     ruleAndRecipients();
     if (fails) enqueueEmail.mockRejectedValue(new Error("queue unavailable"));
     else enqueueEmail.mockResolvedValue({ queued: 0 });
     await dispatchEmailRule(event, { emailAttachments: vi.fn().mockResolvedValue([attachment]) });
-    expect(removeEmailPdfAttachment).toHaveBeenCalledWith("org-1", attachment.objectPath);
+    expect(removeEmailPdfAttachment).not.toHaveBeenCalled();
   });
 });
 

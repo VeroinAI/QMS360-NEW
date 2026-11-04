@@ -17,6 +17,7 @@ export function SettingsPage() {
   const isAdmin = useIsAdmin() || cap.canTask('configure_masters');
   const canHist = cap.can('historical_balances', 'view_all');
   const histLink = canHist ? <Card><CardContent className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center"><div><p className="font-medium">Historical Balances / Go-live Setup</p><p className="text-sm text-muted-foreground">Opening balances by project and month for go-live and historical corrections.</p></div><Button asChild variant="outline"><Link href="/qaqc/settings/historical-balances">Open historical balances</Link></Button></CardContent></Card> : null;
+  const dailyHistLink = canHist ? <Card><CardContent className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center"><div><p className="font-medium">Daily Submission Historical Balances / Go-live Setup</p><p className="text-sm text-muted-foreground">One-time opening snapshot per project, used as Yesterday values on the first daily report.</p></div><Button asChild variant="outline"><Link href="/qaqc/settings/daily-historical-balances">Open daily historical balances</Link></Button></CardContent></Card> : null;
   const [projectId, setProjectId] = useState('');
   // Settings has no reporting period. Pin its data lookup to the server's
   // current month instead of letting report-entry defaults advance the month
@@ -32,9 +33,9 @@ export function SettingsPage() {
   // Keep the project choices available while loading or retrying a selection.
   const projects: Obj[] = (projectsQ.data?.projects ?? []) as Obj[];
   const targets = (ctx.targets ?? {}) as Obj;
-  if (!isAdmin) return <PageFrame title="Reporting settings" description="QA/QC administrators only.">{histLink}<Card><CardContent className="p-8 text-center text-sm text-muted-foreground">You do not have access to reporting settings. Ask a QA/QC administrator for help.</CardContent></Card></PageFrame>;
+  if (!isAdmin) return <PageFrame title="Reporting settings" description="QA/QC administrators only.">{histLink}{dailyHistLink}<Card><CardContent className="p-8 text-center text-sm text-muted-foreground">You do not have access to reporting settings. Ask a QA/QC administrator for help.</CardContent></Card></PageFrame>;
   return <PageFrame title="Reporting settings" description="Closure targets in effect for each project. QA/QC administrators only.">
-    {histLink}
+    {histLink}{dailyHistLink}
     <Card><CardContent className="p-4"><Label htmlFor="reporting-settings-project" className="text-xs text-muted-foreground">Project</Label><Select value={projectId} onValueChange={setProjectId}><SelectTrigger id="reporting-settings-project" className="sm:w-96" data-testid="select-reporting-settings-project"><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></CardContent></Card>
     {projectsQ.error && <ErrorBox error={projectsQ.error} retry={() => projectsQ.refetch()} />}
     {projectId && projectQ.error && <ErrorBox error={projectQ.error} retry={() => projectQ.refetch()} />}

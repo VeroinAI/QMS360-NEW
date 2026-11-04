@@ -55,17 +55,32 @@ describe("Customer Word monthly metrics report",()=>{
   });
   it("prints the live average with its report count and removes the old pending explanation",async()=>{
     const {text}=await mapped();
-    expect(text).toContain("37.5 (Total monthly report for reporting period (October, 2026) submitted -> 2)");
+    expect(text).toContain("37.5% (Total monthly report for reporting period (October, 2026) submitted -> 2)");
     expect(text).not.toContain("Total monthly report for project is");
     expect(text).not.toContain("stays pending until every");
     const none=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:0}});
     expect(none.text).toContain("No submitted reports (Total monthly report for reporting period (October, 2026) submitted -> 0)");
     const zero=await mapped({...report,monthlyDownloadPqi:{average:0,projectCount:1}});
-    expect(zero.text).toContain("0.0 (Total monthly report for reporting period (October, 2026) submitted -> 1)");
+    expect(zero.text).toContain("0.0% (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const missingScore=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:1}});
     expect(missingScore.text).toContain("— (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const differentMonth=await mapped({...report,period:"2027-01-01"});
     expect(differentMonth.text).toContain("reporting period (January, 2027) submitted -> 2");
+  });
+  it("labels PQI scores as percentages and changes as percentage points without recalculating saved scores",async()=>{
+    for(const variance of [0.2,-0.2,0]) {
+      const input={...report,computed:{...report.computed,pqi:{previous:85.8,accumulated:86,monthly:65.8,variance}}};
+      const {body,text}=await mapped(input);
+      const pqiTable=children(body,"tbl").find(t=>t.textContent?.includes("Acc. till last month")&&t.textContent?.includes("This month score"))!;
+      const cells=children(children(pqiTable,"tr")[0]!,"tc");
+      expect(children(cells[0]!,"p")[1]!.textContent).toBe("85.8%");
+      expect(children(cells[1]!,"p")[1]!.textContent).toBe("86.0%");
+      expect(children(cells[2]!,"p")[0]!.textContent).toBe("Variance (percentage points)");
+      expect(children(cells[2]!,"p")[1]!.textContent).toBe(`${variance>0?"+":""}${variance.toFixed(1)} pp`);
+      expect(children(cells[3]!,"p")[1]!.textContent).toBe("65.8%");
+      expect(text).toContain("37.5%");
+      expect(input.computed.pqi.variance).toBe(variance);
+    }
   });
   it("prints the submitter's saved designation and keeps missing designations explicit",async()=>{
     const submittedBy = (body: Awaited<ReturnType<typeof mapped>>["body"]) =>
@@ -80,12 +95,109 @@ describe("Customer Word monthly metrics report",()=>{
       expect(children(missingCells[1]!,"p")[2]!.textContent).toBe("—");
     }
   });
+  const approvalReport = (state = "approved"): QaqcReportExport => ({
+    ...report, state,
+    baseline: {...baseline,__monthlyApproval:{
+      version:1,cycle:2,currentIndex:3,
+      stages:[
+        {level:1,candidates:[{id:"reviewer-one",name:"First Reviewer"}]},
+        {level:2,candidates:[{id:"reviewer-two",name:"Second Reviewer"}]},
+        {level:3,candidates:[{id:"final",name:"Final Approver"}]},
+      ],
+      // Deliberately unordered storage and a previous sent-back cycle.
+      history:[
+        {cycle:1,level:1,decision:"approve",userId:"old",at:"2026-10-20T09:00:00Z"},
+        {cycle:2,level:3,decision:"approve",userId:"final",at:"2026-11-03T09:00:00Z"},
+        {cycle:2,level:2,decision:"approve",userId:"reviewer-two",at:"2026-11-02T09:00:00Z"},
+        {cycle:2,level:1,decision:"approve",userId:"reviewer-one",at:"2026-11-01T09:00:00Z"},
+        {cycle:2,level:1,decision:"submitted",userId:"submitter",at:"2026-10-31T12:00:00Z"},
+      ],
+    }},
+  });
+  it("adds dated reviewers chronologically, then the actual final approver, without a Report ID",async()=>{
+    const {body,text}=await mapped(approvalReport());
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("SUBMITTED BY"))!;
+    const values=children(table,"tr").slice(1).map(row=>children(row,"tc").map(cell=>cell.textContent));
+    expect(values).toEqual([
+      ["REVIEWED BYFirst Reviewer","REVIEWED ON01-11-2026"],
+      ["REVIEWED BYSecond Reviewer","REVIEWED ON02-11-2026"],
+      ["APPROVED BYFinal Approver","APPROVED ON03-11-2026"],
+    ]);
+    expect(text).not.toContain("Report ID"); expect(text).not.toContain("preview-report");
+    expect(table.textContent).not.toContain("Former or unavailable user");
+  });
+  it("does not claim final approval while pending, sent back or in draft",async()=>{
+    for (const state of ["submitted","sent_back","draft"]) {
+      const input=approvalReport(state);
+      const workflow=input.baseline.__monthlyApproval as any;
+      workflow.history=workflow.history.filter((e:any)=>e.level!==3);
+      const {text}=await mapped(input);
+      expect(text).toContain("REVIEWED BY"); expect(text).not.toContain("APPROVED BY");
+      expect(text).not.toContain("Final Approver");
+    }
+    const {text}=await mapped(report);
+    expect(text).not.toContain("REVIEWED BY"); expect(text).not.toContain("APPROVED BY");
+  });
+  it("supports a single final approver without inventing a reviewer",async()=>{
+    const input=approvalReport();
+    const workflow=input.baseline.__monthlyApproval as any;
+    workflow.stages=workflow.stages.slice(2);
+    workflow.history=workflow.history.filter((e:any)=>e.cycle===2&&e.level===3);
+    const {text}=await mapped(input);
+    expect(text).toContain("APPROVED BYFinal Approver");
+    expect(text).not.toContain("REVIEWED BY");
+  });
+  it("uses completed legacy audit actions, not assignment or an invented approval date",async()=>{
+    const {text}=await mapped({...report,state:"approved",approverId:"assigned-only",history:[
+      {action:"approve",actorName:"Legacy Approver",createdAt:"2026-11-01T12:00:00Z",after:{state:"approved"}},
+      {action:"approve",actorName:"Earlier Cycle",createdAt:"2026-10-01T12:00:00Z",after:{state:"approved"}},
+    ]});
+    expect(text).toContain("APPROVED BYLegacy Approver"); expect(text).toContain("APPROVED ON01-11-2026");
+    expect(text).not.toContain("Earlier Cycle"); expect(text).not.toContain("assigned-only");
+    const missing=await mapped({...report,state:"approved",approverId:"assigned-only"});
+    expect(missing.text).not.toContain("APPROVED BY");
+  });
+  it("renders approval tiles with long names and many reviewers without dropping rows",async()=>{
+    const input=approvalReport();
+    const workflow=input.baseline.__monthlyApproval as any;
+    workflow.stages=Array.from({length:18},(_,i)=>({level:i+1,candidates:[{id:`user-${i}`,name:`Reviewer ${i+1} with a long quality management designation and name`}]}));
+    workflow.history=workflow.stages.map((s:any,i:number)=>({cycle:2,level:s.level,decision:"approve",userId:`user-${i}`,at:`2026-11-${String(i+1).padStart(2,"0")}T09:00:00Z`}));
+    const {body}=await mapped(input);
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("SUBMITTED BY"))!;
+    expect(children(table,"tr")).toHaveLength(19);
+    const bytes=await exportQaqcReportPdf(input,{templateId:"monthly-metrics"});
+    const pdf=await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBeGreaterThan(5);
+    await mkdir("../../generated-artifacts",{recursive:true});
+    await writeFile("../../generated-artifacts/qaqc-monthly-approval-overflow-preview.pdf",bytes);
+    await writeFile("../../generated-artifacts/qaqc-monthly-approval-preview.pdf",
+      await exportQaqcReportPdf(approvalReport(),{templateId:"monthly-metrics"}));
+  },30000);
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});
     expect(text).toContain("No meeting added");expect(text).toContain("No QMS document register rows added");
     expect(text).toContain("Not applicable");expect(text).toContain("Not confirmed");
     expect(text).not.toContain("Reviewed and confirmed");
     expect(text).not.toContain("Weekly Quality Review");
+  });
+  it("maps open items for all four metrics, including zero RFI and RMI balances",async()=>{
+    const input = {...data, metrics:{
+      external_ncr:{issued:19,closed:9},internal_ncr:{issued:0,closed:0},
+      rfi:{issued:53,closed:53},rmi:{issued:7,closed:7},
+    }};
+    const {body,text}=await mapped({...report,data:input,baseline:{},computed:calculateReport("monthly",input,{},{})});
+    const row=children(body,"tbl").flatMap(t=>children(t,"tr")).find(r=>children(r,"tc")[0]?.textContent==="Open items now")!;
+    expect(children(row,"tc").map(c=>c.textContent)).toEqual(["Open items now","10","0","0","0"]);
+    expect(text).toContain("Open items = accumulated issued − accumulated closed.");
+    expect(text).not.toContain("Open count and ageing are tracked for NCRs only.");
+  });
+  it("uses saved open balances for RFI and RMI and preserves missing-data dashes",async()=>{
+    const computed={...report.computed,metrics:{
+      rfi:{open:12},rmi:{open:3},external_ncr:{open:0},
+    }};
+    const {body}=await mapped({...report,computed});
+    const row=children(body,"tbl").flatMap(t=>children(t,"tr")).find(r=>children(r,"tc")[0]?.textContent==="Open items now")!;
+    expect(children(row,"tc").map(c=>c.textContent)).toEqual(["Open items now","0","—","12","3"]);
   });
   it("prints reconciliation mismatches in red without changing or blocking saved data",async()=>{
     const {xml,text}=await mapped({...report,data:{...data,material:{...data.material,totalItems:1}}});

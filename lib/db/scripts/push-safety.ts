@@ -78,6 +78,10 @@ export async function applySafePlan(
       console.warn(`MAINTENANCE (not applied by additive development setup): ${statement.trim()}`);
     }
   }
+  // Drizzle can emit foreign keys before the unique indexes they reference.
+  // Keep other additive statements stable, but install foreign keys last.
+  const foreignKey = /\bADD\s+CONSTRAINT\s+"[^"]+"\s+FOREIGN\s+KEY\b/i;
+  additions.sort((left, right) => Number(foreignKey.test(left)) - Number(foreignKey.test(right)));
   // Unlike drizzle-kit's CLI (which catches pgPush errors without a failing
   // exit status), this API rejects SQL errors. Never swallow that rejection.
   for (const statement of additions) await execute(statement);

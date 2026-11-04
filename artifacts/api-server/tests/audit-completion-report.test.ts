@@ -1,14 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Server } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile, unlink } from "node:fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
+import sharp from "sharp";
+import { unzipSync, strFromU8 } from "fflate";
 import { eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import {
   db, organizations, projects, platformRoles, users, applicationAccess,
   auditPlans, auditSchedules, audits, auditFindings, correctiveActionReports, auditAuditLogEntries, organizationSettings,
-  auditPermissions, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditUserWorkspaceRoles,
+  auditPermissions, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditUserWorkspaceRoles, auditEvidenceFiles,
 } from "@workspace/db";
 import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
@@ -29,6 +31,7 @@ async function api(method: string, path: string, data?: unknown, auth = token) {
 }
 async function cleanup(id: string) {
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, id));
+  await db.delete(auditEvidenceFiles).where(eq(auditEvidenceFiles.organizationId, id));
   await db.delete(correctiveActionReports).where(eq(correctiveActionReports.organizationId, id));
   await db.delete(auditFindings).where(eq(auditFindings.organizationId, id));
   await db.delete(audits).where(eq(audits.organizationId, id));
@@ -57,7 +60,8 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const [org] = await db.insert(organizations).values({ name: `Report regression ${suffix}`, code: `RR${suffix}` }).returning();
   orgId = org!.id;
-  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}`, customFields: { costCentre: "RP100" } }).returning();
+  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}`,
+    customFields: { costCentre: "RP100", qmsAdditionalData: { contractProjectNumber: "RP100" } } }).returning();
   projectId = project!.id;
   const roles = await db.insert(platformRoles).values([
     { organizationId: orgId, name: "Org Admin", isSystem: true }, { organizationId: orgId, name: "Employee", isSystem: true },
@@ -225,6 +229,166 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect(result.body.openingMeeting.minutes).toBe("Actual meeting");
     expect(result.body.reportDetails.values.client).toBe("Concurrent client");
   });
+  it("downloads exactly the saved OFI rows and numbers without mutating the audit or other report projections", async () => {
+    for (const count of [0, 1, 5, 23]) {
+      const checklist = Array.from({ length: count }, (_, i) => ({
+        id: `ofi-${i}`, source: "finding", auditFinding: "OFI", auditArea: "Design",
+        description: `Recorded improvement ${i}`, findingNumber: i === 1 ? undefined : `AF-OFI-26-${i + 1}`,
+        clientReference: `IDEMPOTENCY-NOT-A-NUMBER-${i}`, notes: i === 2 ? "Recorded interview evidence" : "", evidenceIds: [],
+      }));
+      const [record] = await db.insert(audits).values({
+        organizationId: orgId, projectId, auditPlanId: planId, referenceNumber: `OFI export ${count} ${suffix}`,
+        workflowState: "complete", checklistState: checklist, status: "{}",
+      }).returning();
+      // Supported legacy OFIs coexist with checklist-backed findings but have
+      // no issued Finding Reference. Their database ID/title is not a number.
+      if (count === 5) await db.insert(auditFindings).values({
+        organizationId: orgId, auditId: record.id, classification: "OFI", description: "Historical OFI",
+      });
+      const { generatedAt: _beforeTime, ...before } = (await api("GET", `/audits/${record.id}/report`)).body;
+      const [storedBefore] = await db.select().from(audits).where(eq(audits.id, record.id));
+      const res = await fetch(`${base}/api/audit/audits/${record.id}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const files = unzipSync(new Uint8Array(await res.arrayBuffer()));
+      const { DOMParser } = await import("@xmldom/xmldom");
+      const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+      const slides = Object.entries(files).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+        .map(([, bytes]) => new DOMParser().parseFromString(strFromU8(bytes), "application/xml"))
+        .filter(doc => Array.from(doc.getElementsByTagNameNS(A, "t")).some(t => t.textContent === "OPPORTUNITIES FOR IMPROVEMENT"));
+      const rows = slides.flatMap(doc => Array.from(doc.getElementsByTagNameNS(A, "tr")).slice(2))
+        .map(row => Array.from(row.getElementsByTagNameNS(A, "tc")).map(cell =>
+          Array.from(cell.getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("")));
+      expect(rows).toHaveLength(count + (count === 5 ? 1 : 0));
+      checklist.forEach((item, i) => {
+        expect(rows[i]![0]).toBe(item.findingNumber ?? "To be mapped");
+        expect(rows[i]![2]).toBe(item.notes || "-");
+      });
+      if (count === 5) expect(rows.at(-1)![0]).toBe("To be mapped");
+      if (count === 0) expect(strFromU8(files["ppt/slides/slide12.xml"]!)).toContain("No opportunities for improvement recorded.");
+      const { generatedAt: _afterTime, ...after } = (await api("GET", `/audits/${record.id}/report`)).body;
+      expect(after).toEqual(before);
+      const [storedAfter] = await db.select().from(audits).where(eq(audits.id, record.id));
+      expect(storedAfter).toEqual(storedBefore);
+    }
+  }, 30_000);
+  it("downloads saved NCR references and only linked evidence without issuing numbers or changing report data", async () => {
+    const [uploader] = await db.select().from(users).where(eq(users.organizationId, orgId)).limit(1);
+    const linkedId = randomUUID(), unrelatedId = randomUUID(), legacyFileId = randomUUID();
+    const checklist = Array.from({ length: 14 }, (_, i) => ({
+      id: `ncr-${i}`, source: "finding", auditFinding: "Minor NC", auditArea: "Construction",
+      description: `Saved NCR ${i}`, findingNumber: i === 1 ? undefined : `AF-MIN-27-${i + 1}`,
+      clientReference: `NCR-IDEMPOTENCY-${i}`, notes: "NOT-UPLOADED-EVIDENCE",
+      evidenceIds: i === 0 ? [linkedId] : [],
+    }));
+    const [record] = await db.insert(audits).values({
+      organizationId: orgId, projectId, auditPlanId: planId, referenceNumber: `NCR export ${suffix}`,
+      workflowState: "complete", checklistState: checklist, status: "{}",
+    }).returning();
+    const [historical] = await db.insert(auditFindings).values({
+      organizationId: orgId, auditId: record.id, classification: "Minor NC",
+      description: "Historical NCR", evidence: { evidenceIds: [legacyFileId] },
+    }).returning();
+    await db.insert(auditFindings).values({
+      organizationId: orgId, auditId: record.id, classification: "Minor NC",
+      description: "SHADOW-MUST-NOT-DUPLICATE", evidence: { sourceChecklistItemId: "ncr-0", evidenceIds: [linkedId] },
+    });
+    await db.insert(auditEvidenceFiles).values([
+      { id: linkedId, recordId: record.id, recordType: "audit", fileName: "Linked NCR record.pdf" },
+      { id: unrelatedId, recordId: record.id, recordType: "audit", fileName: "UNRELATED-NCR-ATTACHMENT.pdf" },
+      { id: legacyFileId, recordId: historical.id, recordType: "audit_finding", fileName: "Historical NCR record.pdf" },
+    ].map(file => ({
+      ...file, organizationId: orgId, projectId, category: "finding_evidence", mimeType: "application/pdf",
+      sizeBytes: 10, uploadedById: uploader.id, storageKey: `local:audit/${file.id}`, status: "stored",
+    })));
+    const beforeSections = (await api("GET", `/audits/${record.id}/report`)).body.sections;
+    const [beforeAudit] = await db.select().from(audits).where(eq(audits.id, record.id));
+    const beforeSettings = await db.select().from(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
+    const beforeEvents = await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
+    const res = await fetch(`${base}/api/audit/audits/${record.id}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+    expect(res.status).toBe(200);
+    const files = unzipSync(new Uint8Array(await res.arrayBuffer()));
+    const { DOMParser } = await import("@xmldom/xmldom");
+    const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    const slides = Object.entries(files).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+      .map(([, bytes]) => new DOMParser().parseFromString(strFromU8(bytes), "application/xml"))
+      .filter(doc => Array.from(doc.getElementsByTagNameNS(A, "tr")[1]?.getElementsByTagNameNS(A, "t") ?? [])
+        .some(t => t.textContent === "Non-conformities"));
+    expect(slides.length).toBeGreaterThan(1);
+    const rows = slides.flatMap(doc => Array.from(doc.getElementsByTagNameNS(A, "tr")).slice(2))
+      .map(row => Array.from(row.getElementsByTagNameNS(A, "tc")).map(cell =>
+        Array.from(cell.getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("")));
+    const actual = rows.filter(row => row[1]!.includes("Saved NCR") || row[1]!.includes("Historical NCR"));
+    expect(actual).toHaveLength(15);
+    checklist.forEach((item, i) => {
+      expect(actual[i]![0]).toBe(item.findingNumber ?? "To be mapped");
+      expect(actual[i]![2]).toBe(i === 0 ? "Linked NCR record.pdf" : "-");
+    });
+    expect(actual.at(-1)![0]).toBe("To be mapped");
+    expect(actual.at(-1)![2]).toBe("Historical NCR record.pdf");
+    expect(JSON.stringify(rows)).not.toMatch(/NCR-IDEMPOTENCY|NOT-UPLOADED|UNRELATED|SHADOW-MUST/);
+    expect((await api("GET", `/audits/${record.id}/report`)).body.sections).toEqual(beforeSections);
+    expect(await db.select().from(audits).where(eq(audits.id, record.id))).toEqual([beforeAudit]);
+    expect(await db.select().from(organizationSettings).where(eq(organizationSettings.organizationId, orgId))).toEqual(beforeSettings);
+    expect(await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId))).toEqual(beforeEvents);
+  });
+  it("downloads real single/five-image evidence and long captions with saved finding metadata, without changing PDF/JSON", async () => {
+    const [uploader] = await db.select().from(users).where(eq(users.organizationId, orgId)).limit(1);
+    const png = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#3274a1" } }).png().toBuffer();
+    const paths: string[] = [];
+    await mkdir("uploads", { recursive: true });
+    try {
+      for (const scenario of ["single", "five", "long", "legacy"] as const) {
+        const count = scenario === "single" || scenario === "legacy" ? 1 : 5;
+        const fileIds = Array.from({ length: count }, () => randomUUID());
+        const description = scenario === "long" ? "Saved descriptive text that must remain legible in full. ".repeat(90) : "Actual saved description";
+        const item = { id: `item-${scenario}`, source: "finding", auditArea: "Construction", auditFinding: "Major NC",
+          findingNumber: `FN-SAVED-${scenario}`, clientReference: "DO-NOT-USE-IDEMPOTENCY", evidenceIds: fileIds, description, clause: "KEEP-STORED-REQUIREMENT" };
+        const [audit] = await db.insert(audits).values({ organizationId: orgId, projectId, auditPlanId: planId,
+          referenceNumber: `Photo report ${scenario} ${suffix}`, workflowState: "complete", checklistState: scenario === "legacy" ? [] : [item], status: JSON.stringify({
+            title: "Photo evidence regression", reportDetails: { values: {}, rows: {
+              photographs: fileIds.map((_, i) => ({ fileName: `scene-${i}.png`, date: "2026-09-12" })),
+            } },
+          }),
+        }).returning();
+        const createdAt = new Date("2026-10-01T12:00:00Z");
+        let legacyId: string | undefined;
+        if (scenario === "legacy") {
+          const [legacy] = await db.insert(auditFindings).values({ organizationId: orgId, auditId: audit.id,
+            classification: "Minor NC", description, createdAt, evidence: { evidenceIds: fileIds, raisedAt: "2026-09-05" },
+          }).returning();
+          legacyId = legacy.id;
+        } else {
+          await db.insert(auditAuditLogEntries).values({ organizationId: orgId, entityId: audit.id, entityType: "audit",
+            action: "add_finding_item", before: { checklistState: [] }, after: { checklistState: [item] }, createdAt });
+        }
+        for (const [i, id] of fileIds.entries()) {
+          const local = `uploads/audit-${id}`;
+          paths.push(local); await writeFile(local, png);
+          await db.insert(auditEvidenceFiles).values({ id, organizationId: orgId, projectId, recordId: legacyId ?? audit.id, recordType: legacyId ? "audit_finding" : "audit",
+            category: "finding_evidence", fileName: `scene-${i}.png`, mimeType: "image/png", sizeBytes: png.length,
+            uploadedById: uploader.id, storageKey: `local:audit/${id}`, status: "stored", createdAt: new Date("2026-10-15T10:00:00Z") });
+        }
+        const before = (await api("GET", `/audits/${audit.id}/report`)).body.sections;
+        const res = await fetch(`${base}/api/audit/audits/${audit.id}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+        expect(res.status).toBe(200);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const files = unzipSync(bytes);
+        expect(Object.keys(files).filter(n => n.startsWith("ppt/media/audit-photo-"))).toHaveLength(count);
+        const slide = strFromU8(files["ppt/slides/slide13.xml"]!);
+        expect((slide.match(/<p:pic>/g) ?? [])).toHaveLength(count);
+        expect(slide).toContain(scenario === "legacy" ? "Reference: To be mapped" : `Reference: FN-SAVED-${scenario}`);
+        expect(slide).toContain(`Date: ${formatDate("2026-10-01")}`);
+        expect(slide).not.toMatch(/DO-NOT-USE-IDEMPOTENCY|KEEP-STORED-REQUIREMENT|Requirement:|Date:.*2026-09-12|Date:.*2026-10-15/);
+        expect((await api("GET", `/audits/${audit.id}/report`)).body.sections).toEqual(before);
+        if (scenario !== "legacy") expect(before.find((s: any) => s.key === "photographs").photos[0].description).toContain("Requirement: KEEP-STORED-REQUIREMENT");
+        else expect(before.find((s: any) => s.key === "photographs").photos).toEqual([]);
+        if (process.env.QMS_PHOTO_VISUAL === "1") {
+          await mkdir("../../generated-artifacts/audit-photos", { recursive: true });
+          await writeFile(`../../generated-artifacts/audit-photos/download-${scenario}.pptx`, bytes);
+        }
+      }
+    } finally { await Promise.all(paths.map(p => unlink(p))); }
+  }, 30_000);
   it("downloads a readable PDF with all report sections", async () => {
     const res = await fetch(`${base}/api/audit/audits/${auditId}/report/pdf`, { headers: { authorization: `Bearer ${token}` } });
     expect(res.status).toBe(200); expect(res.headers.get("content-type")).toContain("application/pdf");

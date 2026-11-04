@@ -15,6 +15,15 @@ Reserve “To be mapped” strictly for fields with no QMS mapping. Mapped field
 
 **How to apply:** Distinguish missing data from missing mappings at each report binding, not through a blanket replacement of PDF text. Preserve literal user content, saved calculations and other report types' existing fallback policies.
 
+Display Monthly Report PDF PQI scores and the eligible-project average with `%`;
+label PQI variance as percentage points (`pp`), not relative percent change.
+
+**Why:** The user confirmed these unit labels after reviewing the percentage-based
+PQI formula. This is a display clarification, not a recalculation request.
+
+**How to apply:** Keep saved scores, equal metric weighting and zero-issued
+category rules unchanged. Preserve missing-score and no-submitted-report messages.
+
 The user explicitly approved replacing the original Word ageing bands with the
 input screen's buckets in the monthly PDF only.
 
@@ -38,3 +47,33 @@ mapping marker or an invented zero average.
 **Why:** The user explicitly confirmed submitted/approved-only eligibility after
 an October report returned zero contributors because the saved reports were drafts.
 The count caption must include the actual reporting month and year.
+
+Monthly Report PDF sign-off tiles retain Submitted by/on, list completed
+intermediate approvals as Reviewed by/on in ascending action-date order, and
+place the actual final approval as Approved by/on last. Omit the Report ID.
+Use only the current submission cycle for sign-off; prior sent-back cycles are
+history, not confirmation of the current document. Never treat an assigned
+approver as evidence of an approval.
+
+**Why:** The business requested sequential reviewer/final-approver sign-off on
+the monthly report. Reusing earlier cycles or assigned names would incorrectly
+certify a changed or still-pending report.
+
+**How to apply:** Use recorded approval actions and dates. A single-stage
+approval has only the final sign-off, and missing legacy evidence must not be
+fabricated. Keep other report types independent.
+
+Monthly Report PDF sign-off includes available user-profile signatures below
+Submitted by, Reviewed by and Approved by, matched by actual signer ID in the
+report organization. Monthly Dashboard PDF adds the same sign-off evidence,
+dates and signatures on a separate landscape page after its five chart pages.
+Downloads and newly generated email attachments must share this mapping.
+
+**Why:** The business explicitly requested the Monthly equivalents of the Daily
+PDF signature and dashboard sign-off behavior, without changing approval logic.
+
+**How to apply:** Keep the report's confirmation and submitter designation.
+Include only actual current-cycle completed approvals; keep reviewers in action
+date order and final approval last. Missing signatures are not invented. These
+are profile images read at generation time, not immutable historical evidence;
+replacing a profile signature changes future exports, not already frozen files.

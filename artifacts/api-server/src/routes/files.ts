@@ -18,6 +18,8 @@ import { requireAuth } from "../middlewares/auth";
 import { getAuthorizedProjectScope, type AppKey as RbacAppKey, type PermissionAction } from "../middlewares/rbac";
 import { canReadLesson } from "./lessons";
 import { carContext } from "../lib/car-register";
+import { auditDepartmentId, processDepartmentAllowed } from "../lib/audit-department-scope";
+import { roleDepartments } from "../lib/role-departments";
 
 const router: IRouter = Router();
 const uploadDir = path.resolve(process.cwd(), "uploads");
@@ -40,6 +42,7 @@ type EvidenceParent = {
   projectIds?: string[];
   module: string;
   allowProjectless?: boolean;
+  auditDepartmentValue?: string;
   creatorId?: string;
   approverId?: string | null;
 };
@@ -72,7 +75,14 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
         eq(auditSchedules.id, row.recordId), eq(auditSchedules.organizationId, organizationId), isNull(auditSchedules.deletedAt),
       ));
       const projectIds = parent ? scheduleProjectIds(parent.status, parent.projectId) : [];
-      return projectIds.length ? { projectId: projectIds[0]!, projectIds, module: "schedules" } : null;
+      if (projectIds.length) return { projectId: projectIds[0]!, projectIds, module: "schedules" };
+      try {
+        const meta = JSON.parse(parent?.status ?? "{}");
+        if (meta.auditTypes?.includes("Quality Internal Process Audit")) return {
+          projectId: null, module: "schedules", allowProjectless: true, auditDepartmentValue: meta.departmentProject,
+        };
+      } catch { /* Unresolved schedules fail closed. */ }
+      return null;
     }
     if (["audit", "audit_execution"].includes(row.recordType)) {
       const module = row.category === "finding_evidence" ? "findings" : "audits";
@@ -88,14 +98,23 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
       try {
         const types = JSON.parse(schedule?.status ?? "{}")?.auditTypes;
         if (Array.isArray(types) && types.includes("Quality Internal Process Audit")) {
-          return { projectId: null, module, allowProjectless: true };
+          return { projectId: null, module, allowProjectless: true, auditDepartmentValue: JSON.parse(schedule!.status!).departmentProject };
         }
       } catch { /* Invalid or legacy status is not evidence of a Process audit. */ }
       return null;
     }
     if (["audit_finding", "finding"].includes(row.recordType)) {
-      const [parent] = await db.select({ projectId: audits.projectId }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(and(eq(auditFindings.id, row.recordId), eq(auditFindings.organizationId, organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
-      return parent?.projectId ? { projectId: parent.projectId, module: "findings" } : null;
+      const [parent] = await db.select({ projectId: audits.projectId, status: auditSchedules.status }).from(auditFindings)
+        .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+        .leftJoin(auditPlans, eq(audits.auditPlanId, auditPlans.id))
+        .leftJoin(auditSchedules, eq(auditPlans.auditScheduleId, auditSchedules.id))
+        .where(and(eq(auditFindings.id, row.recordId), eq(auditFindings.organizationId, organizationId), eq(audits.organizationId, organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
+      if (parent?.projectId) return { projectId: parent.projectId, module: "findings" };
+      try {
+        const meta = JSON.parse(parent?.status ?? "{}");
+        if (meta.auditTypes?.includes("Quality Internal Process Audit")) return { projectId: null, module: "findings", allowProjectless: true, auditDepartmentValue: meta.departmentProject };
+      } catch { /* Unresolved schedules fail closed. */ }
+      return null;
     }
     const [parent] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
@@ -112,7 +131,7 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
     try {
       const types = JSON.parse(schedule?.status ?? "{}")?.auditTypes;
       if (Array.isArray(types) && types.includes("Quality Internal Process Audit")) {
-        return { projectId: null, module: "cars", allowProjectless: true };
+        return { projectId: null, module: "cars", allowProjectless: true, auditDepartmentValue: JSON.parse(schedule!.status!).departmentProject };
       }
     } catch { /* Invalid schedule metadata must not grant projectless access. */ }
     return null;
@@ -141,7 +160,7 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   if (found.app === "lessons" && parent.departmentId) {
     if (!scope.unrestricted && !scope.allDepartmentsAllowed && !scope.departmentIds?.includes(parent.departmentId)) return false;
   } else if (parent.allowProjectless) {
-    if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) return false;
+    if (!processDepartmentAllowed(scope, auditDepartmentId(parent.auditDepartmentValue, await roleDepartments(req.currentUser!.organizationId)))) return false;
   } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "audit" && ["car", "corrective_action_report"].includes(found.row.recordType)) {
     try {

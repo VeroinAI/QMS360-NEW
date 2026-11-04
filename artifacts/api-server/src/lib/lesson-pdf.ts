@@ -15,6 +15,10 @@ export type LessonPdfAssets = {
 type Box = LessonBox;
 const BLACK = rgb(0, 0, 0);
 
+export function lessonPdfIsApproved(lesson: PdfLesson) {
+  return String(lesson.workflowState ?? "").trim().toLowerCase() === "approved";
+}
+
 async function asset(name: string) {
   try { return await readFile(new URL(`./${name}`, import.meta.url)); }
   catch (error) {
@@ -46,6 +50,7 @@ function drawContainedImage(page: PDFPage, image: PDFImage, [x, top, width, heig
 }
 
 export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets = {}) {
+  const isApproved = lessonPdfIsApproved(lesson);
   const [template, regularBytes, boldBytes] = await Promise.all([
     asset("lesson-learned-template.pdf"), asset("DejaVuSans.ttf"), asset("DejaVuSans-Bold.ttf"),
   ]);
@@ -100,7 +105,11 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
   }
   // Avoid separating the approval heading from a normal-sized signature block.
   table.reserve(156.1);
-  await table.band([28.9, 642.9, 538.7, 45.1]);
+  await table.band([28.9, 642.9, 538.7, 22.6]);
+  await table.row([
+    { width: 273.6, text: "Prepared by", bold: true, shade: true },
+    { width: 265.1, text: isApproved ? "Approved by" : "", bold: true, shade: true },
+  ], 22.5);
   for (const [prepared, approved, top] of [
     [lesson.submittedByDesignation, lesson.reviewedByDesignation, 688],
     [lesson.submittedByName, lesson.reviewedByName, 716.5],
@@ -109,12 +118,12 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
       { width: 85, label: [29.9, top + 1, 83, 26.5] },
       { width: 188.6, text: valueText(prepared) },
       { width: 79.4, label: [303.5, top + 1, 77.4, 26.5] },
-      { width: 185.7, text: valueText(approved) },
+      { width: 185.7, text: valueText(isApproved ? approved : null) },
     ]);
   }
   const signatures = await table.band([28.9, 745, 538.7, 25.5]);
   for (const [signature, x, width] of [
-    [assets.preparedSignature, 117.9, 180.6], [assets.approvedSignature, 385.9, 176.4],
+    [assets.preparedSignature, 117.9, 180.6], [isApproved ? assets.approvedSignature : undefined, 385.9, 176.4],
   ] as const) {
     if (!signature) continue;
     try { drawContainedImage(signatures.page, await embedImage(document, signature), [x, signatures.top + 3, width, 19.5]); }
@@ -124,7 +133,7 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
     { width: 85, label: [29.9, 771.5, 83, 23.5] },
     { width: 188.6, text: dateText(lesson.submittedAt) },
     { width: 79.4, label: [303.5, 771.5, 77.4, 23.5] },
-    { width: 185.7, text: dateText(lesson.reviewedAt) },
+    { width: 185.7, text: dateText(isApproved ? lesson.reviewedAt : null) },
   ], 25.5);
   table.finish();
   document.removePage(0);

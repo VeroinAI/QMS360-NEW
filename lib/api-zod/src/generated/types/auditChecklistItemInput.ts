@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditChecklistItemInputAuditFinding } from './auditChecklistItemInputAuditFinding';
+import type { AuditChecklistItemInputRiskLevel } from './auditChecklistItemInputRiskLevel';
 
 export interface AuditChecklistItemInput {
   /** @minLength 1 */
@@ -19,5 +20,6 @@ export interface AuditChecklistItemInput {
   question: string;
   description?: string;
   auditFinding?: AuditChecklistItemInputAuditFinding;
+  riskLevel: AuditChecklistItemInputRiskLevel;
   evidenceIds?: string[];
 }

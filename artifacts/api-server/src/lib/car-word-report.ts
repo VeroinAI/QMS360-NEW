@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { DOMParser, XMLSerializer, type Element } from "@xmldom/xmldom";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { CarWordReportData } from "./car-word-report-data";
+import { carSignatureWriter } from "./car-word-signatures";
 
 export const CAR_WORD_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const CAR_UNMAPPED = "To be mapped";
@@ -29,6 +30,7 @@ export async function renderCarWordReport(data: CarWordReportData): Promise<Buff
     "1583333247": data.correctiveAction, "304437587": data.recipient, "1857460274": data.designation,
     "-665015059": data.actionDate, "-175108953": data.verifiedBy, "419685897": data.auditor,
     "-278731234": data.verifiedDate,
+    "2091738276": data.originatorDate, "-1678562886": data.recipientDate,
   };
   const checked: Record<string, boolean> = {
     "716246398": true, "1705132684": false, // Quality, not HSE
@@ -88,8 +90,17 @@ export async function renderCarWordReport(data: CarWordReportData): Promise<Buff
     const text = doc.createElementNS(W, "w:t"); text.textContent = value; run.appendChild(text);
     p.appendChild(run); target.appendChild(p);
   };
-  // There is no record-specific signature data in CAR: never copy or fabricate it.
-  for (const [t, r, c] of [[1, 10, 0], [1, 10, 2], [1, 19, 2], [2, 5, 1], [2, 5, 2], [2, 5, 3]]) {
+  const signatures = carSignatureWriter(files, root);
+  for (const [target, signature] of [
+    [cell(1, 10, 0), data.originatorSignature],
+    [cell(1, 10, 2), data.recipientSignature],
+    [cell(1, 19, 2), data.recipientSignature],
+  ] as const) {
+    if (!await signatures.insert(target, signature)) appendValue(target, CAR_UNMAPPED);
+  }
+  signatures.finish();
+  // These verification signatures have no separately defined mapping.
+  for (const [t, r, c] of [[2, 5, 1], [2, 5, 2], [2, 5, 3]]) {
     appendValue(cell(t!, r!, c!), CAR_UNMAPPED);
   }
   if (!data.risk) appendValue(cell(1, 0, 0), CAR_UNMAPPED);

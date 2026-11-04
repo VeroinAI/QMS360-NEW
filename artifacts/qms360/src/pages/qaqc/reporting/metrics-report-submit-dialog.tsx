@@ -38,7 +38,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
   const invalidate = useInvalidate();
   const { toast } = useToast();
   const loading = reportQ.isFetching || ctxQ.isFetching || me.isLoading || cap.isLoading || fc.isLoading;
-  const eligible = report?.reportType === 'monthly' && canSubmitMetricsDocument(report.state, cap.can('monthly_reports', 'submit'), report.createdById, me.data?.id);
+  const eligible = report?.reportType === 'monthly' && canSubmitMetricsDocument(report.state, cap.can('monthly_reports', 'submit'), me.data?.id);
   const locked = fc.fieldProps('data').disabled;
   const data = normaliseMetricsEntry((report?.data ?? {}) as Obj);
   const issues = report ? [
@@ -74,7 +74,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
         <ErrorBox error={reportQ.error ?? ctxQ.error ?? me.error} retry={() => { void reportQ.refetch(); void ctxQ.refetch(); }} /> :
         <>
           <p className="text-sm font-medium">{report?.projectName ?? report?.projectId} · {report?.period?.slice(0, 7)}</p>
-          {!eligible && <p role="alert" className="text-sm text-destructive">Only your draft monthly reports can be submitted with Monthly Reports submit permission.</p>}
+          {!eligible && <p role="alert" className="text-sm text-destructive">Only draft or sent-back monthly reports can be submitted with Monthly Reports Submit permission.</p>}
           {locked && <p role="alert" className="text-sm text-destructive">This report is locked by field controls.</p>}
           {issues.length > 0 && <div role="alert" className="space-y-2 text-sm">
             <p className="font-medium text-destructive">Resolve these issues in the report before submitting:</p>

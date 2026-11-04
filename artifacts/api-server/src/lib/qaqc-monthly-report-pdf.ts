@@ -1,11 +1,11 @@
-import { PDFDocument, type PDFFont, type PDFPage, rgb } from "pdf-lib";
+import { PDFDocument, type PDFFont, type PDFPage, type PDFImage, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { Element } from "@xmldom/xmldom";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
 import { attr, buildMonthlyReportDocument, child, children, descendants, monthlyAsset } from "./qaqc-monthly-report-template";
 
 type Token = { text: string; font: PDFFont; size: number; color: string };
-type Line = { tokens: Token[]; height: number; before: number; after: number; align: string };
+type Line = { tokens: Token[]; height: number; before: number; after: number; align: string; image?: PDFImage };
 const color = (hex = "3A3A3B") => {
   const h = /^[0-9a-f]{6}$/i.test(hex) ? hex : "3A3A3B";
   return rgb(parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255);
@@ -18,16 +18,23 @@ const height = (lines: Line[]) => lines.reduce((s,l) => s+l.before+l.height+l.af
  * DejaVu is used only for symbols absent from Carlito. No office/browser runtime.
  */
 export async function exportMonthlyMetricsPdf(report: QaqcReportExport): Promise<Buffer> {
-  const { body, project, month } = await buildMonthlyReportDocument(report);
+  const { body, project, month, signoffTable, signatures } = await buildMonthlyReportDocument(report);
   return renderQaqcWordDocument(body, {
     title:`QA/QC Metrics – Monthly Report — ${project} — ${month}`,
     subject:"QA/QC monthly metrics",
     footer:`Algihaz · QA/QC Monthly Metrics Report · ${month}`,
+    signatures,keepTogetherTables:new Set([signoffTable]),
   });
 }
 
 /** Shared Word-style renderer; report-specific data mapping stays independent. */
-export async function renderQaqcWordDocument(body: Element, options: {title:string;subject:string;footer:string}): Promise<Buffer> {
+export async function renderQaqcWordDocument(body: Element, options: {
+  title:string;subject:string;footer:string;
+  signatures?: Map<Element, Uint8Array>;
+  pageSize?: { width: number; height: number };
+  pageNumberOffset?: number;
+  keepTogetherTables?: Set<Element>;
+}): Promise<Buffer> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
   pdf.setTitle(options.title);
   pdf.setAuthor("QMS360"); pdf.setSubject(options.subject);
@@ -39,7 +46,9 @@ export async function renderQaqcWordDocument(body: Element, options: {title:stri
   })));
   const chars = new Map([regular,bold,symbol,italic,boldItalic].map(f => [f,new Set(f.getCharacterSet())]));
   const sect = child(body,"sectPr"), pgSize = child(sect,"pgSz"), margin = child(sect,"pgMar");
-  const width = points(pgSize,"w",595.3), pageHeight = points(pgSize,"h",841.9);
+  const width = options.pageSize?.width ?? points(pgSize,"w",595.3), pageHeight = options.pageSize?.height ?? points(pgSize,"h",841.9);
+  const signatures = new Map<Element, PDFImage>();
+  for (const [cell, bytes] of options.signatures ?? []) signatures.set(cell, await pdf.embedPng(bytes));
   const left = points(margin,"left",56.7), right = points(margin,"right",56.7);
   const top = points(margin,"top",50), bottom = points(margin,"bottom",50);
   const contentWidth = width-left-right;
@@ -96,6 +105,12 @@ export async function renderQaqcWordDocument(body: Element, options: {title:stri
     let pos=at;
     for(const line of lines) {
       pos+=line.before;
+      if (line.image) {
+        const size = line.image.scale(Math.min(150 / line.image.width, 38 / line.image.height, available / line.image.width));
+        page.drawImage(line.image, { x, y: pageHeight-pos-size.height, width: size.width, height: size.height });
+        pos+=line.height+line.after;
+        continue;
+      }
       const w=line.tokens.reduce((s,t) => s+t.font.widthOfTextAtSize(t.text,t.size),0);
       let xx=x+(line.align==="right" ? available-w : line.align==="center" ? (available-w)/2 : 0);
       for(const t of line.tokens) {
@@ -121,7 +136,7 @@ export async function renderQaqcWordDocument(body: Element, options: {title:stri
   function table(table: Element) {
     const tableRows=children(table,"tr");
     const header=tableRows.find(r => child(child(r,"trPr"),"tblHeader"));
-    const renderRow=(row: Element, repeat=false) => {
+    const prepareRow=(row: Element) => {
       const cells=children(row,"tc");
       const rawWidths=cells.map(c => points(child(child(c,"tcPr"),"tcW"),"w",100));
       const sum=rawWidths.reduce((s,w)=>s+w,0);
@@ -129,8 +144,22 @@ export async function renderQaqcWordDocument(body: Element, options: {title:stri
       const prepared=cells.map((c,i) => {
         const pr=child(c,"tcPr"), mar=child(pr,"tcMar");
         const padding={left:points(child(mar,"left"),"w",5.5),right:points(child(mar,"right"),"w",5.5),top:points(child(mar,"top"),"w",3.5),bottom:points(child(mar,"bottom"),"w",3.5)};
-        return {pr,padding,lines:children(c,"p").flatMap(p => layout(p,Math.max(10,widths[i]!-padding.left-padding.right)))};
+        const lines=children(c,"p").flatMap(p => layout(p,Math.max(10,widths[i]!-padding.left-padding.right)));
+        const image=signatures.get(c);
+        if(image) lines.push({tokens:[],height:42,before:3,after:2,align:"left",image});
+        return {pr,padding,lines};
       });
+      return {cells,widths,prepared};
+    };
+    if(options.keepTogetherTables?.has(table)) {
+      const total=tableRows.reduce((sum,row)=>{
+        const {prepared}=prepareRow(row);
+        return sum+Math.max(...prepared.map(c=>height(c.lines)+c.padding.top+c.padding.bottom),12);
+      },0);
+      if(total<=pageHeight-top-bottom && y+total>pageHeight-bottom && y>top) newPage();
+    }
+    const renderRow=(row: Element, repeat=false) => {
+      const {cells,widths,prepared}=prepareRow(row);
       const rowHeight=() => Math.max(...prepared.map(c => height(c.lines)+c.padding.top+c.padding.bottom),12);
       // Whole normal rows move together. Oversized cells flow across pages.
       if(y+rowHeight()>pageHeight-bottom && y>top && !repeat) {
@@ -179,7 +208,7 @@ export async function renderQaqcWordDocument(body: Element, options: {title:stri
     while(regular!.widthOfTextAtSize(foot,8)>contentWidth-85 && foot.length>1)
       foot=foot.replace(/…$/,"").slice(0,-1)+"…";
     p.drawText(foot,{x:left,y:bottom-24,size:8,font:regular,color:color("66666A")});
-    const count=`Page ${i+1} of ${pages.length}`;
+    const count=`Page ${i+1+(options.pageNumberOffset ?? 0)} of ${pages.length+(options.pageNumberOffset ?? 0)}`;
     p.drawText(count,{x:width-right-regular!.widthOfTextAtSize(count,8),y:bottom-24,size:8,font:regular,color:color("66666A")});
   });
   return Buffer.from(await pdf.save());

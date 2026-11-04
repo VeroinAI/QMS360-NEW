@@ -1,3 +1,5 @@
+import { NativeSelection } from '@/components/ui/native-selection';
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { useId, type ComponentType, type ReactNode } from 'react';
 import { Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +38,7 @@ function Txt({ path, label, required, multiline, tid }: { path: Path; label: str
 }
 function Pick({ path, label, options, required, tid }: { path: Path; label: string; options: readonly string[]; required?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path) ?? '';
-  return <Field id={id} path={path} label={label} required={required}><select id={id} data-testid={`select-${tid}`} className={selectCls} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)}><option value="">Select</option>{options.map(o => <option key={o} value={o}>{o}</option>)}</select></Field>;
+  return <Field id={id} path={path} label={label} required={required}><NativeSelection id={id} data-testid={`select-${tid}`} className={selectCls} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)}><option value="">Select</option>{options.map(o => <option key={o} value={o}>{o}</option>)}</NativeSelection></Field>;
 }
 function RO({ label, value, tid, className }: { label: string; value: ReactNode; tid: string; className?: string }) {
   return <div className="space-y-1"><p className="text-xs text-muted-foreground">{label}</p><div data-testid={tid} className={`flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm ${className ?? ''}`}>{value}</div></div>;
@@ -63,8 +65,10 @@ export function MaterialTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) 
     </div>
     <div className="space-y-2">
       <p id={rid} className="text-xs text-muted-foreground">OSD Available<span className="ml-1 text-destructive" aria-hidden="true">*</span></p>
-      <RadioGroup data-report-field="material.osdAvailable" aria-labelledby={rid} aria-required="true" data-testid="radio-material-osd" className="flex gap-4" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
+      <RadioGroup data-report-field="material.osdAvailable" aria-labelledby={rid} aria-required="true" data-testid="radio-material-osd" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
+        <SearchableSelectionList label="Search OSD availability choices" listClassName="flex gap-4" disabled={f.readOnly}>
         {['Yes', 'No'].map(o => <label key={o} className="flex items-center gap-2 text-sm"><RadioGroupItem value={o} id={`${rid}-${o}`} data-testid={`radio-material-osd-${o.toLowerCase()}`} />{o}</label>)}
+        </SearchableSelectionList>
       </RadioGroup>
     </div>
     <div className={cols}>

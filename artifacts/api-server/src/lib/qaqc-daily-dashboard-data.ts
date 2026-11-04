@@ -1,4 +1,5 @@
 import type { QaqcReportExport } from "./qaqc-reporting-export";
+import { dailyDisciplineSnapshot } from "@workspace/field-controls";
 import type { DashboardChart } from "./qaqc-monthly-dashboard-data";
 import type { PresentationDashboard } from "./qaqc-monthly-dashboard-pdf";
 import { monthlyDate, UNMAPPED } from "./qaqc-monthly-report-template";
@@ -27,7 +28,7 @@ const tone = (v: Count, kind = "neutral") => v === null || v === 0 || kind === "
 /** Workbook D-001–D-117. Comparisons use the historical report's saved baseline,
  * never today's previous log. Explicit zero is distinct from a missing current input. */
 export function dailyDashboardData(report: QaqcReportExport): PresentationDashboard {
-  const d = report.data as Obj, b = report.baseline as Obj, c = report.computed as Obj;
+  const d = dailyDisciplineSnapshot(report.data as Obj, report.baseline as Obj), b = report.baseline as Obj, c = report.computed as Obj;
   const current = (...path: string[]) => number(path.reduce((o, k) => o?.[k], d));
   const previous = (...path: string[]) => number(path.reduce((o, k) => o?.[k], b)) ?? 0;
   const total = (section: string, discipline: string) => number(c.disciplineTotals?.[`${section}.${discipline}`])

@@ -25,6 +25,19 @@ const report: QaqcReportExport = {
 };
 
 describe("Daily dashboard supplied presentation and mapping workbook", () => {
+  it("keeps cumulative-mode report and dashboard totals aligned without adding yesterday twice", () => {
+    const cumulative = { ...data, dailyDisciplineInputMode: "daily_cumulative_v2", dailySupplementInputMode: "daily_cumulative_v2" };
+    expect(dailyDashboardData({ ...report, data: cumulative, computed: calculateReport("daily", cumulative, baseline) }))
+      .toEqual(dailyDashboardData(report));
+  });
+  it("maps versioned daily additions to cumulative totals without summing unrelated snapshots", () => {
+    const dailyData = { ...data, dailyDisciplineInputMode: "daily_additions_v1" };
+    const m = dailyDashboardData({ ...report, data: dailyData, computed: calculateReport("daily", dailyData, baseline) });
+    expect(m.values["Cum DRAWINGS chip 1 value"]).toBe("150");
+    expect(m.values["Cum SUBMISSION TOTAL chip 1 value"]).toBe("300");
+    expect(m.values["Added SUBMITTALS chip 1 value"]).toBe("+80");
+    expect(m.values["Added CORRESPONDENCE chip 1 value"]).toBe("+2");
+  });
   it("maps both daily change and cumulative bands from the saved data and baseline", () => {
     const m = dailyDashboardData(report);
     expect(m.values["Added SUBMITTALS chip 1 value"]).toBe("+10");
@@ -92,7 +105,7 @@ describe("Daily dashboard supplied presentation and mapping workbook", () => {
     try {
       const bytes = await exportQaqcReportPdf(report, { templateId: "daily-dashboard" });
       const pdf = await PDFDocument.load(bytes);
-      expect(pdf.getPageCount()).toBe(4);
+      expect(pdf.getPageCount()).toBe(5);
       for (const page of pdf.getPages()) expect(page.getSize()).toEqual({ width: 960, height: 540 });
       expect(pdf.getPages()[0]!.node.Annots()?.size()).toBe(1);
       const annotation = pdf.context.lookup(pdf.getPages()[0]!.node.Annots()!.get(0), PDFDict);
@@ -108,10 +121,10 @@ describe("Daily dashboard supplied presentation and mapping workbook", () => {
     const r = structuredClone(report);
     r.data = make(1); r.computed = calculateReport("daily", r.data, r.baseline);
     const negative = await exportQaqcReportPdf(r, { templateId: "daily-dashboard" });
-    expect((await PDFDocument.load(negative)).getPageCount()).toBe(4);
+    expect((await PDFDocument.load(negative)).getPageCount()).toBe(5);
     await writeFile("../../generated-artifacts/daily-dashboard-negative-preview.pdf", negative);
     const empty = await exportQaqcReportPdf({ ...report, data: {}, computed: {}, baseline: {}, dailyReportPdfUrl: undefined, state: "draft" }, { templateId: "daily-dashboard" });
-    expect((await PDFDocument.load(empty)).getPageCount()).toBe(4);
+    expect((await PDFDocument.load(empty)).getPageCount()).toBe(5);
     await writeFile("../../generated-artifacts/daily-dashboard-empty-preview.pdf", empty);
   });
 });

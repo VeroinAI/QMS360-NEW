@@ -1,5 +1,7 @@
 # Memory Index
 
+- [Monthly NCR ageing](monthly-ncr-ageing-policy.md) — one BU/Department and bucket pair per External/Internal NCR breakdown; disable used choices and reject duplicates.
+
 - [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
 - [PostgreSQL catalog comparison](pg-catalog-comparison.md) — identifier arrays, composite-key column identity and index ordering need explicit interpretation.
 - [JSONB merge precedence](jsonb-merge-precedence.md) — parenthesize extracted operands in concatenations; test preservation of destination-only metadata.
@@ -13,6 +15,7 @@
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.
 - [Lessons PDF template policy](lessons-pdf-template-policy.md) — the revised official Word form governs downloaded and emailed PDFs; preserve branding and use actual record data only.
 - [Lessons approver eligibility](lessons-approver-eligibility.md) — approver selection requires an explicit role approval grant, including for administrators.
+- [Lessons approval history](lessons-approval-history-policy.md) — show every recorded approval cycle newest first; preserve earlier comments and avoid invented legacy history.
 - [Lessons overview counts](lessons-overview-policy.md) — all tiles follow the selected project; personal totals cover all accessible records while the recent tile retains recent-record semantics.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
 - [Orval zod export naming](openapi-zod-naming.md) — zod consts get operationId-derived names; component schemas are types only; `<OperationId>Body` schema names collide with TS2308.
@@ -32,6 +35,7 @@
 - [Two-phase attachment retries](two-phase-attachment-retries.md) — parent creation and evidence uploads must be independently idempotent to survive lost responses.
 - [Audit schedule programme guards](audit-schedule-programme-guards.md) — parent programmes share schedule storage; child endpoints must reject them and await every project-scope check.
 - [Audit Schedule event history](audit-schedule-event-history.md) — scoped, retained, read-only history; canonical events also drive approval cycles and PDF signatories.
+- [Audit schedule register](audit-schedule-register-policy.md) — show individual audits without removing annual programme management; filter all authorized rows and use inclusive date overlap.
 - [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.
 - [Audit Plan activity rows](audit-plan-activity-rows.md) — activity details are repeatable master-data rows; retain single-value fields only for backward compatibility.
 - [Audit Plan date boundaries](audit-plan-date-boundaries.md) — every Plan date/time must fit the child audit's actual From/To dates, with an explicit allowed-range error.
@@ -41,6 +45,7 @@
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
 - [Audit Plan role selections](audit-plan-auditee-roles.md) — Auditee and Circulation are independent multi-role fields; activity-level auditees remain users.
+- [Audit Plan selection scope](audit-plan-selection-scope.md) — method/criteria choices do not imply template changes, configurable masters, or extra free-text questions.
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
 - [Email Rule templates](email-rule-template-policy.md) — per-rule content is configurable; preserve approval audiences and prevent duplicate generic approval dispatch.
 - [Editor dependency identity](editor-dependency-identity.md) — clean builds and initial rendering can miss editor class conflicts; exercise typing and selection in a browser.
@@ -51,9 +56,10 @@
 - [Drona container build](drona-container-build.md) — isolate relative assets and hash navigation from Replit builds; portable assets do not configure the API bridge.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
 - [Role-based application entry](role-based-application-entry.md) — active roles grant entry in all three modules; no separate application approval; preserve RBAC and report approvals.
-- [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
+- [Audit type-category links](audit-type-category-links.md) — standard Product/Process category restrictions override old links; custom types keep master-data mappings and historical edits stay valid.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
-- [Audit Team Lead marker](audit-team-lead-marker.md) — assigned leads review CARs with scoped read access; acceptance closes immediately; the marker grants no unrelated rights.
+- [Audit Team Lead marker](audit-team-lead-marker.md) — marker is not a general action grant; legacy pending CAR reviews retain the assigned Lead workflow.
+- [CAR approval policy](car-approval-policy.md) — explicit independent CAR roles; preserve legacy pending Lead reviews and close routed responses only after final acceptance.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
 - [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Audit module access](audit-module-access.md) — module grants are additive; narrow global grants explicitly and preserve Programme creation, approval levels and assignment scope.
@@ -68,16 +74,20 @@
 - [Audit Report numbering policy](audit-report-numbering-policy.md) — issue on first successful Save Report Details; independent yearly source counters; block completion without a number.
 - [Audit Finding numbering policy](audit-finding-numbering-policy.md) — configurable code per finding type; separate type/source/year sequences; issue on Save Finding; exclude Not applicable.
 - [Audit CAR numbering policy](audit-car-numbering-policy.md) — issue on first successful response save/submit; independent source/year counters; opening a CAR never issues a number.
+- [CAR Finding Date deadlines](audit-car-due-policy.md) — use Finding Date: Major NC +2 days, Minor NC +3, OFI +4; preserve historical deadlines until dates are entered.
 - [CAR response access](car-response-access-policy.md) — schedule links reuse Edit permissions; only the three response fields may be editable; read-only opening must not create a CAR.
+- [CAR register display semantics](car-register-display-policy.md) — initial CAR assignment dates are distinct from Finding Date; pending people reflect only the current stage.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
 - [Checklist row deletion](checklist-row-deletion.md) — permit deletion only when Audit Findings and Evidence are both empty; protect legacy results and recheck at deletion time.
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
+- [Meeting date policy](opening-meeting-date-policy.md) — both meetings use inclusive individual-audit bounds independently; preserve instants and require explicit correction of invalid history.
 - [Orval scalar format compatibility](orval-uuid-format.md) — UUID, email and integer schemas can generate unavailable Zod helpers; check generated-library compilation.
-- [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.
+- [Audit finding workspace policy](audit-finding-coexistence.md) — Findings belongs inside an individual Audit Execution; preserve standalone history, checklist identities and CAR links.
 - [Finding priority actions](finding-priority-action-policy.md) — single required choice with an Action Taker; remove the Report Details tile without deleting historical data.
 - [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.
 - [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.
+- [Audit Report approval](audit-report-approval-policy.md) — completion triggers module-specific scoped approval; preserve schedule routing and validate new permission keys through the Settings API.
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.
 - [Overall project progress scope](audit-project-progress-scope.md) — manual Additional Documents data; only Weight is explicitly a percentage, with no sample defaults or invented weighted totals.
 - [API runtime asset paths](api-runtime-asset-paths.md) — production may run from workspace root; package and resolve assets independently of the process working directory.
@@ -93,6 +103,7 @@
 - [Drona automatic setup](drona-automatic-setup-policy.md) — source-owned signup needs no routine manual linking; preserve QMS permissions/history and keep removed links revoked.
 - [Drona user discovery](drona-user-discovery.md) — email search/add for existing QMS-assigned Drona users only; reuse role controls, without extra workflows or automatic sync.
 - [CAR Word template policy](car-word-template-policy.md) — row downloads retain the supplied Word format; unavailable values read exactly “To be mapped”; never fabricate signatures or record data.
+- [CAR signature evidence](car-signature-evidence-policy.md) — freeze creation/submission signatures privately; retain them through profile changes and never backfill historical gaps.
 - [Audit memo defaults](audit-memo-defaults.md) — reusable headings prefill submit/resubmit; keep saved approval memos and email audiences independent of live defaults.
 - [Lessons dynamic numbering](lessons-dynamic-numbering-requirement.md) — requested configurable prefix fields, initially Project Cost Center and selected Discipline master Value.
 - [Email browser drafts](email-browser-draft-visibility.md) — hide already registered local copies without deleting drafts or changing active email placeholders.
@@ -103,8 +114,18 @@
 - [Daily Submission Word template](daily-submission-word-template-policy.md) — shared Daily downloads use saved data/baselines; omit sample data and reviewer-only instructions.
 - [Monthly dashboard PDF](monthly-dashboard-pdf-policy.md) — separate presentation-style export; workbook mappings preserve real formulas, ageing bands and distinct portfolio coverage policy.
 - [Monthly historical balances](monthly-historical-balances-policy.md) — one opening load per project across all months; atomic Master-backed Excel uploads and protected submitted history.
+- [Daily historical balances](daily-historical-balances-policy.md) — one-time pre-report snapshots through the day before go-live; scoped historical grants and atomic multi-project imports.
 - [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
+- [Daily report uniqueness](daily-report-uniqueness.md) — one active report per project/date across all statuses; warn on selection and recheck under the shared project lock at save.
+- [Daily discipline inputs](daily-discipline-input-policy.md) — new reports use cumulative Current Date and exact prior-day snapshots; preserve earlier addition-mode history and organization-formatted headings.
 - [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.
+- [Department role boundaries](department-role-scope-policy.md) — shared Department Master without Lessons access; department-only entry grants no projects or new QA/QC reporting models.
 - [Project closure target ownership](project-closure-target-ownership.md) — edit targets in Project Master; keep Reporting Settings read-only and preserve hidden workflow configuration.
 - [Calculation tile visibility](qaqc-calculation-tile-policy.md) — no technical Server calculation tile on Daily or CSAT forms; preserve calculations and validation.
 - [CSAT final submission](csat-submission-origin-policy.md) — Yes submits and locks; No persists a draft; submitted surveys have no approval/send-back workflow.
+- [Email-rule browser test isolation](browser-email-rule-test-isolation.md) — save enabled test rules only in disposable organizations, never shared demo or live accounts.
+- [Selection search contracts](selection-search-contracts.md) — editable search must own focus; hidden native bridges must not duplicate visible validation paths.
+- [Audit participant boundaries](audit-participant-boundaries.md) — scope team/activity choices to the individual audit; separate historical names and never borrow marker scope or broad offline eligibility.
+- [Consolidated QA/QC dashboards](qaqc-consolidated-dashboard-policy.md) — approved-only web totals, signed snapshot movement, final CSAT surveys and separate cross-app authorization.
+- [Recharts component boundaries](recharts-component-boundaries.md) — forward measured dimensions through wrappers; keep axes as direct chart children and test real bars, labels and finite coordinates.
+- [CSAT reference numbering](csat-reference-numbering-policy.md) — allocate on Create Draft using CSAT Date year and independent project/year go-live counters; retain existing references.

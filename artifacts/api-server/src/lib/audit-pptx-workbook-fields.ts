@@ -1,37 +1,36 @@
 import { projectProgressPhases } from "@workspace/field-controls";
-import { formatDate } from "@workspace/spreadsheet-dates";
+import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import type { ReportSectionData } from "./audit-consolidated-report";
-import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
+import { mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
 type Row = Record<string, any>;
 
-/** Workbook-driven enrichment is exclusive to PPTX. Preserve recorded values except explicit workbook source changes. */
+/** Ignore unused form rows before missing cells are converted to report placeholders. */
+export const recordedGoodPractice = (row: Row) =>
+  ["areaProcess", "verifiedConforming", "evidenceReference", "referenceNumber"]
+    .some(key => row[key] != null && String(row[key]).trim() !== "");
+
+/** PPTX-only enrichment. Explicit live-source mappings override stale report-detail values. */
 export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   evidence: Row[]; names: Map<string, string>; roleNames: Map<string, string>;
   cars: Row[]; findingReferences: Map<string, { reference: string; grade: string }>;
+  pptxProcessOwnerNames?: string[]; generatedAt?: Date; timeZone?: string;
 }) {
   const { audit, plan, schedule, project, evidence, names, roleNames } = input;
-  const empty = (value: unknown) => mappedText(value) === PPTX_UNMAPPED;
+  const empty = (value: unknown) => [PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(value));
   const field = (key: string, label: string) => sections.find(section => section.key === key)?.fields.find(field => field.label === label);
   const fill = (key: string, label: string, value: unknown) => {
     const target = field(key, label);
     if (target && empty(target.value) && !empty(value)) target.value = String(value);
   };
   const list = (items: unknown[]) => [...new Set(items.filter(item => !empty(item)).map(String))].join("\n");
-  const projectField = (...keys: string[]) => {
-    const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
-    for (const key of keys) {
-      const entry = Object.entries({ ...project?.customFields, ...project })
-        .find(([name, value]) => normalize(name) === normalize(key) && !empty(value)
-          && (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))));
-      if (entry) return entry[1];
-    }
-    return undefined;
-  };
   fill("cover", "Project / process / site", project?.name || schedule?.departmentProject || schedule?.department);
   fill("document-control", "Form number", field("cover", "Audit reference")?.value);
-  fill("document-control", "Process owner", names.get(schedule?.ownerId));
+  const processOwner = field("document-control", "Process owner");
+  if (processOwner) processOwner.value = [...new Set(input.pptxProcessOwnerNames?.map(name => name.trim()).filter(Boolean) ?? [])].join(", ") || PPTX_EMPTY;
+  const effectiveDate = field("document-control", "Effective date");
+  if (effectiveDate) effectiveDate.value = formatDateInTimeZone(input.generatedAt ?? new Date(), input.timeZone ?? "Asia/Riyadh");
   fill("document-control", "Applies to", "All quality internal audits conducted by Algihaz auditors");
   const approvals = sections.find(section => section.key === "document-control")?.tables[0];
   const preparedById = plan && "pptxPreparedById" in plan ? plan.pptxPreparedById : plan?.leadAuditorId;
@@ -52,7 +51,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     }
   }
   // Slide 3's profile explicitly uses this audit project's QMS Additional Data.
-  // A cleared value must stay unmapped, not revert to old report or source-master text.
+  // A cleared mapped value stays empty, never reverting to old report/source-master text.
   const additional = project?.customFields?.qmsAdditionalData ?? {};
   for (const [label, key] of [
     ["Client", "client"], ["Contractor", "contractor"],
@@ -62,9 +61,11 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     const target = field("audit-overview", label);
     if (!target) continue;
     const saved = typeof additional[key] === "string" ? additional[key].trim() : "";
-    target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_UNMAPPED;
+    target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_EMPTY;
   }
-  fill("cover", "Contract / project number", projectField("contractNumber", "projectNumber", "contractProjectNo", "projectNo", "code"));
+  const coverContract = field("cover", "Contract / project number");
+  if (coverContract) coverContract.value = typeof additional.contractProjectNumber === "string"
+    ? additional.contractProjectNumber.trim() || PPTX_EMPTY : PPTX_EMPTY;
   fill("scope", "Objective", plan?.description);
   fill("scope", "In scope", list((plan?.activities ?? []).map((row: Row) => row.section)));
   fill("scope", "Period and sample covered", list(evidence.map(file => file.fileName)));
@@ -93,7 +94,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   }
   const conforming = sections.find(section => section.key === "conforming")?.tables[0];
   if (conforming) {
-    const practices = (documents.goodPractices ?? []).map((row: Row) => [
+    const practices = (documents.goodPractices ?? []).filter(recordedGoodPractice).map((row: Row) => [
       row.areaProcess, row.verifiedConforming, row.evidenceReference,
     ].map(value => empty(value) ? "Not recorded" : String(value)));
     for (const row of practices) {
@@ -103,8 +104,8 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   const tracker = sections.find(section => section.key === "corrective-actions")?.tables[0];
   tracker?.rows.forEach((row, index) => {
     const finding = input.findingReferences.get(input.cars[index]?.findingId);
-    // The workbook requests CAR Register Ref no (to be added), not a generated finding reference.
-    row[0] = "Not recorded";
+    // CAR reference is issued independently from the underlying finding.
+    row[0] = input.cars[index]?.carNumber || PPTX_EMPTY;
     if (finding && empty(row[1])) row[1] = finding.grade;
   });
 }

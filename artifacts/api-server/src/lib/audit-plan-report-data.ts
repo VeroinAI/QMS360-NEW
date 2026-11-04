@@ -1,6 +1,7 @@
 import { formatDate } from "@workspace/spreadsheet-dates";
 import { datedActivities, plannedDate } from "@workspace/field-controls";
-export const TO_BE_MAPPED = "To Be Mapped";
+export const TO_BE_MAPPED = "To be mapped";
+export const NO_DATA = "-";
 type RecordData = Record<string, any>;
 export type AuditPlanReportData = {
   title: string; reference: string; auditNumber: string; preparedDate: string;
@@ -10,32 +11,41 @@ export type AuditPlanReportData = {
   programManagerSignature?: Uint8Array;
   standards: string; language: string; sheqReference: string;
   start: string; end: string; opening: string; closing: string;
+  startRemark: string; endRemark: string; openingRemark: string; closingRemark: string;
+  revision: string;
   project: Array<[string, string]>;
   activities: Array<{ section: string; remarks: string; auditee: string; dateTime: string; plannedStart?: string; plannedEnd?: string; legacyDateTimeDerived?: boolean }>;
 };
-export function mapped(value: unknown): string {
+function actualValue(value: unknown): string | undefined {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return TO_BE_MAPPED;
+  return undefined;
+}
+export function mapped(value: unknown): string {
+  return actualValue(value) ?? NO_DATA;
 }
 function custom(fields: RecordData, ...aliases: string[]) {
   const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
   for (const alias of aliases) {
     const entry = Object.entries(fields).find(([key]) => normalize(key) === normalize(alias));
-    if (entry && mapped(entry[1]) !== TO_BE_MAPPED) return mapped(entry[1]);
+    const value = entry && actualValue(entry[1]);
+    if (value !== undefined) return value;
   }
-  return TO_BE_MAPPED;
+  return NO_DATA;
+}
+function record(value: unknown): RecordData {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as RecordData : {};
 }
 export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule: RecordData, project: RecordData | undefined,
   userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string, creatorId?: string,
   activityLabels: ReadonlyMap<string, string> = new Map()): AuditPlanReportData {
-  const name = (id: unknown) => typeof id === "string" ? mapped(userNames.get(id)) : TO_BE_MAPPED;
+  const name = (id: unknown) => typeof id === "string" ? mapped(userNames.get(id)) : NO_DATA;
   const names = (ids: unknown, source: Map<string, string>) => Array.isArray(ids) && ids.length
-    ? ids.map(id => mapped(source.get(id))).join(", ") : TO_BE_MAPPED;
+    ? ids.map(id => mapped(source.get(id))).join(", ") : NO_DATA;
   const instantDate = (value: unknown) => {
-    if (!value) return TO_BE_MAPPED;
+    if (value == null || value === "") return NO_DATA;
     const d = new Date(value as string);
-    if (!Number.isFinite(d.getTime())) return TO_BE_MAPPED;
+    if (!Number.isFinite(d.getTime())) return NO_DATA;
     const parts = new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(d);
     const part = (key: string) => parts.find(p => p.type === key)?.value ?? "";
     return formatDate(`${part("year")}-${part("month")}-${part("day")}`);
@@ -44,10 +54,16 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     // Planned values are calendar/wall-clock inputs, even if a historical client added an offset.
     // Actual instants (for example preparation time) use instantDate instead.
     const saved = value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : value;
-    if (typeof saved !== "string" || !plannedDate(saved) || (withTime && !saved.includes("T"))) return TO_BE_MAPPED;
+    if (typeof saved !== "string" || !plannedDate(saved) || (withTime && !saved.includes("T"))) return NO_DATA;
     return `${formatDate(saved.slice(0, 10))}${withTime ? `\n${saved.slice(11, 16)}` : ""}`;
   };
-  const fields = project?.customFields ?? {};
+  const fields = record(project?.customFields);
+  const additional = record(fields.qmsAdditionalData);
+  // Presence, not truthiness: a saved clear must not revive a stale legacy value.
+  const projectField = (key: string, aliases: string[], calendarDate = false) =>
+    Object.prototype.hasOwnProperty.call(additional, key)
+      ? calendarDate ? date(additional[key]) : mapped(additional[key])
+      : custom(fields, ...aliases);
   const activityRows = Array.isArray(meta.activities) && meta.activities.length ? meta.activities : [{
     section: meta.activitySection ?? plan.location, remarks: meta.activityRemarks ?? meta.feasibilityNotes,
     auditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0],
@@ -70,15 +86,19 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     start: date(meta.startDateTime ?? plan.auditDate ?? schedule.plannedStartDate),
     end: date(meta.endDateTime ?? schedule.plannedEndDate),
     opening: date(meta.openingMeetingDateTime, true), closing: date(meta.closingMeetingDateTime, true),
+    startRemark: mapped(meta.startDateTimeRemark), endRemark: mapped(meta.endDateTimeRemark),
+    openingRemark: mapped(meta.openingMeetingDateTimeRemark), closingRemark: mapped(meta.closingMeetingDateTimeRemark),
+    // No persisted revision field or revision workflow exists for Audit Plans.
+    revision: TO_BE_MAPPED,
     project: [
       ["Project Name", mapped(project?.name)],
-      ["Contract #", custom(fields, "contractNumber", "contractNo", "contract #")],
-      ["Client", custom(fields, "client", "clientName")], ["Consultant", custom(fields, "consultant", "consultantName")],
-      ["Main contractor", custom(fields, "mainContractor", "mainContractorName")],
+      ["Contract #", projectField("contractProjectNumber", ["contractNumber", "contractNo", "contract #"])],
+      ["Client", projectField("client", ["client", "clientName"])], ["Consultant", custom(fields, "consultant", "consultantName")],
+      ["Main contractor", projectField("contractor", ["mainContractor", "mainContractorName"])],
       ["Project Manager", custom(fields, "projectManager", "projectManagerName", "pmName")],
-      ["TCC", custom(fields, "tcc", "tccDate")], ["PAC", custom(fields, "pac", "pacDate")],
-      ["FAC", custom(fields, "fac", "facDate")], ["Contract Value", custom(fields, "contractValue")],
-      ["Contract Signed Date", custom(fields, "contractSignedDate")], ["PTS #", custom(fields, "ptsNumber", "ptsNo", "pts #")],
+      ["TCC", projectField("tcc", ["tcc", "tccDate"])], ["PAC", projectField("pac", ["pac", "pacDate"])],
+      ["FAC", projectField("fac", ["fac", "facDate"])], ["Contract Value", custom(fields, "contractValue")],
+      ["Contract Signed Date", projectField("contractSigned", ["contractSignedDate"], true)], ["PTS #", custom(fields, "ptsNumber", "ptsNo", "pts #")],
     ],
     activities: datedActivities<RecordData>(activityRows, meta.activityDateTime).map((row: RecordData) => {
       const start = date(row.plannedStartDateTime, true), end = date(row.plannedEndDateTime, true);

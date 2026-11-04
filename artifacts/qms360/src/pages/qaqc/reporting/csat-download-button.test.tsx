@@ -6,6 +6,8 @@ import { ReportList } from './report-list';
 
 const mocks=vi.hoisted(()=>({canExport:true,api:vi.fn(),save:vi.fn(),list:vi.fn(),ctx:vi.fn()}));
 vi.mock('@workspace/api-client-react',()=>({
+  useGetCurrentUser:()=>({data:{id:'senior'}}),
+  getListQaqcSowReportsQueryKey:(params:unknown)=>['reports',params],
   exportQaqcSowReport:mocks.api,useListQaqcSowReports:mocks.list,useGetQaqcSowContext:mocks.ctx,
 }));
 vi.mock('@/lib/use-qaqc-capabilities',()=>({

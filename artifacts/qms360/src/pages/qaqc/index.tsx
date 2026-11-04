@@ -105,41 +105,6 @@ function ConfirmDelete({ onConfirm, busy }: { onConfirm: () => void; busy?: bool
   return <><Button size="icon" variant="ghost" aria-label="Delete record" onClick={() => setOpen(true)}><Trash2 className="size-4 text-destructive" /></Button><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Delete this record?</DialogTitle><DialogDescription>This soft-deletes the record while preserving its audit history.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button variant="destructive" disabled={busy} onClick={() => { onConfirm(); setOpen(false); }}>Delete</Button></DialogFooter></DialogContent></Dialog></>;
 }
 
-function DashboardPage() {
-  const cap = useQaqcCapabilities();
-  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
-  const dashboard = useGetQaqcDashboard({ period });
-  const pqi = useGetQaqcPqi({ period });
-  const approvals = useListQaqcApprovals({ page: 1, limit: 5 });
-  const escalations = useGetQaqcEscalations({ page: 1, limit: 20 });
-  const openEscalations = (escalations.data?.items ?? []).filter((e) => e.status === 'open');
-  const metrics = (dashboard.data?.metrics || {}) as Record<string, unknown>;
-  const num = (key: string) => Number(metrics[key] ?? 0);
-  const trend = (dashboard.data?.series || []).map((row, i) => ({ name: String(row.category ?? row.period ?? `Period ${i + 1}`), value: Number(row.value ?? row.count ?? 0), ageing: Number(row.ageing ?? row.over45 ?? 0) }));
-  const cards = [
-    ['Open NCR', num('openNcr'), ClipboardCheck], ['Open RFI', num('openRfi'), FileText],
-    ['Open RMI', num('openRmi'), PackageCheck], ['Pending approvals', num('pendingApprovals') || approvals.data?.total || 0, Inbox],
-  ] as const;
-  return <Page title="Quality command centre" description="Live project quality, closure performance, ageing and approval workload." actions={<Input type="month" className="w-44 bg-card text-foreground" value={period} onChange={e => setPeriod(e.target.value)} />}>
-    <QueryState loading={dashboard.isLoading || pqi.isLoading} error={dashboard.error || pqi.error} empty={!dashboard.data && !pqi.data}>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map(([label, value, Icon]) => <Card key={label}><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p></div><div className="rounded-lg bg-primary/10 p-3"><Icon className="size-5 text-primary" /></div></CardContent></Card>)}
-        <Card><CardContent className="flex items-center gap-4 p-5"><div className="relative size-16 rounded-full border-[7px] border-primary/20"><div className="absolute inset-0 flex items-center justify-center text-sm font-bold">{Math.round(pqi.data?.pqi || 0)}%</div></div><div><p className="text-sm text-muted-foreground">PQI score</p><p className="font-semibold">{period}</p></div></CardContent></Card>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card><CardHeader><CardTitle>Category trend</CardTitle><CardDescription>Reported quality activity by category</CardDescription></CardHeader><CardContent className="h-72"><ResponsiveContainer><AreaChart data={trend}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Area type="monotone" dataKey="value" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.2} /></AreaChart></ResponsiveContainer></CardContent></Card>
-        <Card><CardHeader><CardTitle>Ageing buckets</CardTitle><CardDescription>Open items by elapsed-days bracket</CardDescription></CardHeader><CardContent className="h-72"><ResponsiveContainer><BarChart data={trend}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="ageing" fill="var(--chart-2)" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-      </div>
-      <Card><CardHeader><CardTitle>Quick links</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[
-        ['/qaqc/metrics', 'QA/QC Metrics – Monthly Report', Gauge], ['/qaqc/material-inspections', 'Material inspections', PackageCheck],
-        ['/qaqc/documents', 'Document governance', FileText], ['/qaqc/briefs', 'VerionAI quality briefs', Bot],
-      ].filter(([href]) => href === '/qaqc/metrics' ? cap.canAnyRead('metrics') || cap.canAnyRead('monthly_reports') : href === '/qaqc/material-inspections' ? cap.canAnyRead('material_inspections') : href === '/qaqc/documents' ? cap.canAnyRead('document_governance') : cap.canAnyRead('quality_briefs')).map(([href, text, Icon]) => <Link key={href as string} href={href as string}><Button variant="outline" className="h-auto w-full justify-start gap-3 py-4"><Icon className="size-5 text-primary" />{text as string}</Button></Link>)}</CardContent></Card>
-      <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Pending approvals</CardTitle><CardDescription>Items waiting for your review</CardDescription></div><Link href="/qaqc/approvals"><Button variant="outline" size="sm">Open inbox</Button></Link></CardHeader><CardContent className="space-y-2">{approvals.data?.items.length ? approvals.data.items.map(a => <Link key={a.id} href={a.recordType.toLowerCase().includes('brief') ? `/qaqc/briefs/${a.recordId}` : '/qaqc/metrics'}><div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"><div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground">{a.recordType} · {formatDate(a.submittedAt)}</p></div><ChevronRight className="size-4" /></div></Link>) : <p className="py-5 text-center text-sm text-muted-foreground">No pending approvals.</p>}</CardContent></Card>
-      <Card><CardHeader><CardTitle>Open escalations</CardTitle><CardDescription>Records that breached an escalation rule</CardDescription></CardHeader><CardContent className="space-y-2">{openEscalations.length ? openEscalations.map((e) => <Link key={e.id} href={e.recordType === 'quality_brief' ? `/qaqc/briefs/${e.recordId}` : '/qaqc/metrics'}><div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"><div><p className="font-medium capitalize">{e.recordType.replaceAll('_', ' ')}</p><p className="text-xs text-muted-foreground">Due {formatDate(e.dueAt)}</p></div><Badge variant="destructive">{e.level}</Badge></div></Link>) : <p className="py-5 text-center text-sm text-muted-foreground">No open escalations.</p>}</CardContent></Card>
-    </QueryState>
-  </Page>;
-}
-
 const blankMetric = (): QAQCMetricEntry => ({ id: crypto.randomUUID(), projectId: '', period: new Date().toISOString().slice(0, 7), category: 'External NCR', issuedCount: 0, closedCount: 0, ageing0To15: 0, ageing15To45: 0, ageingOver45: 0, workflowState: 'Draft' });
 
 function AiQuickEntry({ onExtract }: { onExtract: (data: Record<string, unknown>) => void }) {

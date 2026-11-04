@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditPlanActivity } from './auditPlanActivity';
+import type { AuditPlanAuditCriteriaItem } from './auditPlanAuditCriteriaItem';
+import type { AuditPlanAuditMethodsItem } from './auditPlanAuditMethodsItem';
 import type { AuditPlanStatus } from './auditPlanStatus';
 
 export interface AuditPlan {
@@ -26,6 +28,9 @@ export interface AuditPlan {
   /** @minItems 1 */
   auditTypes: string[];
   auditLanguage: string;
+  auditMethods?: AuditPlanAuditMethodsItem[];
+  /** Dedicated criteria selections, independent of legacy criteria and Audit Type */
+  auditCriteria?: AuditPlanAuditCriteriaItem[];
   qaqcReference: string;
   /** @nullable */
   description?: string | null;

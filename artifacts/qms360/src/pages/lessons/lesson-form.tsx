@@ -1,6 +1,7 @@
 import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { responseFieldLabels } from "@/lib/response-field-labels";
 import { lessonApproverDisplayName } from "./approver-display";
+import { LessonApprovalRecord } from "./approval-record";
 import { requestWorkflowConfirmation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -16,6 +17,7 @@ import {
   useCreateLessonForm,
   useGetCurrentUser,
   useGetLessonForm,
+  useGetLessonApprovalHistory,
   useGetLessonsReferenceData,
   useListLessonApprovers,
   getListLessonApproversQueryKey,
@@ -204,6 +206,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const impacts = useLov("lesson_impacts");
   const detail = useGetLessonForm(id ?? "", { query: { enabled: Boolean(id), queryKey: [`/api/lessons/forms/${id ?? ""}`] } });
   const activity = useListLessonFormActivity(id ?? "", { query: { enabled: Boolean(id), queryKey: [`/api/lessons/forms/${id ?? ""}/activity`] } });
+  const approvalHistory = useGetLessonApprovalHistory(id ?? "", { query: { queryKey: [`/api/lessons/forms/${id ?? ""}/approval-history`], enabled: Boolean(id), refetchInterval: 30000 } });
   const user = useGetCurrentUser();
   const fieldControls = useFieldControls("lessons", "lesson-form");
   const fieldAccess = useFieldAccess("lessons");
@@ -214,6 +217,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     if (id) {
       queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/activity`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/approval-history`] });
     }
   };
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
@@ -529,13 +533,15 @@ export function LessonFormPage({ id }: { id?: string }) {
           <Card><CardHeader><CardTitle>After Photo</CardTitle></CardHeader><CardContent><PhotoInput category="after" /></CardContent></Card>
           <Field label="Remarks" error={errors.remarks} required={fp("remarks").required}><Textarea rows={3} value={draft.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={disabled("remarks")} placeholder="Add any additional remarks" /></Field>
         </CardContent></Card>
-        <div className={`${readOnly ? "block" : "hidden xl:block"} space-y-6 xl:sticky xl:top-6 xl:self-start`}>
-          <WorkflowControls />
-          {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
-          {record?.submittedAt && <Card><CardHeader><CardTitle>Approval record</CardTitle></CardHeader><CardContent className="space-y-4">
-            <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Submitted by</p><p className="font-medium">{record.submittedByName ?? "Unknown"}{record.submittedByDesignation ? ` — ${record.submittedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{formatDateTime(record.submittedAt)}</p>{record.submittedBySignatureUrl && <AuthImage src={record.submittedBySignatureUrl} alt="Submitter signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>
-            {record.reviewedAt && <div className="border-t border-border pt-4"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{record.reviewDecision === "approve" ? "Approved by" : "Sent back by"}</p><p className="font-medium">{record.reviewedByName ?? "Unknown"}{record.reviewedByDesignation ? ` — ${record.reviewedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{formatDateTime(record.reviewedAt)}</p>{record.reviewComments && <p className="mt-1 rounded-md bg-muted p-2 text-sm"><span className="font-medium">Comments: </span>{record.reviewComments}</p>}{record.reviewedBySignatureUrl && <AuthImage src={record.reviewedBySignatureUrl} alt="Reviewer signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>}
-          </CardContent></Card>}
+        <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+          <div className={`${readOnly ? "block" : "hidden xl:block"} space-y-2`}>
+            <WorkflowControls />
+            {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
+          </div>
+          {record && <LessonApprovalRecord items={approvalHistory.data?.items ?? []}
+            loading={approvalHistory.isLoading} error={approvalHistory.isError ? errorMessage(approvalHistory.error) : undefined}
+            onRetry={() => void approvalHistory.refetch()}
+            renderSignature={url => <AuthImage src={url} alt="Approval record signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />} />}
         </div>
       </div>
       {!readOnly && <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg xl:hidden"><WorkflowControls mobile /></div>}

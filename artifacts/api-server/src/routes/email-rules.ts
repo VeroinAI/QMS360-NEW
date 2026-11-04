@@ -2,24 +2,31 @@ import { Router } from "express";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   auditAuditLogEntries, auditLogEntries, auditWorkspaceRoles, db, emailEventRules,
-  lessonsAuditLogEntries, lessonsWorkspaceRoles, users, workspaceRoles,
+  lessonsAuditLogEntries, lessonsWorkspaceRoles, users, workspaceRoles, projects,
 } from "@workspace/db";
 import { CreateEmailRuleBody, ReorderEmailRulesBody, SimulateEmailRuleBody, UpdateEmailRuleBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { resolveEmailRule } from "../lib/email-rules";
+import { emailCcTargetError } from "../lib/email-cc-validation";
 import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
 import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
-import { emailRichTextToPlain } from "@workspace/field-controls";
+import { emailRichTextToPlain, validEmailReportSelection, validEmailReportSelections } from "@workspace/field-controls";
+import { finalApprovalEmailEvents, qaqcReportEmailEvents } from "../lib/approval-email-events";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const knownEvents = [
+  ...Object.keys(finalApprovalEmailEvents),
+  ...Object.keys(qaqcReportEmailEvents),
+  "qaqc.qaqc_report.create", "qaqc.qaqc_report.update", "qaqc.qaqc_report.delete",
+  "qaqc.qaqc_report.submit", "qaqc.qaqc_report.approve", "qaqc.qaqc_report.send_back",
+  "audit.audit.complete", "audit.audit.approve_report", "audit.audit.send_back_report",
   "audit.audit.create", "audit.audit.delete", "audit.audit.update", "audit.audit.update_checklist",
   "audit.audit_finding.create", "audit.audit_finding.delete", "audit.audit_finding.update",
   "audit.audit_plan.create", "audit.audit_plan.delete", "audit.audit_plan.send_for_audit", "audit.audit_plan.share", "audit.audit_plan.update",
   "audit.audit_programme.approve", "audit.audit_programme.approved_final", "audit.audit_programme.create", "audit.audit_programme.delete", "audit.audit_programme.reject", "audit.audit_programme.send_back", "audit.audit_programme.submit",
-  "audit.audit_schedule.approve", "audit.audit_schedule.approved_final", "audit.audit_schedule.create", "audit.audit_schedule.delete", "audit.audit_schedule.reject", "audit.audit_schedule.send_back", "audit.audit_schedule.submit", "audit.audit_schedule.update",
+  "audit.audit_schedule.approve", "audit.audit_schedule.approved_final", "audit.audit_schedule.create", "audit.audit_schedule.delete", "audit.audit_schedule.reject", "audit.audit_schedule.reschedule_audit", "audit.audit_schedule.send_back", "audit.audit_schedule.submit", "audit.audit_schedule.update",
   "audit.corrective_action_report.cancel_extension", "audit.corrective_action_report.close", "audit.corrective_action_report.create",
   "audit.corrective_action_report.request_extension", "audit.corrective_action_report.submit", "audit.corrective_action_report.update",
   "audit.delegation.create", "audit.delegation.revoke", "audit.escalation_rules.replace",
@@ -48,6 +55,9 @@ const knownEvents = [
 function bodyValue(value: unknown): string | null { return typeof value === "string" ? value.trim() || null : null; }
 async function validate(input: any, organizationId: string) {
   const template = input.recipientConfig ?? {};
+  if (!validEmailReportSelection(input.eventType, template.reportAttachment)
+    || !validEmailReportSelections(input.eventType, template.reportAttachments))
+    throw new HttpError(422, "Select reports belonging to this email event, or choose No attachment");
   if (template.bodyRichText != null) {
     try {
       // Derive plain text server-side so placeholder validation cannot be bypassed
@@ -74,6 +84,21 @@ async function validate(input: any, organizationId: string) {
   if (input.recipientMode === "workspace_role" && !roleNames.length) throw new HttpError(422, "Select at least one workspace role");
   if (input.recipientMode === "project_role" && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");
   if (["project_members", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.projectIds?.length) throw new HttpError(422, "Select at least one project");
+  const cc = template.ccRecipient ?? (template.ccRoleNames?.length ? {mode: "workspace_role", roleNames: template.ccRoleNames} : undefined);
+  const ccError = emailCcTargetError(input.recipientMode, cc, input.eventType);
+  if (ccError) throw new HttpError(422, ccError);
+  if (cc) {
+    if (cc.mode === "internal_user") await ensureUsers(organizationId, [cc.userId]);
+    if (["workspace_role", "project_role"].includes(cc.mode))
+      await ensureWorkspaceRoles(organizationId, input.eventType.split(".")[0], cc.mode === "workspace_role" ? cc.roleNames ?? [] : [cc.roleName]);
+    if (["project_members", "project_role"].includes(cc.mode)) {
+      const ids = [...new Set<string>(cc.projectIds ?? [])];
+      const rows = await db.select({id: projects.id}).from(projects).where(and(
+        eq(projects.organizationId, organizationId), isNull(projects.deletedAt), inArray(projects.id, ids),
+      ));
+      if (rows.length !== ids.length) throw new HttpError(422, "CC projects must belong to this organization.");
+    }
+  }
 }
 async function ensureUsers(org: string, ids: Array<string | null | undefined>) {
   const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];
@@ -211,9 +236,14 @@ async function registeredEmailEvents(organizationId: string) {
   }
   return [...values].sort().map((value) => ({
     value,
-    label: value === "audit.audit_programme.submit"
+    label: value === "qaqc.qaqc_report.submit" ? "Retired · Shared QA/QC submission · No emails sent"
+      : qaqcReportEmailEvents[value] ?? finalApprovalEmailEvents[value as keyof typeof finalApprovalEmailEvents] ?? (value.startsWith("qaqc.qaqc_report.")
+      ? `QA/QC · Shared legacy report event · ${value.split(".")[2]!.replaceAll("_", " ")}`
+      : value === "audit.audit_programme.submit"
       ? "Audit · Audit Schedule · Submit / Resubmit"
-      : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
+      : value === "audit.audit_schedule.reschedule_audit"
+        ? "Audit · Individual Audit · Audit Rescheduled"
+      : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · ")),
   }));
 }
 router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async (req, res) => {

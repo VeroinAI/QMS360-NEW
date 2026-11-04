@@ -91,6 +91,8 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("auditeeId", "Auditee", ""),
         f("qaqcScope", "QA/QC scope", ""),
         f("auditTypes", "Audit type", []),
+        f("auditMethods", "Audit Method", []),
+        f("auditCriteria", "Audit Criteria", []),
         f("auditLanguage", "Audit language", "Verbal: English\nWriting: English"),
         f("qaqcReference", "QA/QC references", ""),
         f("description", "Description of audit", ""),

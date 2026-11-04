@@ -453,7 +453,7 @@ describe("audit programme parent/child workflow", () => {
     const ownerRole = await role("Assignment product owner", [marker.id]);
     await assign(creator.id, ownerRole.id);
     try {
-    const options = await api("GET", "/schedule-activity-options", admin.token);
+    const options = await api("GET", "/schedule-activity-options?department=Quality%20Department", admin.token);
     expect(options.status, JSON.stringify(options.json)).toBe(200);
     expect(options.json.users.some((user: { id: string }) => user.id === l1.id)).toBe(true);
     const programme = await api("POST", "/programmes", creator.token, {
@@ -970,6 +970,7 @@ describe("audit programme parent/child workflow", () => {
   it("validates approval role levels on create and update without changing roles or permissions", async () => {
     const approvalPermissions = [
       { key: "approve_reject", name: "Approve / reject" },
+      { key: "audit.schedules.approve_reject", name: "Schedule approval" },
       { key: "view_all", name: "View all" },
     ];
     const initialRoles = await api("GET", "/admin/roles", admin.token);
@@ -1008,7 +1009,7 @@ describe("audit programme parent/child workflow", () => {
       name: "Level Seven Approval Role",
       description: "Explicit approval level",
       roleAuthorizationLevel: 7,
-      permissions: [{ key: "approve_reject", name: "Approve / reject" }],
+      permissions: [{ key: "audit.schedules.approve_reject", name: "Schedule approval" }],
       active: true,
     });
     expect(created.status).toBe(201);
@@ -1068,7 +1069,7 @@ describe("audit programme parent/child workflow", () => {
         name,
         description: role.description,
         roleAuthorizationLevel: level,
-        permissions: role.permissions,
+        permissions: [...role.permissions, { key: "audit.schedules.approve_reject", name: "Schedule approval" }],
         active: role.active,
       },
     );

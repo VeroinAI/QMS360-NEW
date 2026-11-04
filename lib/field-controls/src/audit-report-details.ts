@@ -25,7 +25,7 @@ export const auditReportDetailGroups: Group[] = [
     f("notInScope", "Not in scope / not audited, and why", "textarea"), f("samplePeriod", "Period and sample covered", "textarea"),
     f("projectPhases", "Project phases covered", "textarea"), f("criteria", "Audit criteria", "textarea"),
     f("method", "Audit method", "textarea"), f("samplingBasis", "Sampling basis", "textarea"),
-    f("notRepresented", "Not represented / participation limitations", "textarea"),
+    f("notRepresented", "Not represented in Closing meeting", "textarea"),
   ] },
   { key: "summary", label: "Executive summary and recurring themes", fields: [
     { key: "overallRating", label: "Overall rating", type: "select", options: ["Effective", "Effective with improvements required", "Not effective"] },

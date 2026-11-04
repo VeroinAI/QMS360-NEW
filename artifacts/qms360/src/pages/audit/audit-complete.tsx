@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { customFetch, useCompleteAudit } from "@workspace/api-client-react";
+import { customFetch, useCompleteAudit, type AuditReportApproval } from "@workspace/api-client-react";
+import { AuditReportApprovalControls } from "./audit-report-approval";
 import { CheckCircle2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,31 +43,34 @@ export function ReportButton({ audit, size }: { audit: { id: string; status: str
     data-testid={`button-report-${audit.id}`}><Download className="mr-2 size-4"/>{busy ? "Preparing…" : "Report"}</Button>;
 }
 
-export function MarkCompleteButton({ audit, size }: { audit: { id: string; title: string; status: string; canEdit?: boolean; reportNumber?: string | null }; size?: "sm" }) {
+export function MarkCompleteButton({ audit, size }: { audit: { id: string; title: string; status: string; canEdit?: boolean; reportNumber?: string | null; reportApproval?: AuditReportApproval }; size?: "sm" }) {
   const [open, setOpen] = useState(false);
   const canEdit = useAuditEditAccess(audit, "status");
   const qc = useQueryClient(); const { toast } = useToast();
   const complete = useCompleteAudit();
-  if (!canEdit || isAuditReportEligible(audit.status)) return null;
+  if (!canEdit) return <AuditReportApprovalControls audit={audit}/>;
+  const label = audit.reportApproval?.status === "Sent back" ? "Resubmit for approval" : isAuditReportEligible(audit.status) ? "Submit for approval" : "Mark Complete";
   const confirm = () => complete.mutate({ id: audit.id }, {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${audit.id}`] });
       void qc.invalidateQueries({ queryKey: ["/api/audit/audits"] });
       void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${audit.id}/report`] });
-      setOpen(false); toast({ title: "Audit marked Complete" });
+      void qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] });
+      setOpen(false); toast({ title: "Audit completed and report submitted for approval" });
     },
     onError: e => toast({ title: "Unable to mark audit Complete", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" }),
   });
   const missingNumber = !audit.reportNumber;
   const hint = "Save report details first to issue the Report Number, then mark the audit Complete.";
   return <>
-    <Button size={size} disabled={missingNumber} title={missingNumber ? hint : undefined} aria-description={missingNumber ? hint : undefined} onClick={() => setOpen(true)} data-testid={`button-complete-${audit.id}`}><CheckCircle2 className="mr-2 size-4"/>Mark Complete</Button>
+    <AuditReportApprovalControls audit={audit}/>
+    <Button size={size} disabled={missingNumber} title={missingNumber ? hint : undefined} aria-description={missingNumber ? hint : undefined} onClick={() => setOpen(true)} data-testid={`button-complete-${audit.id}`}><CheckCircle2 className="mr-2 size-4"/>{label}</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent>
-      <DialogHeader><DialogTitle>Mark this audit Complete?</DialogTitle>
-        <DialogDescription>{audit.title}. Completing the audit enables the consolidated audit report and its PowerPoint download. It does not close any Corrective Action Reports; those continue to be tracked separately.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{label === "Mark Complete" ? "Mark Complete and submit the report for approval?" : "Submit this Audit Report for approval?"}</DialogTitle>
+        <DialogDescription>{audit.title}. The report will follow its configured approval levels and become read-only while pending or approved. Completing the audit enables its consolidated report download. Corrective Action Reports remain tracked separately.</DialogDescription></DialogHeader>
       {missingNumber && <p role="alert" className="text-sm text-destructive">{hint}</p>}
       <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-        <Button disabled={complete.isPending || missingNumber} onClick={confirm} data-testid="button-confirm-complete">{complete.isPending ? "Completing…" : "Mark Complete"}</Button></DialogFooter>
+        <Button disabled={complete.isPending || missingNumber} onClick={confirm} data-testid="button-confirm-complete">{complete.isPending ? "Submitting…" : label}</Button></DialogFooter>
     </DialogContent></Dialog>
   </>;
 }

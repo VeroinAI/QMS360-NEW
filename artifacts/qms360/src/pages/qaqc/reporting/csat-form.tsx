@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Input } from '@/components/ui/input';
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { Label } from '@/components/ui/label';
 import { Grid, Section, TextField, getIn, useForm } from './form-kit';
 import { CSAT_QUESTIONS, CSAT_SCALE, OUTCOMES, fmt } from './reporting-types';
@@ -20,7 +21,8 @@ function SurveyRadio({ path, label, numeric = false }: { path: string[]; label: 
   const options = numeric ? CSAT_SCALE : OUTCOMES.map(value => ({ value, label: value }));
   return <fieldset disabled={disabled} role="radiogroup" aria-labelledby={`${id}-label`} aria-required="true" className="min-w-0 rounded-lg border p-4">
     <legend id={`${id}-label`} className="px-1 text-sm font-medium">{label}<span className="ml-1 text-destructive" aria-hidden="true">*</span></legend>
-    <div className={numeric ? 'grid grid-cols-2 gap-3 sm:grid-cols-5' : 'flex flex-wrap gap-x-6 gap-y-3'}>
+    <SearchableSelectionList label={`Search ${label} choices`} disabled={disabled}
+      listClassName={numeric ? 'grid grid-cols-2 gap-3 sm:grid-cols-5' : 'flex flex-wrap gap-x-6 gap-y-3'}>
       {options.map(option => <label key={option.value} className={numeric ? `relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border-2 px-2 py-3 text-center text-sm transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${String(value ?? '') === option.value ? SELECTED_COLORS[option.value] : 'border-border bg-background text-foreground'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-sm'}` : `flex items-center gap-2 text-sm ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
         <input type="radio" name={id} value={option.value} aria-label={option.label} required disabled={disabled} className={numeric ? 'sr-only' : 'size-5 shrink-0 accent-primary'}
           data-testid={`radio-csat-${path.at(-1)}-${option.value}`}
@@ -28,7 +30,7 @@ function SurveyRadio({ path, label, numeric = false }: { path: string[]; label: 
           onChange={() => f.set(path, numeric ? Number(option.value) : option.value)} />
         {numeric ? <><span className="text-2xl font-semibold" aria-hidden="true">{option.value}</span><span>{option.label.slice(option.label.indexOf('–') + 1).trim()}</span><span className="sr-only">{option.value}</span></> : <span className="font-medium">{option.label}</span>}
       </label>)}
-    </div>
+    </SearchableSelectionList>
   </fieldset>;
 }
 
@@ -65,7 +67,7 @@ export function CsatForm({ projectName }: { projectName?: string }) {
     <Section title="Feedback follow-up">
       <fieldset disabled={followUpDisabled} className="space-y-3">
         <legend className="text-sm font-medium">Would you like us to follow up on your feedback?</legend>
-        <div className="flex gap-6">
+        <SearchableSelectionList label="Search follow-up choices" listClassName="flex gap-6" disabled={followUpDisabled}>
           {(['Yes', 'No'] as const).map(option => <label key={option} className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="size-4 accent-primary" aria-label={`Follow up on feedback: ${option}`}
               data-testid={`checkbox-csat-follow-up-${option}`} disabled={followUpDisabled}
@@ -76,7 +78,7 @@ export function CsatForm({ projectName }: { projectName?: string }) {
               }} />
             {option}
           </label>)}
-        </div>
+        </SearchableSelectionList>
       </fieldset>
       {wantsFollowUp && <div className="space-y-1">
         <Label htmlFor={followUpId}>Preferred contact method <span className="text-destructive" aria-hidden="true">*</span></Label>

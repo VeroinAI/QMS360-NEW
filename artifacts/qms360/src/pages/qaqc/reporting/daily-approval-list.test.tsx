@@ -5,6 +5,7 @@ import { ReportList } from './report-list';
 
 const mocks = vi.hoisted(() => ({ list: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
+  useGetCurrentUser: () => ({data:{id:'senior'}}),
   useGetQaqcSowContext: () => ({ data: { projects: [] } }),
   useListQaqcSowReports: mocks.list,
   getListQaqcSowReportsQueryKey: (params: unknown) => ['reports', params],
@@ -33,11 +34,18 @@ describe('daily submission approval list', () => {
     expect(html).toContain('Pending Approver');
     expect(html).toContain('Level 2');
     expect(html).toContain('Daily Senior');
+    expect(html).toContain('Assigned to you');
+    expect(html).toContain('bg-accent/5');
     expect(mocks.list.mock.calls.at(-1)?.[1].query.refetchInterval).toBe(30_000);
   });
   it('does not add sequential approval columns to CSAT', () => {
     mocks.list.mockReturnValue({ data: { total: 1, items: [{ id: 'csat', state: 'submitted', period: '2026-10-22', projectId: 'project' }] } });
     const html = renderToStaticMarkup(<Router ssrPath="/qaqc/csat"><ReportList reportType="csat" /></Router>);
     expect(html).not.toContain('Pending Approval Level');
+    expect(html).not.toContain('Assigned to you');
+  });
+  it.each(['draft','approved','sent_back','submitted'])('does not highlight %s reports assigned to someone else', state=>{
+    mocks.list.mockReturnValue({data:{total:1,items:[{id:'another',state,period:'2026-10-22',projectId:'project',approverId:'someone-else'}]}});
+    expect(renderToStaticMarkup(<Router ssrPath="/qaqc/daily"><ReportList reportType="daily"/></Router>)).not.toContain('Assigned to you');
   });
 });

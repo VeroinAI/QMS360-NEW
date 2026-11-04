@@ -1,5 +1,9 @@
 import type { QaqcSowReport } from '@workspace/api-client-react';
 
+export function isReportAssignedToUser(report: Pick<QaqcSowReport, 'state' | 'approverId'>, userId?: string | null): boolean {
+  return !!userId && report.state === 'submitted' && report.approverId === userId;
+}
+
 export function pendingReportApproval(report: Pick<QaqcSowReport, 'state' | 'approverId' | 'approverName' | 'approvalWorkflow'>) {
   if (report.state !== 'submitted') return { level: '—', approver: '—' };
   const workflow = report.approvalWorkflow;

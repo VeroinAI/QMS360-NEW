@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PDFDocument, PDFPage, StandardFonts } from "pdf-lib";
 import { createLessonPdf } from "./lesson-pdf";
 import { lessonParagraphLines } from "./lesson-pdf-table";
+import { formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 
 const basicLesson = {
   referenceNumber: "LAYOUT-LL-000001", title: "Concrete Honeycombing on the External Surface",
@@ -121,9 +122,51 @@ describe("Lessons PDF auto-sizing table", () => {
     const image = { mimeType: "image/png", imageBytes };
     const draws = vi.spyOn(PDFPage.prototype, "drawImage");
     try {
-      await createLessonPdf(basicLesson, { photos: [{ ...image, category: "before" }, { ...image, category: "after" }],
+      await createLessonPdf({ ...basicLesson, workflowState: "Approved" }, { photos: [{ ...image, category: "before" }, { ...image, category: "after" }],
         preparedSignature: image, approvedSignature: image });
       expect(draws).toHaveBeenCalledTimes(4);
     } finally { draws.mockRestore(); }
+  });
+});
+
+describe("Lessons PDF approval visibility", () => {
+  const signature = {
+    mimeType: "image/png",
+    imageBytes: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64"),
+  };
+  const approvalDetails = {
+    ...basicLesson, submittedByName: "Document Author", submittedByDesignation: "Author role",
+    submittedAt: "2026-10-06T08:00:00Z", reviewedByName: "Review Person",
+    reviewedByDesignation: "Reviewer role", reviewedAt: "2026-10-19T08:00:00Z",
+  };
+  it.each(["SentBack", "sent_back", "Submitted", "Draft", undefined])("omits approval evidence for %s even when old review fields and signature exist", async workflowState => {
+    const texts = vi.spyOn(PDFPage.prototype, "drawText");
+    const images = vi.spyOn(PDFPage.prototype, "drawImage");
+    try {
+      await createLessonPdf({ ...approvalDetails, workflowState, reviewDecision: "approve" },
+        { preparedSignature: signature, approvedSignature: signature });
+      const drawn = texts.mock.calls.map(([text]) => text);
+      expect(drawn).toContain("Prepared by");
+      expect(drawn).toContain("Document Author");
+      expect(drawn).not.toContain("Approved by");
+      expect(drawn).not.toContain("Review Person");
+      expect(drawn).not.toContain("Reviewer role");
+      expect(drawn).not.toContain(formatDateInTimeZone(new Date(approvalDetails.reviewedAt), "UTC"));
+      expect(images).toHaveBeenCalledTimes(1);
+    } finally { texts.mockRestore(); images.mockRestore(); }
+  });
+  it.each(["Approved", "approved"])("retains the actual approver and signature when the form is %s", async workflowState => {
+    const texts = vi.spyOn(PDFPage.prototype, "drawText");
+    const images = vi.spyOn(PDFPage.prototype, "drawImage");
+    try {
+      await createLessonPdf({ ...approvalDetails, workflowState, reviewDecision: "approve" },
+        { preparedSignature: signature, approvedSignature: signature });
+      const drawn = texts.mock.calls.map(([text]) => text);
+      expect(drawn).toContain("Approved by");
+      expect(drawn).toContain("Review Person");
+      expect(drawn).toContain("Reviewer role");
+      expect(drawn).toContain(formatDateInTimeZone(new Date(approvalDetails.reviewedAt), "UTC"));
+      expect(images).toHaveBeenCalledTimes(2);
+    } finally { texts.mockRestore(); images.mockRestore(); }
   });
 });

@@ -237,10 +237,20 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
     roleName?: string;
     roleNames?: string[];
     ccRoleNames?: string[];
+    ccRecipient?: {
+      mode: string;
+      userId?: string;
+      name?: string;
+      email?: string;
+      roleName?: string;
+      roleNames?: string[];
+      projectIds?: string[];
+    };
     projectIds?: string[];
     senderMode?: "form_creator" | "approving_user";
     subjectTemplate?: string;
     bodyTemplate?: string;
+    reportAttachment?: string | null;
     bodyRichText?: Record<string, unknown> | null;
   }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),

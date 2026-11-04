@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChecklistItemAuditFinding } from './checklistItemAuditFinding';
+import type { ChecklistItemRiskLevel } from './checklistItemRiskLevel';
 import type { ChecklistItemSource } from './checklistItemSource';
 import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface ChecklistItem {
   id: string;
+  /** @nullable */
+  findingDate?: string | null;
   /** @nullable */
   clause?: string | null;
   auditArea?: string;
@@ -18,6 +21,8 @@ export interface ChecklistItem {
   /** @nullable */
   description?: string | null;
   auditFinding?: ChecklistItemAuditFinding;
+  /** @nullable */
+  riskLevel?: ChecklistItemRiskLevel;
   /** Legacy values managed via /platform/master-data/lov/checklist_results */
   result?: string;
   /** @nullable */

@@ -7,13 +7,13 @@ import {
   auditSchedules, audits, auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
   correctiveActionReports, db, lessonLearnedForms, lessonsAuditLogEntries, lessonsDisciplines,
   lessonsPermissions, lessonsUserWorkspaceRoles, lessonsWorkspaceRolePermissions, lessonsWorkspaceRoles,
-  masterDataGroups, masterDataValues, organizations, organizationSettings, platformRoles, projects, users,
+  masterDataGroups, masterDataValues, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users,
 } from "@workspace/db";
 import lessonsRouter from "../src/routes/lessons";
 import auditRouter from "../src/routes/audit";
 import filesRouter from "../src/routes/files";
 import { issueToken } from "../src/lib/auth";
-import { writeFieldControls } from "../src/lib/field-controls";
+import { readFieldControls, writeFieldControls } from "../src/lib/field-controls";
 
 const testObjects = vi.hoisted(() => new Map<string, { bytes: Uint8Array; mimeType: string }>());
 vi.mock("../src/lib/objectStorage", () => ({
@@ -240,6 +240,7 @@ beforeAll(async () => {
     schedule: {
       remarks: { access: "read_only", requirement: "optional" },
       departmentProject: { access: "editable", requirement: "mandatory" },
+      activityRoleAssignments: { access: "editable", requirement: "mandatory" },
     },
     plan: {
       location: { access: "read_only", requirement: "optional" },
@@ -285,6 +286,110 @@ afterAll(async () => {
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
   await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
+});
+
+describe("Audit Plan dedicated selections", () => {
+  let scheduleId: string;
+  let roleId: string;
+  const methods = ["Interviews", "Supplier or third-party verification"];
+  const criteria = ["ISO 45001:2018", "Company procedures: [list]", "Approved drawings and specifications"];
+  const payload = (extra: Record<string, unknown> = {}) => planBody(scheduleId, {
+    auditeeRoleIds: [roleId], circulationRoleIds: [roleId],
+    activities: [{ id: "selection-activity", section: "General Requirement", remarks: "Review",
+      auditeeId: member.id, plannedStartDateTime: "2026-05-10T09:00", plannedEndDateTime: "2026-05-10T10:00" }],
+    ...extra,
+  });
+  beforeAll(async () => {
+    const [role] = await db.select().from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId));
+    roleId = role!.id;
+    await db.update(projects).set({ customFields: { qmsAdditionalData: { contractProjectNumber: "SELECTION" } } }).where(eq(projects.id, projectId));
+    const [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, code: "activities", name: "Activities" }).returning();
+    await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value: "General Requirement", label: "General Requirement" });
+    const [parent] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Selection programme", year: 2026, workflowState: "approved",
+      status: JSON.stringify({ programme: true, projectIds: [projectId], teamLeadIds: [member.id] }),
+    }).returning();
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Selection audit", year: 2026, workflowState: "approved",
+      status: JSON.stringify({ parentId: parent!.id, auditTypes: ["Internal"], plannedStartDate: "2026-05-10",
+        plannedEndDate: "2026-05-10", qaqcReference: "QA-SELECT", qaqcScope: "Selection scope", location: "" }),
+    }).returning();
+    scheduleId = schedule!.id;
+  });
+  it("saves multiple selections, replays safely, preserves omitted fields, clears and protects Audit Type", async () => {
+    const input = payload({ auditMethods: methods, auditCriteria: criteria });
+    const created = await api("POST", "/audit/plans", { token: member.token, body: input });
+    expect(created.status, JSON.stringify(created.json)).toBe(201);
+    const path = `/audit/plans/${input.id}`;
+    const replay = await api("POST", "/audit/plans", { token: member.token, body: input });
+    expect(replay.status).toBe(200);
+    expect((await api("POST", "/audit/plans", { token: member.token, body: { ...input, auditMethods: [] } })).status).toBe(409);
+    for (const response of [created, await api("GET", path, { token: member.token })]) {
+      expect(response.json).toMatchObject({ auditMethods: methods, auditCriteria: criteria, auditTypes: ["Internal"], criteria: ["Internal"] });
+    }
+    const legacyUpdate = payload({ id: input.id });
+    const preserved = await api("PUT", path, { token: member.token, body: legacyUpdate });
+    expect(preserved.status, JSON.stringify(preserved.json)).toBe(200);
+    expect(preserved.json).toMatchObject({ auditMethods: methods, auditCriteria: criteria });
+    for (const field of ["auditMethods", "auditCriteria"]) {
+      const invalid = await api("PUT", path, { token: member.token, body: { ...legacyUpdate, [field]: ["Unsupported option"] } });
+      expect(invalid.status).toBe(422);
+      expect((await api("POST", "/audit/plans", { token: member.token, body: { ...input, [field]: ["Unsupported option"] } })).status).toBe(422);
+    }
+    const cleared = await api("PUT", path, { token: member.token, body: { ...legacyUpdate, auditMethods: [], auditCriteria: [] } });
+    expect(cleared.status).toBe(200);
+    expect(cleared.json).toMatchObject({ auditMethods: [], auditCriteria: [], auditTypes: ["Internal"], criteria: ["Internal"] });
+    const [stored] = await db.select().from(auditPlans).where(eq(auditPlans.id, input.id));
+    expect(JSON.parse(stored!.criteria!)).toEqual(["Internal"]);
+    // Simulate a real pre-feature record, without any selection metadata.
+    const meta = JSON.parse(stored!.status!); delete meta.auditMethods; delete meta.auditCriteria;
+    await db.update(auditPlans).set({ status: JSON.stringify(meta) }).where(eq(auditPlans.id, input.id));
+    expect((await api("GET", path, { token: member.token })).json).toMatchObject({ auditMethods: [], auditCriteria: [] });
+  });
+  it("enforces configured locks and requirements on create and update, without default requirements", async () => {
+    const [plan] = await db.select().from(auditPlans).where(eq(auditPlans.auditScheduleId, scheduleId));
+    const path = `/audit/plans/${plan!.id}`;
+    const originalControls = await readFieldControls(orgId, "audit");
+    try {
+      for (const field of ["auditMethods", "auditCriteria"]) {
+        const values = field === "auditMethods" ? methods : criteria;
+        await writeFieldControls(orgId, "audit", { plan: { [field]: { access: "read_only", requirement: "optional" } } });
+        for (const [method, url] of [["POST", "/audit/plans"], ["PUT", path]]) {
+          await expectUnprocessable(await api(method, url, { token: member.token, body: payload({ id: plan!.id, [field]: values }) }), field);
+        }
+        await writeFieldControls(orgId, "audit", { plan: { [field]: { access: "editable", requirement: "mandatory" } } });
+        for (const [method, url] of [["POST", "/audit/plans"], ["PUT", path]]) {
+          await expectUnprocessable(await api(method, url, { token: member.token, body: payload({ id: plan!.id }) }), field);
+        }
+        const saved = await api("PUT", path, { token: member.token, body: payload({ id: plan!.id, [field]: values }) });
+        expect(saved.status, JSON.stringify(saved.json)).toBe(200);
+        expect((await api("PUT", path, { token: member.token, body: payload({ id: plan!.id }) })).status).toBe(200);
+      }
+    } finally {
+      await writeFieldControls(orgId, "audit", originalControls);
+    }
+  });
+  it("enforces module field locks separately and permits unchanged or omitted selections", async () => {
+    const [plan] = await db.select().from(auditPlans).where(eq(auditPlans.auditScheduleId, scheduleId));
+    const path = `/audit/plans/${plan!.id}`;
+    try {
+      for (const field of ["auditMethods", "auditCriteria"]) {
+        await db.insert(moduleFieldSettings).values({
+          organizationId: orgId, module: "audit", formKey: "plan", fieldKey: field, access: "read_only",
+        });
+        const values = field === "auditMethods" ? methods : criteria;
+        await expectUnprocessable(await api("PUT", path, { token: member.token,
+          body: payload({ id: plan!.id, [field]: [] }) }), field);
+        expect((await api("PUT", path, { token: member.token,
+          body: payload({ id: plan!.id, [field]: values }) })).status).toBe(200);
+        expect((await api("PUT", path, { token: member.token, body: payload({ id: plan!.id }) })).status).toBe(200);
+        await expectUnprocessable(await api("POST", "/audit/plans", { token: member.token,
+          body: payload({ [field]: values }) }), field);
+      }
+    } finally {
+      await db.delete(moduleFieldSettings).where(eq(moduleFieldSettings.organizationId, orgId));
+    }
+  });
 });
 
 describe("Audit checklist items", () => {
@@ -380,8 +485,89 @@ describe("Audit checklist items", () => {
   });
 });
 
+describe("Opening meeting authoritative schedule bounds", () => {
+  it("resolves retained former users for display without making them selectable or exposing UUIDs", async () => {
+    const [former] = await db.insert(users).values({
+      organizationId: orgId, username: `former.meeting.${suffix}`, email: `former.meeting.${suffix}@example.test`,
+      fullName: "Retained former attendee", deletedAt: new Date(),
+    }).returning();
+    const [audit] = await db.insert(audits).values({
+      organizationId: orgId, projectId, referenceNumber: `FORMER-${suffix}`, workflowState: "complete",
+      status: JSON.stringify({
+        openingMeeting: { heldAt: "2026-10-04T10:00Z", attendees: [former!.id], minutes: "Opening" },
+        closingMeeting: { heldAt: "2026-10-04T15:00Z", attendees: [], minutes: "Closing" },
+        reportDetails: { values: { notRepresented: "Old manual roles" }, rows: {} },
+      }),
+    }).returning();
+    const options = await api("GET", `/audit/audits/${audit!.id}/attendee-options`, { token: admin.token });
+    expect(options.json.find((u: any) => u.id === former!.id)).toMatchObject({ fullName: "Retained former attendee", canSelect: false });
+    const report = await api("GET", `/audit/audits/${audit!.id}/report`, { token: admin.token });
+    expect(report.status).toBe(200);
+    const programme = report.json.sections.find((s: any) => s.key === "programme");
+    expect(programme.fields.find((f: any) => f.label === "Not represented in Closing meeting")?.value).toBe("Retained former attendee");
+    expect(programme.fields.some((f: any) => String(f.value).includes(former!.id))).toBe(false);
+  });
+  it("rejects direct API bypasses, includes both boundary days, and preserves invalid history until corrected", async () => {
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Authoritative date source", year: 2026,
+      status: JSON.stringify({ plannedStartDate: "2026-10-04", plannedEndDate: "2026-10-06" }),
+    }).returning();
+    const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, auditScheduleId: schedule!.id }).returning();
+    const [audit] = await db.insert(audits).values({
+      organizationId: orgId, projectId, auditPlanId: plan!.id, referenceNumber: `BOUNDS-${suffix}`,
+      status: JSON.stringify({ openingMeeting: { heldAt: "2026-10-01T10:00:00.000Z", attendees: [], minutes: "Historical" } }),
+    }).returning();
+    const path = `/audit/audits/${audit!.id}`;
+    const save = (heldAt: string) => api("PUT", `${path}/opening-meeting`, {
+      token: admin.token, body: { heldAt, attendees: [], minutes: "Recorded minutes" },
+    });
+    const old = await api("GET", path, { token: admin.token });
+    expect(old.json.openingMeeting.heldAt).toBe("2026-10-01T10:00:00.000Z");
+    expect(old.json.openingMeetingBounds).toEqual({ fromDate: "2026-10-04", toDate: "2026-10-06" });
+    for (const value of ["2026-10-01T10:00", "2026-10-03T23:59-12:00", "2026-10-07T00:00+14:00"]) {
+      await expectUnprocessable(await save(value), "04/10/2026 to 06/10/2026 (inclusive)");
+    }
+    const legacyPayload = {
+      id: audit!.id, planId: plan!.id, projectId, title: "Boundary audit", status: "Planned",
+      openingMeeting: { heldAt: "2026-10-03T23:59", heldAtLocal: "2026-10-04T00:00", attendees: [], minutes: "Bypass attempt" },
+    };
+    await expectUnprocessable(await api("PUT", path, { token: admin.token, body: legacyPayload }), "04/10/2026 to 06/10/2026");
+    await expectUnprocessable(await api("POST", "/audit/audits", { token: admin.token,
+      body: { ...legacyPayload, id: crypto.randomUUID() } }), "04/10/2026 to 06/10/2026");
+    const unchanged = await api("GET", path, { token: admin.token });
+    expect(unchanged.json.openingMeeting).toEqual(old.json.openingMeeting);
+    for (const value of ["2026-10-04T00:00", "2026-10-06T23:59:59.999", "2026-10-04T00:01+14:00", "2026-10-06T23:59-12:00"]) {
+      const result = await save(value);
+      expect(result.status, JSON.stringify(result.json)).toBe(200);
+      expect(result.json.openingMeeting.heldAtLocal).toBe(value);
+      expect(result.json.openingMeeting.heldAt).toBe(new Date(value).toISOString());
+    }
+    for (const meta of [
+      { plannedStartDate: "2026-10-04" },
+      { plannedStartDate: "2026-02-30", plannedEndDate: "2026-10-06" },
+      { programme: true, plannedStartDate: "2026-01-01", plannedEndDate: "2026-12-31" },
+      {},
+    ]) {
+      await db.update(auditSchedules).set({ status: JSON.stringify(meta) }).where(eq(auditSchedules.id, schedule!.id));
+      await expectUnprocessable(await save("2026-10-04T10:00"), "Correct the Audit schedule dates");
+    }
+    await db.update(auditSchedules).set({ status: JSON.stringify({ plannedStartDate: "2026-10-04", plannedEndDate: "2026-10-04" }) }).where(eq(auditSchedules.id, schedule!.id));
+    for (const value of ["2026-10-04T00:00", "2026-10-04T23:59:59.999"]) expect((await save(value)).status).toBe(200);
+    await expectUnprocessable(await save("2026-10-05T00:00"), "04/10/2026 to 04/10/2026");
+    // Closing meeting rules are deliberately unchanged.
+    expect((await api("PUT", `${path}/closing-meeting`, { token: admin.token,
+      body: { heldAt: "2026-12-31T12:00", attendees: [], minutes: "Closing" } })).status).toBe(200);
+  });
+});
+
 describe("Audit meeting attendee selection", () => {
   it("offers active Audit users and preserves selected IDs and legacy names in both meetings", async () => {
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Meeting audit", year: 2026,
+      status: JSON.stringify({ plannedStartDate: "2026-10-10", plannedEndDate: "2026-10-10" }),
+    }).returning();
+    const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, auditScheduleId: schedule!.id }).returning();
+    await db.update(audits).set({ auditPlanId: plan!.id }).where(eq(audits.id, auditId));
     const [role] = await db.select().from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId)).limit(1);
     const [attendee] = await db.insert(users).values({
       organizationId: orgId, username: `meeting.attendee.${suffix}`,
@@ -946,6 +1132,34 @@ describe("field-controls enforcement over HTTP (audit schedule)", () => {
     const res = await api("POST", "/audit/schedules", { token: admin.token, body });
     expect(res.status).toBe(201);
   });
+
+  it("creates without activity assignments despite historical mandatory field settings", async () => {
+    const result = await api("POST", "/audit/schedules", { token: member.token, body: scheduleBody() });
+    expect(result.status).toBe(201);
+    expect(result.json.activityRoleAssignments).toEqual([]);
+  });
+
+  it("preserves historical activity assignments across an unrelated edit and reopen", async () => {
+    const created = await api("POST", "/audit/schedules", { token: member.token, body: scheduleBody() });
+    expect(created.status).toBe(201);
+    const id = created.json.id;
+    const assignments = [{ roleId: crypto.randomUUID(), userIds: [crypto.randomUUID()] }];
+    const [before] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, id));
+    const metadata = JSON.parse(before!.status!);
+    await db.update(auditSchedules).set({ status: JSON.stringify({ ...metadata, activityRoleAssignments: assignments }) })
+      .where(eq(auditSchedules.id, id));
+    const updated = await api("PUT", `/audit/schedules/${id}`, {
+      token: member.token, body: scheduleBody({ id, title: "Unrelated title change" }),
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.json.activityRoleAssignments).toEqual(assignments);
+    const reopened = await api("GET", `/audit/schedules/${id}`, { token: member.token });
+    expect(reopened.status).toBe(200);
+    expect(reopened.json.title).toBe("Unrelated title change");
+    expect(reopened.json.activityRoleAssignments).toEqual(assignments);
+    const [stored] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, id));
+    expect(JSON.parse(stored!.status!).activityRoleAssignments).toEqual(assignments);
+  });
 });
 
 describe("field-controls enforcement over HTTP (audit plan)", () => {
@@ -985,7 +1199,7 @@ describe("field-controls enforcement over HTTP (audit plan)", () => {
   });
 
   it("returns active Audit users as Master options", async () => {
-    const res = await api("GET", "/audit/plan-options", { token: member.token });
+    const res = await api("GET", `/audit/plan-options?scheduleId=${scheduleId}`, { token: member.token });
     expect(res.status).toBe(200);
     expect(res.json.users.some((user: { id: string }) => user.id === member.id)).toBe(true);
   });

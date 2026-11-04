@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { CarApproval } from './carApproval';
 import type { CorrectiveActionReportExtensionStatus } from './correctiveActionReportExtensionStatus';
 import type { CorrectiveActionReportStatus } from './correctiveActionReportStatus';
 
@@ -14,6 +15,7 @@ export interface CorrectiveActionReport {
      * @nullable
      */
   readonly carNumber?: string | null;
+  approval?: CarApproval;
   id: string;
   findingId: string;
   responsibleDepartment: string;
@@ -25,7 +27,8 @@ export interface CorrectiveActionReport {
   /** @nullable */
   correctiveAction?: string | null;
   status: CorrectiveActionReportStatus;
-  dueDate: Date;
+  /** @nullable */
+  dueDate: Date | null;
   /** @nullable */
   extensionRequestedTo?: Date | null;
   /** @nullable */

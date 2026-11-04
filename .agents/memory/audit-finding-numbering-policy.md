@@ -21,8 +21,32 @@ Administrators maintain the **next running number** for a selected finding type,
 
 **How to apply:** Store next minus one as the last-used counter, never move a counter backwards, and do not rewrite existing findings or affect other type/source/year ranges.
 
-Issue the number on successful Save Finding. Derive the source from the linked Plan: Department Master Cost ID for department/process audits, Project Master Additional Data Contract / project no. for project audits. Preserve text and leading zeroes; do not fall back to Department Value/label or Project Cost Center. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
+For manual Add Finding, issue the number on successful Save Finding. Derive the source from the linked Plan: Department Master Cost ID for department/process audits, Project Master Additional Data Contract / project no. for project audits. Preserve text and leading zeroes; do not fall back to Department Value/label or Project Cost Center. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
+
+Checklist-origin findings receive any missing Finding IDs automatically when the
+audit is submitted or resubmitted for report approval. Keep manual Add Finding
+issuance on save. Number allocation, counters and approval submission must commit
+together, preserving all existing IDs and skipping blank/Not applicable results.
+
+**Why:** The user explicitly requested automatic numbering at submission for
+checklist-transferred findings, instead of relying on individual repair clicks.
+
+**How to apply:** Show pending-issuance text on unnumbered checklist findings
+before submission. Use the existing type/source/year
+ranges, allocate sequentially against the latest counter state, and make retries
+and resubmissions idempotent. Read and download operations still never issue IDs.
 
 **Why:** The user specified the source/date linkage and Save Finding as the issuance action, then explicitly changed Audit source mappings to Contract / project no. and Department Cost ID. Finding, Plan and Report numbering are independent business ranges.
 
 **How to apply:** Commit the counter and finding together, preserve numbers through retries and later updates, and retain historical findings and evidence identities. Missing source data should produce an actionable error, never an invented source.
+
+Do not offer a manual “Generate Finding Number” action or individual-number
+generation endpoint.
+
+**Why:** After automatic submission numbering was implemented, the user explicitly
+requested removal of the manual button and its functionality.
+
+**How to apply:** Keep manual Add Finding numbering on save and checklist
+numbering on approval submission. Preserve previously issued IDs, identities,
+evidence and CAR links. Ordinary saves must still preserve server-owned numbering
+metadata and reject client-supplied replacements. Reads/downloads never issue IDs.

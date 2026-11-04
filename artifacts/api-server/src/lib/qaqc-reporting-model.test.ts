@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES } from "./qaqc-reporting-model";
 
+describe("NCR ageing department/bucket uniqueness", () => {
+  it.each(["external_ncr", "internal_ncr"])("rejects duplicate %s pairs on draft save and submission", key => {
+    const data = { metrics: { [key]: { issued: 3, closed: 0, ageing: [
+      { department: "Civil", bucket: "0-15", count: 1 },
+      { department: " civil ", bucket: "0-15", count: 2 },
+    ] } } };
+    for (const submit of [false, true]) {
+      expect(validateReportData("monthly", data, {}, submit).errors).toContain(
+        `metrics.${key}.ageing.1.bucket duplicates the BU/Department and Ageing Bucket in row 1; each pair can appear only once`,
+      );
+    }
+  });
+  it("permits different buckets, different departments, and independent NCR sections", () => {
+    const ageing = [
+      { department: "Civil", bucket: "0-15", count: 1 },
+      { department: "Civil", bucket: "15-45", count: 2 },
+      { department: "Mechanical", bucket: "0-15", count: 3 },
+    ];
+    const result = validateReportData("monthly", { metrics: {
+      external_ncr: { issued: 6, closed: 0, ageing },
+      internal_ncr: { issued: 6, closed: 0, ageing },
+    } }, {}, false);
+    expect(result.errors.filter(error => error.includes("duplicates"))).toEqual([]);
+  });
+});
+
 describe("QA/QC SOW report model", () => {
   it.each([false, true])("rejects repeated manpower departments when submit=%s", submit => {
     const result = validateReportData("monthly", { manpower: [

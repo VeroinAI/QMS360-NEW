@@ -17,6 +17,18 @@ The user subsequently explicitly requested Audit activity roles to default from 
 
 **How to apply:** Use Audit role references as editable activity defaults. Schedule assignments do not assign organization roles to their users. Preserve saved Plan overrides on reload and background changes; allow explicit reapplication of current master or schedule defaults.
 
+Individual Audit creation, edit and read-only forms must not expose schedule
+activity role/auditee assignments. Existing assignments remain historical Plan
+defaults; this is a form simplification, not a data or API removal.
+
+**Why:** The user explicitly removed section 13 while requiring Audit Plan
+activities and historical assignment data to remain unchanged.
+
+**How to apply:** Omit the hidden field on unrelated saves, preserve stored
+defaults without eligibility lookups, and retain validation and authorization
+for explicitly supplied assignment changes. Do not let old mandatory-field
+settings require an omitted field the form can no longer edit.
+
 ## Activities application ownership
 
 The Activities master previously mapped to QA/QC belongs to QMS Audit. Move

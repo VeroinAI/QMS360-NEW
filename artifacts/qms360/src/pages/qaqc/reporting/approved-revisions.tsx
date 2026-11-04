@@ -1,8 +1,11 @@
+import { NativeSelection } from '@/components/ui/native-selection';
+import { formatDate } from '@workspace/spreadsheet-dates';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, useForm } from './form-kit';
 import { calcDaily, num, type Obj } from './reporting-types';
+import { dailyDisciplineSnapshot, usesDailySupplementAdditions } from '@workspace/field-controls';
 
 type Category = 'drawings' | 'submittals';
 const categories: Category[] = ['drawings', 'submittals'];
@@ -20,11 +23,12 @@ export function moveRevision(revisions: Obj, from: Category, index: number, to: 
   };
 }
 
-export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
+export function ApprovedRevisions({ baseline, period }: { baseline: Obj; period?: string }) {
   const f = useForm();
   const disabled = f.readOnly || f.fc('revisions').disabled;
   const revisions: Obj = f.data.revisions ?? {};
-  const totals = calcDaily(f.data).disc;
+  const snapshot = dailyDisciplineSnapshot(f.data, baseline);
+  const totals = calcDaily(snapshot).disc;
   const categoryTotal = (cat: Category) => Object.entries(totals)
     .reduce((total, [key, row]) => total + (key.startsWith(`${cat}.`) ? num(row.total) : 0), 0);
   const priorValue = (cat: Category, name: unknown) =>
@@ -34,10 +38,10 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
     .map((row: Obj) => ({ cat, row })));
   const add = (cat: Category, row: Obj) => f.set(['revisions'], { ...revisions, [cat]: [...(revisions[cat] ?? []), row] });
 
-  return <Section title="4. Approved status by Rivision" description={'“Yesterday Approved” is auto-fetched from the last log for this project and is read-only. Drawing revision percentages use total cumulative Drawings; Submittal revision percentages use total cumulative Submittals.'}>
+  return <Section title="4. Approved status by Rivision" description={`${usesDailySupplementAdditions(f.data) ? 'Enter approvals added today in Current Approved. Next day’s Yesterday Approved includes Yesterday + Current, matched by document type and revision number.' : 'Enter cumulative approvals through the selected date. Till yesterday is the previous day’s submitted cumulative approval count, matched by document type and revision number.'} Drawing revision percentages use total cumulative Drawings; Submittal revision percentages use total cumulative Submittals.`}>
     <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm" aria-label="Approved status by revision">
       <thead><tr>
-        {['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum'].map((label, i) =>
+        {['Document Type', 'Revision No.', 'Till yesterday', period ? `Current Date (${formatDate(period)})` : 'Current Date', '% of Overall Cum'].map((label, i) =>
           <th key={label} scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">{label}{(i === 0 || i === 3) && <span aria-hidden="true"> *</span>}</th>)}
         <th scope="col"><span className="sr-only">Actions</span></th>
       </tr></thead>
@@ -46,16 +50,16 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
           const label = `${categoryLabel(cat)} revision ${i + 1}`;
           const total = categoryTotal(cat);
           return <tr key={`${cat}-${i}`} className="border-t">
-            <td className="px-2 py-2"><select aria-label={`${label} document type`} disabled={disabled} value={cat}
+            <td className="px-2 py-2"><NativeSelection aria-label={`${label} document type`} disabled={disabled} value={cat}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               onChange={e => f.set(['revisions'], moveRevision(revisions, cat, i, e.target.value as Category))}>
               <option value="drawings">Drawing</option><option value="submittals">Submittal</option>
-            </select></td>
-            <td className="px-2 py-2"><Input aria-label={`${label} number`} disabled={disabled} value={row.name ?? ''} placeholder="0"
+            </NativeSelection></td>
+            <td className="px-2 py-2"><Input data-report-field={`revisions.${cat}.${i}.name`} aria-label={`${label} number`} disabled={disabled} value={row.name ?? ''} placeholder="0"
               onChange={e => f.set(['revisions', cat, i, 'name'], e.target.value)} /></td>
             <td className="px-2 py-2"><Input aria-label={`${label} yesterday approved`} readOnly className="bg-muted/50 text-muted-foreground" value={priorValue(cat, row.name)} /></td>
             <td className="px-2 py-2 [&_input]:h-9 [&_input]:w-full"><NumField bare path={['revisions', cat, i, 'value']} label={`${label} current approved`} /></td>
-            <td className="px-2 py-2 font-medium" aria-live="polite">{total > 0 ? (num(row.value) / total * 100).toFixed(1) : '0.0'}%</td>
+            <td className="px-2 py-2 font-medium" aria-live="polite">{total > 0 ? (num(snapshot.revisions?.[cat]?.find((item: Obj) => normalize(item.name) === normalize(row.name))?.value) / total * 100).toFixed(1) : '0.0'}%</td>
             <td className="px-2 py-2">{!disabled && <Button type="button" size="icon" variant="ghost" aria-label={`Remove ${label}`}
               onClick={() => f.set(['revisions', cat], revisions[cat].filter((_: unknown, index: number) => index !== i))}><Trash2 className="size-4 text-destructive" /></Button>}</td>
           </tr>;

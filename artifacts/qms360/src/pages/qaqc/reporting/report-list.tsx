@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { getListQaqcSowReportsQueryKey, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams } from '@workspace/api-client-react';
+import { getListQaqcSowReportsQueryKey, useGetCurrentUser, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,7 +14,7 @@ import type { Obj, ReportType } from './reporting-types';
 import { Empty, ErrorBox, Loading, PageFrame, REPORT_MODULE, StateBadge } from './shell';
 import { CsatDownloadButton } from './csat-download-button';
 import { DailyDownloadButton } from './daily-download-button';
-import { pendingReportApproval } from './approval-summary';
+import { pendingReportApproval, isReportAssignedToUser } from './approval-summary';
 
 const LIMIT = 10;
 const NAMES: Record<ReportType, [string, string]> = { monthly: ['Monthly reports', 'Project quality reports submitted for management review.'], daily: ['Daily reports', 'Daily document governance snapshots by project.'], csat: ['Customer Satisfaction (CSAT)', 'Customer survey ratings and outcomes by project.'] };
@@ -21,6 +22,7 @@ const ALL = 'all';
 
 export function ReportList({ reportType }: { reportType: ReportType }) {
   const cap = useQaqcCapabilities();
+  const me = useGetCurrentUser();
   const showCsatDownload = reportType === 'csat' && cap.can('csat_reports', 'export');
   const showDailyDownload = reportType === 'daily' && cap.can('daily_reports', 'export');
   const [page, setPage] = useState(1); const [projectId, setProjectId] = useState(ALL); const [state, setState] = useState(ALL); const [period, setPeriod] = useState('');
@@ -42,7 +44,10 @@ export function ReportList({ reportType }: { reportType: ReportType }) {
       <Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Project</TableHead><TableHead>Period</TableHead><TableHead>State</TableHead><TableHead>Submitted</TableHead>{reportType === 'daily' && <><TableHead>Pending Approval Level</TableHead><TableHead>Pending Approver</TableHead></>}<TableHead className="text-right">Open</TableHead>{(showCsatDownload || showDailyDownload) && <TableHead className="text-right">Download</TableHead>}</TableRow></TableHeader><TableBody>
         {items.map(r => {
           const pending = pendingReportApproval(r);
-          return <TableRow key={r.id}><TableCell className="font-mono text-xs">{r.referenceNumber ?? '-'}</TableCell><TableCell className="font-medium">{r.projectName ?? names[r.projectId] ?? r.projectId}</TableCell><TableCell>{r.period}</TableCell><TableCell><StateBadge state={r.state} /></TableCell><TableCell>{r.submittedAt ? formatDate(r.submittedAt) : '-'}</TableCell>{reportType === 'daily' && <><TableCell className="whitespace-nowrap">{pending.level}</TableCell><TableCell>{pending.approver}</TableCell></>}<TableCell className="text-right"><Link href={`/qaqc/${reportType}/${r.id}`}><Button size="sm" variant="outline">{r.state === 'draft' || r.state === 'sent_back' ? 'Edit' : 'View'}</Button></Link></TableCell>{showCsatDownload && <TableCell className="text-right"><CsatDownloadButton report={r} /></TableCell>}{showDailyDownload && <TableCell className="text-right"><DailyDownloadButton report={r} /></TableCell>}</TableRow>;
+          const assigned = reportType === 'daily' && isReportAssignedToUser(r, me.data?.id);
+          return <TableRow key={r.id} className={assigned ? 'bg-accent/5' : undefined} data-testid={`row-report-${r.id}`}>
+            <TableCell className="font-mono text-xs">{r.referenceNumber ?? '-'}{assigned && <Badge variant="secondary" className="ml-2 border-accent font-sans text-accent">Assigned to you</Badge>}</TableCell>
+            <TableCell className="font-medium">{r.projectName ?? names[r.projectId] ?? r.projectId}</TableCell><TableCell>{r.period}</TableCell><TableCell><StateBadge state={r.state} /></TableCell><TableCell>{r.submittedAt ? formatDate(r.submittedAt) : '-'}</TableCell>{reportType === 'daily' && <><TableCell className="whitespace-nowrap">{pending.level}</TableCell><TableCell>{pending.approver}</TableCell></>}<TableCell className="text-right"><Link href={`/qaqc/${reportType}/${r.id}`}><Button size="sm" variant="outline">{r.state === 'draft' || r.state === 'sent_back' ? 'Edit' : 'View'}</Button></Link></TableCell>{showCsatDownload && <TableCell className="text-right"><CsatDownloadButton report={r} /></TableCell>}{showDailyDownload && <TableCell className="text-right"><DailyDownloadButton report={r} /></TableCell>}</TableRow>;
         })}
       </TableBody></Table>
       <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span className="text-muted-foreground">Page {page} of {pages} - {q.data?.total ?? 0} reports</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="size-4" /></Button><Button size="sm" variant="outline" disabled={page >= pages} onClick={() => setPage(page + 1)}><ChevronRight className="size-4" /></Button></div></div></Card>}

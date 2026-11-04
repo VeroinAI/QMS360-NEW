@@ -33,8 +33,8 @@ const Lbl = ({ label, required }: { label: string; required?: boolean }) => <Lab
 
 export function NumField({ path, label, hint, bare }: { path: Path; label: string; hint?: string; bare?: boolean }) {
   const { value, set, disabled, required } = useField(path);
-  if (bare) return <Input aria-label={label} className="h-8 w-20 px-2 text-right" type="number" min={0} step={1} inputMode="numeric" disabled={disabled} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Math.max(0, Math.floor(Number(e.target.value))))} />;
-  return <div className="space-y-1"><Lbl label={label} required={required} /><Input type="number" min={0} step={1} inputMode="numeric" disabled={disabled} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Math.max(0, Math.floor(Number(e.target.value))))} />{hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}</div>;
+  if (bare) return <Input data-report-field={path.join('.')} aria-label={label} className="h-8 w-20 px-2 text-right" type="number" min={0} step={1} inputMode="numeric" disabled={disabled} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Math.max(0, Math.floor(Number(e.target.value))))} />;
+  return <div className="space-y-1"><Lbl label={label} required={required} /><Input data-report-field={path.join('.')} aria-label={label} type="number" min={0} step={1} inputMode="numeric" disabled={disabled} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Math.max(0, Math.floor(Number(e.target.value))))} />{hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}</div>;
 }
 export function TextField({ path, label, multiline, type = 'text', max }: { path: Path; label: string; multiline?: boolean; type?: 'text' | 'date'; max?: string }) {
   const { value, set, disabled, required } = useField(path);

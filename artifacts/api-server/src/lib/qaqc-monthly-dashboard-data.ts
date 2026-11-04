@@ -89,18 +89,19 @@ export function monthlyDashboardData(report: QaqcReportExport) {
   values["Status total"] = `${f(statusTotal)}\nitems`;
   statusKeys.forEach((k, i) => values[`Legend value ${i + 1}`] = f(mat[k]));
   values["OSD footnote"] = mat.osdAvailable === false ? "OSD not applicable" : mat.osdAvailable === true ? `${f(mat.osdMirns)} MIRNs with OSD recorded` : UNMAPPED;
-  // Repeating rows use real columns. No date/reference/outcome is fabricated where the current form has none.
+  // Meeting outcomes and QMS dates are intentionally omitted from this dashboard.
+  // Explicit blanks also suppress the supplied presentation's sample text.
   for (let i = 0; i < 4; i++) {
     const r = meetings[i];
     values[`Meeting name ${i + 1}`] = r ? text(r.type) : i === 0 ? "No meeting added" : "";
     values[`Meeting date ${i + 1}`] = r ? date(r.lastDate) : "";
-    values[`Meeting outcome ${i + 1}`] = r ? text(r.outcome ?? r.remarks) : "";
+    values[`Meeting outcome ${i + 1}`] = "";
   }
-  if (meetings.length > 4) values["Meeting outcome 4"] = `${values["Meeting outcome 4"]} · + ${meetings.length - 4} more`;
+  if (meetings.length > 4) values["Meeting name 4"] = `${values["Meeting name 4"]} · + ${meetings.length - 4} more`;
   for (let i = 0; i < 3; i++) {
     const r = qms[i];
     values[`QMS name ${i + 1}`] = r ? text(r.documentName) : i === 0 ? "No QMS document register rows added" : "";
-    values[`QMS date ${i + 1}`] = r ? date(r.date) : "";
+    values[`QMS date ${i + 1}`] = "";
     values[`QMS detail ${i + 1}`] = r ? `${text(r.department)} · ${text(r.type)} · ${text(r.status)} · ${text(r.remarks)}` : "";
   }
   if (qms.length > 3) values["QMS detail 3"] = `${values["QMS detail 3"]} · + ${qms.length - 3} more`;

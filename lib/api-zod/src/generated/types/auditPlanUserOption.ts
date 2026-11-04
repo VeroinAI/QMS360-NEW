@@ -7,6 +7,8 @@
  */
 
 export interface AuditPlanUserOption {
+  /** False for retained former meeting attendees shown for display only */
+  canSelect?: boolean;
   id: string;
   fullName: string;
   /** @nullable */

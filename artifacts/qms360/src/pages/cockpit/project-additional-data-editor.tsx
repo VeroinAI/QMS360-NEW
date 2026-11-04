@@ -17,12 +17,19 @@ function targetError(raw: string) {
 }
 
 const fields: Array<[keyof ProjectAdditionalData, string]> = [
+  ['sbg', 'SBG'], ['bu', 'BU'], ['projectGroup', 'Project Group'],
   ['client', 'Client'], ['contractor', 'Contractor'],
+  ['consultant', 'Consultant'], ['projectManager', 'Project Manager'],
+  ['contractValue', 'Contract Value'], ['ptsNumber', 'PTS #'],
   ['contractProjectNumber', 'Contract / project no.'], ['contractSigned', 'Contract signed'],
   ['contractPeriod', 'Contract period'], ['tcc', 'TCC'], ['pac', 'PAC'], ['fac', 'FAC'],
   ['name', 'Name'],
   ['email', 'Email address'], ['phone', 'Phone'],
 ];
+
+export function normaliseProjectAdditionalData(values: Partial<Record<keyof ProjectAdditionalData, string | null>>): ProjectAdditionalData {
+  return Object.fromEntries(fields.map(([key]) => [key, values[key]?.trim() || null])) as Record<keyof ProjectAdditionalData, string | null>;
+}
 
 export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendingChange, onCancel }: {
   record: DronaProjectMasterRecord;
@@ -44,14 +51,7 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
     onPendingChange(update.isPending);
     return () => onPendingChange(false);
   }, [update.isPending, onPendingChange]);
-  const normalized: ProjectAdditionalData = {
-    name: values.name.trim() || null,
-    client: values.client.trim() || null, contractor: values.contractor.trim() || null,
-    contractProjectNumber: values.contractProjectNumber.trim() || null, contractSigned: values.contractSigned.trim() || null,
-    contractPeriod: values.contractPeriod.trim() || null, tcc: values.tcc.trim() || null,
-    pac: values.pac.trim() || null, fac: values.fac.trim() || null,
-    email: values.email.trim() || null, phone: values.phone.trim() || null,
-  };
+  const normalized = normaliseProjectAdditionalData(values);
   const contactErrors = projectContactErrors(values.email, values.phone);
   const invalidContact = !!(contactErrors.email || contactErrors.phone);
   const changed = targetsChanged || (costCentre.trim() || null) !== (record.costCentre ?? null) ||

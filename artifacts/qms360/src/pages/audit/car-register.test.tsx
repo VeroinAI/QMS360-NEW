@@ -20,6 +20,7 @@ const { list } = vi.hoisted(() => ({
 vi.mock("@workspace/api-client-react", async importOriginal => ({
   ...await importOriginal<typeof import("@workspace/api-client-react")>(),
   useListCarRegister: list,
+  useGetCurrentUser: () => ({ data: { id: "user-1" } }),
   useStartFindingCar: () => ({ isPending: false }),
   useOpenCarEditSession: () => ({ isPending: false }),
   useUpdateCorrectiveActionReport: () => ({ isPending: false, mutateAsync: vi.fn() }),
@@ -136,23 +137,21 @@ describe("CAR Response display and assignment guards", () => {
 });
 
 describe("CAR Register filter controls", () => {
-  it("offers All for every requested column and a clear-filters action", () => {
+  it("renders exactly the seven requested labelled filters, clear action and historical checkbox", () => {
     const html = renderToStaticMarkup(<CarRegister />);
     for (const [id, label] of [
-      ["schedule", "Audit Schedule"], ["audit-title", "Audit Title"], ["audit-type", "Audit Type"],
-      ["project", "Project"], ["department", "Department"], ["status", "Status"],
+      ["car-number", "CAR Number"], ["audit-title", "Audit Title"], ["project-department", "Project/Department"],
+      ["audit-finding", "Audit Finding"], ["risk-level", "Risk Level"], ["action-taker", "Action Taker"], ["status", "CAR Status"],
     ]) {
       expect(html).toContain(`data-testid="select-car-${id}"`);
       expect(html).toContain(`aria-label="${label}"`);
     }
-    for (const text of ["All audit schedules", "All audit titles", "All audit types", "All projects", "All departments", "All statuses"]) {
-      expect(html).toContain(text);
-    }
+    for (const old of ["select-car-schedule", "select-car-audit-type", "select-car-project\"", "select-car-department"]) expect(html).not.toContain(old);
     expect(html).toContain('data-testid="button-clear-car-filters"');
     expect(html).toContain('data-testid="checkbox-include-legacy"');
     expect(list).toHaveBeenCalledWith(
       { page: 1, limit: 10, includeLegacy: false },
-      expect.objectContaining({ query: expect.objectContaining({ refetchInterval: 20_000 }) }),
+      expect.objectContaining({ query: expect.objectContaining({ refetchInterval: 20_000, queryKey: expect.arrayContaining(["user-1"]) }) }),
     );
   });
 });

@@ -1,22 +1,30 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
-import { fillAuditPptxWorkbookFields } from "./audit-pptx-workbook-fields";
+import { fillAuditPptxWorkbookFields, recordedGoodPractice } from "./audit-pptx-workbook-fields";
+import { meetingAttendeeLabel, notRepresentedClosingAttendees, NOT_REPRESENTED_CLOSING } from "@workspace/field-controls";
 
 type Row = Record<string, any>;
 export type ReportSectionData = {
   key: string; title: string; fields: Array<{ label: string; value: string }>;
   tables: Array<{ title: string; columns: string[]; rows: string[][] }>;
-  notes: string[]; photos: Array<{ id: string; fileName: string; reference: string; description: string }>;
+  notes: string[]; photos: Array<{
+    id: string; fileName: string; reference: string; description: string;
+    /** PPTX-only factual metadata; absent on PDF/JSON report data. */
+    findingId?: string; findingCreatedDate?: string; grade?: string; location?: string; captionDescription?: string;
+  }>;
 };
-const missing = "Not recorded";
 export const auditIsComplete = (state: string) => ["complete", "completed", "closed"].includes(state.toLowerCase());
 export function buildConsolidatedAuditReport(input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   legacyFindings: Row[]; cars: Row[]; evidence: Row[]; names: Map<string, string>;
   roleNames: Map<string, string>; timeZone?: string;
   pptxWorkbookMappings?: boolean;
+  pptxProcessOwnerNames?: string[];
+  generatedAt?: Date;
 }): ReportSectionData[] {
   const { audit, plan, project, names, roleNames, evidence, legacyFindings, cars } = input;
+  // All these report fields have a source mapping. Keep PDF/JSON wording unchanged.
+  const missing = input.pptxWorkbookMappings ? "-" : "Not recorded";
   const details: AuditReportDetailsData = audit.reportDetails ?? { values: {}, rows: {} };
   const value = (v: unknown) => v === null || v === undefined || v === "" ? missing : String(v);
   const recorded = (key: string, fallback?: unknown) => value(details.values[key]?.trim() || fallback);
@@ -96,16 +104,19 @@ export function buildConsolidatedAuditReport(input: {
     section: plan.activitySection, remarks: plan.activityRemarks, auditeeId: plan.activityAuditeeId,
   }] : [], plan?.activityDateTime);
   const planned = (dateTime: unknown) => plannedDate(dateTime) && typeof dateTime === "string" && dateTime.includes("T")
-    ? dateTime : "To Be Mapped";
+    ? dateTime : input.pptxWorkbookMappings ? "-" : "To Be Mapped";
   programme.tables.push({ title: "Audit programme", columns: ["Planned Start", "Planned End", "Activity", "Remarks", "Auditee"],
     rows: activities.map((a: Row) => [
-      `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && planned(a.plannedStartDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
-      `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && planned(a.plannedEndDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
+      `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && !["-", "To Be Mapped"].includes(planned(a.plannedStartDateTime)) ? " (derived legacy)" : ""}`,
+      `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && !["-", "To Be Mapped"].includes(planned(a.plannedEndDateTime)) ? " (derived legacy)" : ""}`,
       value(a.section), value(a.remarks), a.auditeeIds !== undefined ? namesOf(a.auditeeIds) : name(a.auditeeId)]) });
   fields(programme, [
     ["Opening meeting", date(audit.openingMeeting?.heldAt)], ["Opening minutes", audit.openingMeeting?.minutes],
     ["Audit team", namesOf(plan?.teamMemberIds)], ["Auditees present", namesOf(audit.openingMeeting?.attendees)],
-    ["Not represented", recorded("notRepresented")], ["Closing meeting", date(audit.closingMeeting?.heldAt)],
+    [NOT_REPRESENTED_CLOSING, Array.isArray(audit.openingMeeting?.attendees) && Array.isArray(audit.closingMeeting?.attendees)
+      ? notRepresentedClosingAttendees(audit.openingMeeting.attendees, audit.closingMeeting.attendees)
+        .map(id => meetingAttendeeLabel(id, Array.from(names, ([id, fullName]) => ({ id, fullName })))).join(", ") || "None"
+      : missing], ["Closing meeting", date(audit.closingMeeting?.heldAt)],
     ["Closing minutes", audit.closingMeeting?.minutes],
   ]);
   const checklist: Row[] = audit.checklist ?? [];
@@ -171,27 +182,52 @@ export function buildConsolidatedAuditReport(input: {
     rows: checklist.filter(row => /^(pass|conform|satisfactory|compliant)$/i.test(row.result ?? "") && !row.auditFinding)
       .map(row => [value(row.auditArea), value(row.description ?? row.question), (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || missing]) });
   conforming.tables.push({ title: "Good practices and positive observations", columns: ["Area / process", "What was verified and found conforming", "Record / evidence reference", "Reference number"],
-    rows: (documents.goodPractices ?? []).map((row: Row) => [value(row.areaProcess), value(row.verifiedConforming), value(row.evidenceReference), value(row.referenceNumber)]) });
+    rows: (documents.goodPractices ?? []).filter((row: Row) => !input.pptxWorkbookMappings || recordedGoodPractice(row))
+      .map((row: Row) => [value(row.areaProcess), value(row.verifiedConforming), value(row.evidenceReference), value(row.referenceNumber)]) });
   const register = (key: string, title: string, items: Row[]) => {
     const s = section(key, title);
+    const ofiPptx = input.pptxWorkbookMappings && key === "ofi";
+    const ncrPptx = input.pptxWorkbookMappings && key === "non-conformities";
+    const objectiveEvidence = (row: Row) => {
+      if (ncrPptx) {
+        // Only explicitly linked uploads are NCR objective evidence, never general notes.
+        return (row.evidenceIds ?? []).map((id: string) =>
+          evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`).join(", ") || "-";
+      }
+      if (!ofiPptx) return (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes);
+      // An unavailable attachment is still a recorded reference, not absent evidence.
+      const references = (row.evidenceIds ?? []).map((id: string) =>
+        evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`);
+      return [...references, row.notes?.trim()].filter(Boolean).join("\n") || "-";
+    };
     s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
-      // NCR/OFI numbers requested in the workbook are not captured yet.
-      // Internal B.x references and client idempotency keys are not those numbers.
-      rows: items.map(row => [input.pptxWorkbookMappings ? missing : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
-        (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes),
+      // Never substitute an internal/client reference or a CAR number for an issued finding number.
+      rows: items.map(row => [input.pptxWorkbookMappings ? value(row.findingNumber?.trim()) : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
+        objectiveEvidence(row),
         value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };
   register("non-conformities", "Non-conformity register", findings.filter(row => row.grade !== "OFI"));
   register("ofi", "Opportunities for improvement", findings.filter(row => row.grade === "OFI"));
   const photographs = section("photographs", "Photographic evidence");
   for (const file of evidence.filter(file => /^image\/(png|jpeg|webp|gif)$/i.test(file.mimeType) && file.id !== documents.organizationChartId)) {
-    const row = findings.find(f => f.evidenceIds?.includes(file.id));
+    const associated = findings.filter(f => f.evidenceIds?.includes(file.id));
+    const rows = input.pptxWorkbookMappings ? associated : [associated[0]];
+    for (const row of rows) {
     // The workbook requests images attached to NC/OFI findings, not unrelated uploads.
     if (input.pptxWorkbookMappings && !row) continue;
     const caption = details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName && (!c.reference?.trim() || c.reference.trim() === row?.reference))
       ?? details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName);
-    photographs.photos.push({ id: file.id, fileName: file.fileName, reference: row?.reference || caption?.reference || missing,
+    photographs.photos.push({ id: file.id, fileName: file.fileName,
+      reference: input.pptxWorkbookMappings ? value(row?.findingNumber) : row?.reference || caption?.reference || missing,
+      ...(input.pptxWorkbookMappings ? {
+        findingId: `${row?.legacy ? "legacy" : "checklist"}:${row?.id}`,
+        findingCreatedDate: date(row?.legacy ? row.createdAt : row?.findingCreatedAt),
+        grade: value(row?.grade || caption?.grade),
+        location: value(caption?.location || details.values.location || plan?.location || row?.area),
+        captionDescription: value(caption?.description || row?.description),
+      } : {}),
       description: `Grade: ${value(row?.grade || caption?.grade)}\nDate captured: ${date(caption?.date)}\nDate uploaded: ${date(file.createdAt)}\nLocation: ${value(caption?.location || details.values.location || plan?.location || row?.area)}\nDescription: ${value(caption?.description || row?.description || (input.pptxWorkbookMappings ? undefined : row?.question || file.fileName))}\nRequirement: ${value(row?.clause || caption?.requirement)}` });
+    }
   }
   const grading = section("grading", "Finding grades and response requirements");
   grading.tables.push({ title: "Client template grading guidance", columns: ["Grade", "Definition", "Response requirement"],
@@ -204,10 +240,13 @@ export function buildConsolidatedAuditReport(input: {
   grading.notes.push("Definitions and response windows are proposed for approval in the supplied client standard. This report does not change existing CAR due dates.",
     "Response sequence: root-cause analysis and CAPA plan; audit team acceptance; implementation with evidence; effectiveness verification; closure in tracker.");
   const tracker = section("corrective-actions", "Corrective action tracker");
-  tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause", "Correction and corrective action", "Owner", "Due date", "Status", "Verified by / date"],
+  tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause",
+    ...(input.pptxWorkbookMappings ? ["Correction", "Corrective action"] : ["Correction and corrective action"]),
+    "Owner", "Due date", "Status", "Verified by / date"],
     rows: cars.map(car => { const f = findings.find(f => f.id === car.findingId);
-      return [f?.reference ?? missing, f?.grade ?? missing, value(car.rootCause),
-        [car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing, name(car.ownerId), date(car.dueDate),
+      return [car.carNumber || (input.pptxWorkbookMappings ? missing : "Not numbered"), f?.grade ?? missing, value(car.rootCause),
+        ...(input.pptxWorkbookMappings ? [car.correction?.trim() || missing, car.correctiveAction?.trim() || missing]
+          : [[car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing]), name(car.ownerId), date(car.dueDate),
         value(car.status), car.effectivenessVerified ? `Effectiveness verified; ${date(car.closedAt)}; verifier ${missing}` : missing]; }) });
   const actions = section("priority-actions", "Recommended priority actions");
   for (const key of ["containRisk", "correctClose", "preventRecurrence"]) collection(actions, key);

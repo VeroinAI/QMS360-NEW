@@ -26,7 +26,10 @@ describe('Monthly validation field navigation', () => {
         fc: () => ({ disabled: false, required: false }),
         manpowerDisciplines: [{ value: 'Civil', label: 'Civil' }, { value: 'Mechanical', label: 'Mechanical' }] };
       const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
-      return Array.from(html.matchAll(/<select[^>]*data-report-field="manpower\.\d+\.department"[^>]*>(.*?)<\/select>/g), match => match[1]);
+      // The visible searchable trigger owns the validation path; hidden native
+      // selects retain the option/disabled contract without stealing focus.
+      expect(html).toContain('data-report-field="manpower.0.department"');
+      return Array.from(html.matchAll(/<select[^>]*>(.*?)<\/select>/g), match => match[1]);
     };
     const selects = render([{ department: 'Civil' }, { department: '' }]);
     expect(selects[0]).toMatch(/<option[^>]*value="Civil"[^>]*selected=""/);

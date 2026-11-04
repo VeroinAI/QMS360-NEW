@@ -19,12 +19,14 @@ function projectTargetsSql() {
       THEN p.custom_fields->'qaqcReporting'->'targets' ELSE '{}'::jsonb END`;
 }
 
-const additionalDataKeys = ["name", "client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac", "email", "phone"] as const;
+const additionalDataKeys = ["sbg", "bu", "projectGroup", "name", "client", "contractor", "consultant", "projectManager", "contractValue", "ptsNumber", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac", "email", "phone"] as const;
 function additionalData(value: unknown): ProjectAdditionalData {
   const fields = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const result: ProjectAdditionalData = {
     client: null, contractor: null, contractProjectNumber: null, contractSigned: null,
     contractPeriod: null, tcc: null, pac: null, fac: null, email: null, phone: null, name: null,
+    consultant: null, projectManager: null, contractValue: null, ptsNumber: null,
+    sbg: null, bu: null, projectGroup: null,
   };
   for (const key of additionalDataKeys) {
     const field = fields[key];

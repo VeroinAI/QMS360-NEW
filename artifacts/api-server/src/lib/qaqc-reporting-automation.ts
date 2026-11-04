@@ -8,7 +8,7 @@ import {
 import { enqueueEmail } from "./email-queue";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "./email-attachments";
 import {
-  exportQaqcDashboardPdf, exportQaqcReportPdf, type QaqcDashboardExport, type QaqcReportExport,
+  exportQaqcEmailReportPdf, type QaqcReportExport,
 } from "./qaqc-reporting-export";
 import { logger } from "./logger";
 import { notify, writeAuditLog } from "./workspace";
@@ -114,51 +114,6 @@ export function reportingDistributionDue(kind: "monthly" | "daily", date: string
   if (kind === "monthly") return Number.isInteger(day) && Number(scheduleDays) === day;
   const days = Array.isArray(scheduleDays) ? scheduleDays.map(Number) : [];
   return Number.isInteger(day) && days.includes(day);
-}
-
-function reportDashboard(report: QaqcReportExport, projectName: string): QaqcDashboardExport {
-  const computed = asObject(report.computed);
-  const row = {
-    projectId: report.projectId, projectName, projectCode: report.projectCode, reportType: report.reportType,
-    period: report.period, state: report.state, referenceNumber: report.referenceNumber ?? "",
-    computed, data: report.data, ...computed,
-  };
-  let summary: Record<string, unknown>;
-  if (report.reportType === "daily") {
-    summary = { daily: [{
-      projectId: report.projectId, projectName, period: report.period, snapshot: computed,
-      movement: null, absoluteSnapshot: true, globalPeriod: report.period, baselinePeriod: null,
-    }] };
-  } else if (report.reportType === "csat") {
-    summary = { csat: [row], csatAverage: Number(computed.averageRating ?? 0) };
-  } else {
-    const metrics = asObject(computed.metrics);
-    summary = {
-      monthly: [row],
-      aggregates: [{
-        period: report.period, projects: 1, averagePqi: Number(asObject(computed.pqi).accumulated ?? 0),
-        metrics: Object.fromEntries(Object.entries(metrics).map(([key, metric]) =>
-          [key, Number(asObject(metric).accumulatedRate ?? 0)])),
-      }],
-    };
-  }
-  const filters = { projectId: report.projectId, projectGroup: null, from: null, to: null,
-    period: report.period, reportType: report.reportType, category: "all" };
-  const dashboardData = {
-    filters,
-    monthly: [], aggregates: [], csat: [], csatAverage: 0, daily: [],
-    ...summary,
-  };
-  const rows = report.reportType === "daily" ? dashboardData.daily : [row];
-  return {
-    organizationId: report.organizationId,
-    reportType: report.reportType,
-    title: "QA/QC Reporting Dashboard",
-    filters,
-    summary: dashboardData, dashboardData, rows: rows as Array<Record<string, unknown>>, trends: report.reportType === "daily" ? summary.daily as Array<Record<string, unknown>>
-      : report.reportType === "monthly" ? summary.aggregates as Array<Record<string, unknown>> : [row],
-    reports: [report],
-  };
 }
 
 async function claimRun(organizationId: string, projectId: string | null, runKey: string, kind: string, payload: Settings, now: Date) {
@@ -310,8 +265,8 @@ async function dispatchApprovedPdf(input: {
       claim: () => claimRun(input.organizationId, input.projectId, runKey, input.kind,
         { reportId: input.report.id, recipientId: user.id }, input.now),
       hasQueuedEmail: () => emailAlreadyQueued(input.organizationId, runKey),
-      renderReport: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcReportPdf(report)),
-      renderDashboard: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcDashboardPdf(reportDashboard(report, input.projectName))),
+      renderReport: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcEmailReportPdf(report, "report")),
+      renderDashboard: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcEmailReportPdf(report, "dashboard")),
       storeAttachment: async (layout, bytes) => {
         const attachment = await storeEmailPdfAttachment(input.organizationId, `${input.report.id}-${layout}`, bytes);
         return { ...attachment, filename: `qaqc-${layout}-${input.report.reportType}-${input.report.period}.pdf` };

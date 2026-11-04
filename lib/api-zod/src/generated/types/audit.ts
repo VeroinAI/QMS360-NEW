@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
+import type { AuditExecutionSummary } from './auditExecutionSummary';
+import type { AuditFindingRegisterItem } from './auditFindingRegisterItem';
+import type { AuditOpeningMeetingBounds } from './auditOpeningMeetingBounds';
+import type { AuditReportApproval } from './auditReportApproval';
 import type { AuditReportDetails } from './auditReportDetails';
 import type { AuditStatus } from './auditStatus';
 import type { ChecklistItem } from './checklistItem';
@@ -13,24 +17,41 @@ import type { MeetingMinutes } from './meetingMinutes';
 
 export interface Audit {
   id: string;
+  executionSummary?: AuditExecutionSummary;
+  /** Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit. */
+  readonly findingRegister?: readonly AuditFindingRegisterItem[];
   planId: string;
   /**
      * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable
      * @nullable
      */
   readonly planNumber?: string | null;
+  /** Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail */
+  readonly planAvailable?: boolean;
+  /**
+     * Linked project name
+     * @nullable
+     */
+  readonly projectName?: string | null;
   /**
      * Immutable server-generated Audit Report number issued on first successful report-details save
      * @nullable
      */
   readonly reportNumber?: string | null;
-  projectId: string;
+  reportApproval?: AuditReportApproval;
+  /**
+     * Null for a department-based Process audit; inherited from the selected Plan
+     * @nullable
+     */
+  projectId: string | null;
   title: string;
   status: AuditStatus;
   /** Whether the current user has Audit edit access in this record scope */
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  /** Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility. */
+  readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
   reportDetails?: AuditReportDetails;

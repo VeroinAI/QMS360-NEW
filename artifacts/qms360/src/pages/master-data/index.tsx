@@ -1,3 +1,4 @@
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch } from 'wouter';
@@ -126,11 +127,13 @@ export function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value,
         </div>}
         {isAuditCategory && <fieldset className="space-y-2 rounded-md border p-3">
           <legend className="px-1 text-sm font-medium">Linked Audit Types</legend>
+          <SearchableSelectionList label="Search linked Audit types">
           {auditTypes.map(type => <label key={type.value} className="flex items-center gap-2 text-sm">
             <Checkbox checked={form.auditTypeValues.includes(type.value)} onCheckedChange={checked => setForm(current => ({
               ...current, auditTypeValues: checked === true ? [...current.auditTypeValues, type.value] : current.auditTypeValues.filter(item => item !== type.value),
             }))} />{type.label}
           </label>)}
+          </SearchableSelectionList>
           {!auditTypes.length && <p className="text-sm text-muted-foreground">Add an active Audit Type in master data first.</p>}
           <p className="text-xs text-muted-foreground">Until any category is linked, existing categories remain available for all Audit Types. Once links exist, only linked categories appear for each type.</p>
         </fieldset>}

@@ -1,5 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { submissionMemoDefaults } from "./submission-memo-defaults";
+import { submissionMemoContent, submissionMemoDefaults } from "./submission-memo-defaults";
+
+describe("Audit Schedule saved submission content", () => {
+  const schedule = { id: "schedule-a", title: "Annual Schedule" };
+
+  it("reuses saved subject, multiline memo and reference without altering their text", () => {
+    const previous = {
+      ...schedule, submissionReference: "REF-001",
+      submissionSubject: "  Revised subject  ", submissionMailBody: "First paragraph\n\nSecond paragraph",
+    };
+    expect(submissionMemoContent(previous)).toEqual({
+      reference: "REF-001", subject: "  Revised subject  ", mailBody: "First paragraph\n\nSecond paragraph",
+    });
+  });
+
+  it.each([undefined, null, "", " \n "])("uses first-submission fallbacks for missing legacy content: %s", value => {
+    expect(submissionMemoContent({
+      ...schedule, submissionSubject: value, submissionMailBody: value,
+    })).toEqual({ reference: "", subject: schedule.title, mailBody: "" });
+  });
+
+  it("falls back independently for a missing subject or memo", () => {
+    expect(submissionMemoContent({ ...schedule, submissionMailBody: "Saved memo" }))
+      .toEqual({ reference: "", subject: schedule.title, mailBody: "Saved memo" });
+    expect(submissionMemoContent({ ...schedule, submissionSubject: "Saved subject", submissionReference: null }))
+      .toEqual({ reference: "", subject: "Saved subject", mailBody: "" });
+  });
+
+  it("isolates schedules and discards cancelled edits without mutating saved data", () => {
+    const previous = { ...schedule, submissionSubject: "Saved A", submissionMailBody: "Memo A" };
+    const editing = submissionMemoContent(previous);
+    editing.subject = "Unsaved";
+    editing.mailBody = "Cancelled";
+    expect(submissionMemoContent({ id: "schedule-b", title: "Schedule B" }))
+      .toEqual({ reference: "", subject: "Schedule B", mailBody: "" });
+    expect(submissionMemoContent(previous))
+      .toEqual({ reference: "", subject: "Saved A", mailBody: "Memo A" });
+  });
+});
 
 describe("Audit Schedule submission memo defaults", () => {
   it("prefills new submissions from organization text values", () => {

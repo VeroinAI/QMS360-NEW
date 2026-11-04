@@ -73,6 +73,18 @@ test("new tables, enums, enum labels, indexes, public columns and FKs are additi
   assert.deepEqual(applied, statements);
 });
 
+test("foreign keys follow their prerequisite unique indexes without changing the plan", async () => {
+  const fk = 'ALTER TABLE "shared"."links" ADD CONSTRAINT "links_user_org_fk" FOREIGN KEY ("user_id","organization_id") REFERENCES "shared"."users"("id","organization_id");';
+  const index = 'CREATE UNIQUE INDEX "users_id_org_idx" ON "shared"."users" ("id","organization_id");';
+  const column = 'ALTER TABLE "shared"."links" ADD COLUMN "example" text;';
+  const statements = [fk, column, index];
+  const applied: string[] = [];
+  const count = await applySafePlan({ hasDataLoss: false, warnings: [], statementsToExecute: statements }, async statement => { applied.push(statement); });
+  assert.equal(count, 3);
+  assert.deepEqual(applied, [column, index, fk]);
+  assert.deepEqual(statements, [fk, column, index]);
+});
+
 test("index replacement preserves existing index and applies the later column", async () => {
   for (const unique of ["", "UNIQUE "]) {
     const addition = 'ALTER TABLE "shared"."users" ADD COLUMN "example" text;';

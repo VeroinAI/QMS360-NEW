@@ -6,15 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditFindingItemInputAuditFinding } from './auditFindingItemInputAuditFinding';
+import type { AuditFindingItemInputRiskLevel } from './auditFindingItemInputRiskLevel';
 import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface AuditFindingItemInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  findingDate?: string;
   /** @minLength 1 */
   clause: string;
   /** @minLength 1 */
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
+  riskLevel: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;

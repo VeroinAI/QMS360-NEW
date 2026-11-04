@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { readFile, writeFile } from "node:fs/promises";
-import { auditPlanReportData, TO_BE_MAPPED } from "./audit-plan-report-data";
+import { auditPlanReportData, NO_DATA } from "./audit-plan-report-data";
 import { renderAuditPlanPdf } from "./audit-plan-pdf";
 import { auditPlanDateErrors } from "@workspace/field-controls";
 import { getDateFormat, setDateFormatResolver } from "@workspace/spreadsheet-dates";
@@ -48,7 +48,7 @@ describe("Audit Plan PDF mappings", () => {
     const historical = auditPlanReportData(plan, { activitySection: "Historical section" }, schedule, project, people, roles, "UTC", undefined, labels);
     expect(historical.activities[0].section).toBe("Historical section");
     const missing = auditPlanReportData(plan, {}, schedule, project, people, roles, "UTC", undefined, labels);
-    expect(missing.activities[0].section).toBe(TO_BE_MAPPED);
+    expect(missing.activities[0].section).toBe(NO_DATA);
   });
   it("maps each activity range independently, preserves local times and marks legacy derivation", () => {
     const report = auditPlanReportData(plan, { ...meta, activities: [
@@ -60,8 +60,8 @@ describe("Audit Plan PDF mappings", () => {
     expect(report.activities[1]?.dateTime).not.toContain("26-01-2026");
     expect(data().activities[0]?.legacyDateTimeDerived).toBe(true);
     const unavailable = auditPlanReportData({}, {}, {}, undefined, people, roles, "UTC");
-    expect(unavailable.activities[0]?.plannedStart).toBe(TO_BE_MAPPED);
-    expect(unavailable.activities[0]?.plannedEnd).toBe(TO_BE_MAPPED);
+    expect(unavailable.activities[0]?.plannedStart).toBe(NO_DATA);
+    expect(unavailable.activities[0]?.plannedEnd).toBe(NO_DATA);
   });
   it("resolves distinct lead, team, plan auditee roles, and activity Auditee Roles", () => {
     const report = data();
@@ -83,27 +83,27 @@ describe("Audit Plan PDF mappings", () => {
   it.each([undefined, [], ["missing-role"]])("does not substitute user names when activity roles are unavailable (%s)", roleIds => {
     const report = auditPlanReportData(plan, { ...meta, activities: [{ ...meta.activities[0], roleIds }] },
       schedule, project, people, roles, "UTC");
-    expect(report.activities[0]?.auditee).toBe(TO_BE_MAPPED);
+    expect(report.activities[0]?.auditee).toBe(NO_DATA);
   });
   it("uses explicit project master fields, not project codes as contract numbers", () => {
     expect(data().project.find(([key]) => key === "Contract #")?.[1]).toBe("TEST-44001");
     const report = auditPlanReportData(plan, meta, schedule, { ...project, customFields: {} }, people, roles, "UTC");
-    expect(report.project.find(([key]) => key === "Contract #")?.[1]).toBe(TO_BE_MAPPED);
-    expect(data().project.find(([key]) => key === "Contract Value")?.[1]).toBe(TO_BE_MAPPED);
+    expect(report.project.find(([key]) => key === "Contract #")?.[1]).toBe(NO_DATA);
+    expect(data().project.find(([key]) => key === "Contract Value")?.[1]).toBe(NO_DATA);
   });
   it("maps the Program Manager to the original plan creator, independently from the lead", () => {
     const report = auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "creator");
     expect(report.programManager).toBe("Test Plan Creator");
     expect(report.lead).toBe("Test Lead Auditor");
-    expect(data().programManager).toBe(TO_BE_MAPPED);
-    expect(auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "unknown").programManager).toBe(TO_BE_MAPPED);
+    expect(data().programManager).toBe(NO_DATA);
+    expect(auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "unknown").programManager).toBe(NO_DATA);
   });
   it("does not fabricate dates, sample people or sample activity topics for legacy records", () => {
     const report = auditPlanReportData({}, {}, {}, undefined, new Map(), new Map(), "UTC");
-    expect(report.opening).toBe(TO_BE_MAPPED);
-    expect(report.preparedDate).toBe(TO_BE_MAPPED);
-    expect(report.lead).toBe(TO_BE_MAPPED);
-    expect(report.activities[0]?.section).toBe(TO_BE_MAPPED);
+    expect(report.opening).toBe(NO_DATA);
+    expect(report.preparedDate).toBe(NO_DATA);
+    expect(report.lead).toBe(NO_DATA);
+    expect(report.activities[0]?.section).toBe(NO_DATA);
   });
   it("preserves planned meeting times rather than converting them to the downloading user's timezone", () => {
     expect(data().opening).toBe("26-01-2026\n03:30");
@@ -134,14 +134,14 @@ describe("Audit Plan PDF mappings", () => {
     const report = auditPlanReportData(plan, { ...meta, activities: [
       { ...meta.activities[0], plannedStartDateTime: "2026-02-30T00:15Z", plannedEndDateTime: "2026-01-02T23:59-24:00" },
     ] }, schedule, project, people, roles, "Asia/Kolkata");
-    expect(report.activities[0]?.plannedStart).toBe(TO_BE_MAPPED);
-    expect(report.activities[0]?.plannedEnd).toBe(TO_BE_MAPPED);
+    expect(report.activities[0]?.plannedStart).toBe(NO_DATA);
+    expect(report.activities[0]?.plannedEnd).toBe(NO_DATA);
   });
   it("preserves repeatable activity order and supports legacy single activity fields", () => {
     const multiple = auditPlanReportData(plan, { ...meta, activities: [...meta.activities, { section: "Design", remarks: "Design records", auditeeId: "team" }] }, schedule, project, people, roles, "UTC");
     expect(multiple.activities.map(r => r.section)).toEqual(["General Requirement", "Design"]);
     const legacy = auditPlanReportData(plan, { activitySection: "Legacy section", activityRemarks: "Legacy notes", activityAuditeeId: "owner" }, schedule, project, people, roles, "UTC");
-    expect(legacy.activities[0]).toMatchObject({ section: "Legacy section", remarks: "Legacy notes", auditee: TO_BE_MAPPED });
+    expect(legacy.activities[0]).toMatchObject({ section: "Legacy section", remarks: "Legacy notes", auditee: NO_DATA });
   });
 });
 

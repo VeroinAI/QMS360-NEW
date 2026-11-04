@@ -1,10 +1,11 @@
 import { Redirect, Route } from 'wouter';
 import { MyActionsPage } from './my-actions-page';
-import { GovernanceDashboardPage } from './governance-dashboard-page';
+import { ConsolidatedDashboardPage } from '../dashboard/consolidated-dashboard';
 import { ReportEditor } from './report-editor';
 import { ReportList } from './report-list';
 import { SettingsPage } from './settings-page';
 import { HistoricalBalancesPage } from './historical-balances-page';
+import { DailyHistoricalBalancesPage } from './daily-historical-balances-page';
 import type { ReportType } from './reporting-types';
 
 const T: ReportType[] = ['monthly', 'daily', 'csat'];
@@ -21,7 +22,8 @@ export const reportingRoutes = [
     <Route key={`${t}-d`} path={`/qaqc/${t}/:id`}>{p => <ReportEditor key={p.id} reportType={t} id={p.id} />}</Route>,
   ]),
   <Route key="dash" path="/qaqc/report-dashboard">{() => <Redirect to="/qaqc/dashboard" />}</Route>,
-  <Route key="gdash" path="/qaqc/dashboard" component={GovernanceDashboardPage} />,
+  <Route key="gdash" path="/qaqc/dashboard" component={ConsolidatedDashboardPage} />,
+  <Route key="dhist" path="/qaqc/settings/daily-historical-balances" component={DailyHistoricalBalancesPage} />,
   <Route key="hist" path="/qaqc/settings/historical-balances" component={HistoricalBalancesPage} />,
   <Route key="set" path="/qaqc/settings" component={SettingsPage} />,
 ];

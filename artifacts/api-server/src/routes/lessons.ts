@@ -1,3 +1,4 @@
+import { lessonApprovalActions, lessonApprovalHistory } from "../lib/lesson-approval-history";
 import { randomUUID } from "node:crypto";
 import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import { readFile } from "node:fs/promises";
@@ -29,7 +30,7 @@ import {
   CreateApproverScopeBody,
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
-import { createLessonPdf } from "../lib/lesson-pdf";
+import { createLessonPdf, lessonPdfIsApproved } from "../lib/lesson-pdf";
 import { lessonDisciplineLabel } from "../lib/lesson-discipline-label";
 import { lessonDepartments, lessonInScope, lessonScopeWhere, lessonSourceInput, type LessonSource } from "../lib/lessons-source";
 import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
@@ -240,7 +241,8 @@ async function lessonPdfAssets(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {
-  const signerIds = [row.submittedById, row.reviewedById].filter((id): id is string => Boolean(id));
+  const isApproved = lessonPdfIsApproved(row);
+  const signerIds = [row.submittedById, isApproved ? row.reviewedById : null].filter((id): id is string => Boolean(id));
   const signers = signerIds.length
     ? await db.select({ id: users.id, signaturePath: users.signaturePath }).from(users).where(and(
       eq(users.organizationId, row.organizationId),
@@ -286,7 +288,7 @@ async function lessonPdfAssets(
   }))).filter((photo): photo is NonNullable<typeof photo> => photo !== null);
   const [preparedSignature, approvedSignature] = await Promise.all([
     loadSignature(row.submittedById),
-    loadSignature(row.reviewedById),
+    isApproved ? loadSignature(row.reviewedById) : Promise.resolve(undefined),
   ]);
   return { photos: imagePhotos, preparedSignature, approvedSignature };
 }
@@ -1269,7 +1271,7 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
 
-async function lessonReportPdf(
+export async function lessonReportPdf(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {
@@ -1305,6 +1307,22 @@ router.get("/forms/:id/report", asyncHandler(async (req, res) => {
 }));
 
 /** Per-lesson activity timeline (audit log filtered to this form). Visible to anyone who can see the form. */
+router.get("/forms/:id/approval-history", asyncHandler(async (req, res) => {
+  const orgId = req.currentUser!.organizationId;
+  const form = await getForm(String(req.params.id), orgId);
+  if (!form) notFound("Lesson form not found");
+  if (!await canReadLesson(req, form)) throw new HttpError(403, "You do not have permission to view this lesson");
+  const rows = await db.select().from(lessonsAuditLogEntries).where(and(
+    eq(lessonsAuditLogEntries.organizationId, orgId), eq(lessonsAuditLogEntries.entityId, form.id),
+    eq(lessonsAuditLogEntries.entityType, "lesson_form"), inArray(lessonsAuditLogEntries.action, [...lessonApprovalActions]),
+  )).orderBy(desc(lessonsAuditLogEntries.createdAt), desc(lessonsAuditLogEntries.id));
+  const actorIds = [...new Set([...rows.map(row => row.actorId), form.submittedById, form.reviewedById].filter((id): id is string => !!id))];
+  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation })
+    .from(users).where(and(eq(users.organizationId, orgId), inArray(users.id, actorIds))) : [];
+  const current = { ...await approvalPeopleJson(form), submittedById: form.submittedById, reviewedById: form.reviewedById };
+  res.json({ items: lessonApprovalHistory(rows, new Map(actors.map(person => [person.id, person])), current) });
+}));
+
 router.get("/forms/:id/activity", asyncHandler(async (req, res) => {
   const form = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!form) notFound("Lesson form not found");

@@ -1,3 +1,5 @@
+import { dailyDisciplineSnapshot, duplicateNcrAgeingRows } from "@workspace/field-controls";
+
 export type ReportType = "monthly" | "daily" | "csat";
 export type ValidationResult = { valid: boolean; errors: string[] };
 
@@ -57,11 +59,11 @@ export type ReportComputed = MonthlyReportComputed | DailyReportComputed | CsatR
 
 const METRICS = ["external_ncr", "internal_ncr", "rfi", "rmi"] as const;
 export const QMS_DEPARTMENTS = ["HSSE", "Quality", "Finance", "Fleet & Facilities Management", "Human Resources", "Group Digital & Technology", "Operations"] as const;
-const DISCIPLINES = ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"] as const;
-const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as const;
-const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
-const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
-const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
+export const DISCIPLINES = ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"] as const;
+export const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as const;
+export const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
+export const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
+export const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
 export const DAILY_DOCUMENT_TYPES = ["Drawings", "Material Submittals", "Method Statements", "ITPs", "RFIs", "Procedures", "Calculations", "Vendors"] as const;
 export const DAILY_REJECTED_SUBMISSION_TYPES = ["drawing", "materials", "calculation", "general"] as const;
 const LEGACY_DOCUMENT_TYPES = ["CVs", "PQP", "IFR"] as const;
@@ -198,6 +200,8 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     if (key === "external_ncr" || key === "internal_ncr") {
       if (current.ageing !== undefined && !Array.isArray(current.ageing)) errors.push(`metrics.${key}.ageing must be an array`);
       const ageing = Array.isArray(current.ageing) ? current.ageing : [];
+      for (const { index, firstIndex } of duplicateNcrAgeingRows(ageing))
+        errors.push(`metrics.${key}.ageing.${index}.bucket duplicates the BU/Department and Ageing Bucket in row ${firstIndex + 1}; each pair can appear only once`);
       let total = 0;
       for (const [i, row] of ageing.entries()) {
         if (!isObject(row)) { errors.push(`metrics.${key}.ageing.${i} must be an object`); continue; }
@@ -311,6 +315,7 @@ export function calculateReport(reportType: ReportType, data: Record<string, any
     const values = RATINGS.map((key) => Number(data.ratings?.[key] ?? 0));
     return { averageRating: values.length ? round(values.reduce((a, b) => a + b, 0) / values.length) : 0, ratings: data.ratings ?? {} };
   }
+  data = dailyDisciplineSnapshot(data, baseline);
   const sums: Record<string, number> = {};
   for (const section of ["drawings", "submittals"]) for (const discipline of DISCIPLINES) {
     sums[`${section}.${discipline}`] = DAILY_STATUSES.reduce((sum, status) => sum + Number(data.disciplines?.[section]?.[discipline]?.[status] ?? 0), 0);
