@@ -218,13 +218,16 @@ An unissued Finding ID is `-`; reading the report must never issue a number.
 Keep PDF/JSON columns and unrelated PowerPoint sections unchanged.
 
 The Design and procurement status PowerPoint page uses available content space,
-not a fixed number of template rows. Comments follow the actual table height;
-an unfinished section may use remaining space below the other column before
-continuing to another slide.
+not a fixed number of template rows. Keep Design on the left and Procurement
+on the right, each inside its original purple panel. Do not borrow the other
+section's column. Both panels retain rounded white comment boxes, aligned
+below the taller table and its check text.
 
-**Why:** The user supplied a report where only the design Total submittals row
-was pushed to another slide despite substantial unused page space.
+**Why:** After the premature Total submittals continuation was corrected, the
+user rejected the cross-column flow and missing comment-box layout and supplied
+the required two-panel screenshot again.
 
 **How to apply:** Retain the two-section branding, all saved rows, totals and
-comments. Repeat clear section/table headings when borrowing space or
-continuing, and reserve footer space. Keep PDF/JSON and other sections independent.
+comments. Add table rows and resize/reposition the padded comment boxes first;
+only continue when the content cannot fit. Continuations retain the same panel
+format, headings and footer clearance. Keep PDF/JSON and other sections independent.

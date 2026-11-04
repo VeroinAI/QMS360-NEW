@@ -33,6 +33,13 @@ describe("Dynamic Design and procurement status slide", () => {
     expect(text(slides[0]!)).toContain("Total submittals28100%");
     expect(text(slides[0]!).match(/Comment: okay/g)).toHaveLength(2);
     expect(text(slides[0]!)).not.toContain(" — continued");
+    const boxes = Array.from(slides[0]!.getElementsByTagNameNS(P, "sp")).filter(shape =>
+      ["Shape 8", "Shape 11"].includes(shape.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("name") ?? ""));
+    expect(boxes).toHaveLength(2);
+    const transforms = boxes.map(box => box.getElementsByTagNameNS(A, "xfrm")[0]!);
+    expect(transforms[0]!.getElementsByTagNameNS(A, "off")[0]!.getAttribute("y"))
+      .toEqual(transforms[1]!.getElementsByTagNameNS(A, "off")[0]!.getAttribute("y"));
+    for (const box of boxes) expect(box.getElementsByTagNameNS(A, "prstGeom")[0]?.getAttribute("prst")).toBe("roundRect");
     expect(JSON.stringify(input)).toBe(before);
     if (process.env.QMS_DESIGN_VISUAL === "1") {
       await mkdir("../../generated-artifacts/audit-design-procurement", { recursive: true });
@@ -41,12 +48,25 @@ describe("Dynamic Design and procurement status slide", () => {
     }
   });
 
-  it("uses free space below the shorter table before adding a continuation slide", () => {
+  it("keeps Design and Procurement in their original panels on matching continuation slides", () => {
     const rows = [Array.from({ length: 16 }, (_, i) => [`Design ${i}`, "1", "1%"]), [["Procurement", "1"]]];
     const pages = designProcurementPages(rows, ["Comment: okay", "Comment: okay"], "");
-    expect(pages).toHaveLength(1);
-    expect(pages[0]!.some(fragment => fragment.section === 0 && fragment.column === 1 && fragment.continued)).toBe(true);
+    expect(pages).toHaveLength(2);
+    expect(pages.flat().every(fragment => fragment.section === fragment.column)).toBe(true);
+    for (const page of pages) expect(page[0]!.commentY).toEqual(page[1]!.commentY);
     expect(pages.flat().flatMap(fragment => fragment.entries).filter(entry => entry.kind === "row")).toHaveLength(17);
+  });
+
+  it("expands the padded comment boxes to retain longer comments without unnecessary continuation", () => {
+    const remarks = "Actual recorded project progress. ".repeat(12);
+    const pages = designProcurementPages([[["Status", "1", "100%"]], [["Item", "1"]]],
+      [`Comment: ${remarks}`, "Comment: okay"], "");
+    expect(pages).toHaveLength(1);
+    const fragment = pages[0]![0]!;
+    expect(fragment.entries.filter(entry => entry.kind === "note").map(entry => entry.text).join(""))
+      .toBe(`Comment: ${remarks}`);
+    expect(fragment.commentY).toBeLessThan(4709160);
+    expect(fragment.commentHeight).toBeGreaterThan(1325880);
   });
 
   it("keeps every row and long comment, with bounded, nonoverlapping fragments on genuinely full pages", async () => {
@@ -55,14 +75,16 @@ describe("Dynamic Design and procurement status slide", () => {
     const pages = designProcurementPages(report.tables.map(table => table.rows),
       ["Comment: " + input.audit.additionalDocuments.designRemarks, "Comment: " + input.audit.additionalDocuments.procurementRemarks], "");
     expect(pages.length).toBeGreaterThan(1);
-    for (const page of pages) for (let column = 0; column < 2; column++) {
-      let bottom = 1600200;
-      for (const fragment of page.filter(fragment => fragment.column === column).sort((a,b) => a.y-b.y)) {
-        expect(fragment.y).toBeGreaterThanOrEqual(bottom);
-        bottom = fragment.y + 274320 + 91440 + (fragment.header ? 283464 : 0)
-          + fragment.entries.reduce((sum, entry) => sum + entry.height, 0);
-        expect(bottom).toBeLessThanOrEqual(6035040);
-      }
+    for (const page of pages) for (const fragment of page) {
+      expect(fragment.column).toBe(fragment.section);
+      const bottom = fragment.y + 274320 + 91440 + (fragment.header ? 283464 : 0)
+        + fragment.entries.filter(entry => entry.kind === "row" || entry.role === "check")
+          .reduce((sum, entry) => sum + entry.height, 0)
+        + (fragment.entries.some(entry => entry.kind === "note" && entry.role === "check") ? 91440 : 0);
+      expect(bottom).toBeLessThanOrEqual(fragment.commentY);
+      expect(fragment.commentY + fragment.commentHeight).toBe(6035040);
+      expect(fragment.entries.filter(entry => entry.kind === "note" && entry.role === "comment")
+        .reduce((sum, entry) => sum + entry.height, 0) + 2 * 109728).toBeLessThanOrEqual(fragment.commentHeight);
     }
     const files = unzipSync(await renderConsolidatedAuditPptx({ sections: sections(input) }));
     const slides = sectionSlides(files), allText = slides.map(text).join("");
