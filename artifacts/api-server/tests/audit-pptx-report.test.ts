@@ -88,10 +88,11 @@ describe("Original Audit PowerPoint report template", () => {
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
         // The CAR tracker alone extends its pristine eight-column template to
         // ten columns, with explicit padding and variable-height body rows.
+        if (slide === 9 && tag === "tcPr") continue;
         if ([11, 15].includes(slide) && ["tblGrid", "tcPr"].includes(tag)) continue;
         // Programme text boxes are intentionally widened/repositioned to fix overflow.
         // Conclusion sign-off is explicitly rearranged to the supplied three-row reference.
-        if ([5, 7, 8, 10, 11, 12, 13, 15, 17].includes(slide) && tag === "xfrm") continue;
+        if ([5, 7, 8, 9, 10, 11, 12, 13, 15, 17].includes(slide) && tag === "xfrm") continue;
         const rendered = Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         const originalParts = Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         // CAR rows now follow the actual response count; retained rows keep the template styling.

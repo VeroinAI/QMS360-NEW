@@ -216,3 +216,15 @@ workspace Finding ID as the source of this additional column.
 Correction, Corrective action, Owner, due date, status and verification aligned.
 An unissued Finding ID is `-`; reading the report must never issue a number.
 Keep PDF/JSON columns and unrelated PowerPoint sections unchanged.
+
+The Design and procurement status PowerPoint page uses available content space,
+not a fixed number of template rows. Comments follow the actual table height;
+an unfinished section may use remaining space below the other column before
+continuing to another slide.
+
+**Why:** The user supplied a report where only the design Total submittals row
+was pushed to another slide despite substantial unused page space.
+
+**How to apply:** Retain the two-section branding, all saved rows, totals and
+comments. Repeat clear section/table headings when borrowing space or
+continuing, and reserve footer space. Keep PDF/JSON and other sections independent.
