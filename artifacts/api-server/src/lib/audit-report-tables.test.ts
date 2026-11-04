@@ -46,6 +46,20 @@ const object = (key: ReportKey, index = 0, data = fixture()) => {
 };
 
 describe("Audit workbook report projections", () => {
+  it("derives available years from this report's authorized rows, not filters or pagination", () => {
+    const data = fixture();
+    data.schedules.push({ id: "older-schedule", year: 2010, title: "Older planned audit",
+      status: JSON.stringify({ parentId: "programme" }) });
+    expect(table("schedule", data, { page: 2, limit: 1, year: 2025, search: "no match" }).availableYears).toEqual([2026, 2010]);
+    expect(table("open-vs-closed", data).availableYears).toEqual([2026]);
+    expect(table("findings-log", data).availableYears).toEqual([2026]);
+    expect(table("car-status", data).availableYears).toEqual([2026]);
+    data.scheduleIds = new Set(["older-schedule"]);
+    expect(table("schedule", data).availableYears).toEqual([2010]);
+    data.audits = [];
+    for (const key of ["open-vs-closed", "findings-log", "car-status"] as const)
+      expect(table(key, data).availableYears).toEqual([]);
+  });
   it("preserves each workbook's column count and exact title", () => {
     for (const [key, count, title] of [
       ["open-vs-closed", 18, "Open vs Closed Audits"], ["findings-log", 18, "Findings Log"],

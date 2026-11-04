@@ -37,7 +37,7 @@ beforeAll(async () => {
   await db.insert(auditUserWorkspaceRoles).values({ organizationId: org, workspaceRoleId: role.id, userId: people[1], projectIds: [projectId] });
   for (const [i, p] of ps.entries()) {
     const [schedule] = await db.insert(auditSchedules).values({ organizationId: org, projectId: p.id,
-      year: 2026, title: `${p.name} audit`, status: JSON.stringify({ projectIds: [p.id],
+      year: i ? 2024 : 2026, title: `${p.name} audit`, status: JSON.stringify({ projectIds: [p.id],
         auditNumber: `AUD-${i}`, qaqcReference: `REF-${i}`, plannedStartDate: "2026-11-01", plannedEndDate: "2026-11-03" }) }).returning();
     const [plan] = await db.insert(auditPlans).values({ organizationId: org, projectId: p.id, auditScheduleId: schedule.id }).returning();
     await db.insert(audits).values({ organizationId: org, projectId: p.id, auditPlanId: plan.id, referenceNumber: `EXEC-${i}`,
@@ -59,6 +59,7 @@ describe("Audit report table API", () => {
       expect((await response.json()).columns).toHaveLength(count);
     }
     const page = await (await request("open-vs-closed?limit=1&page=2")).json();
+    expect(page.availableYears).toEqual([2026, 2024]);
     expect(page.total).toBe(2);
     expect(page.rows).toHaveLength(1);
     const filtered = await (await request("open-vs-closed?search=Authorized&year=2026")).json();
@@ -71,6 +72,7 @@ describe("Audit report table API", () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.total).toBe(1);
+      expect(data.availableYears).toEqual([2026]);
       expect(JSON.stringify(data)).toContain("Authorized");
       expect(JSON.stringify(data)).not.toContain("Other project");
     }

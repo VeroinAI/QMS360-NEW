@@ -186,6 +186,9 @@ export function buildAuditReportTable(report: ReportKey, data: ReportData, optio
     }
   }
   const search = options.search?.trim().toLowerCase();
+  const availableYears = [...new Set(rows.map(row => row.year)
+    .filter((year): year is number => typeof year === "number" && Number.isInteger(year)))]
+    .sort((a, b) => b - a);
   const filtered = rows.filter(row => (!options.year || row.year === options.year)
     && (!search || row.values.some(value => String(value ?? "").toLowerCase().includes(search))));
   return {
@@ -193,6 +196,6 @@ export function buildAuditReportTable(report: ReportKey, data: ReportData, optio
     columns: definition.labels.map((label, i) => ({ label, kind: definition.dates.includes(i) ? "date" : definition.numbers.includes(i) ? "number" : "text" })),
     rows: (options.all ? filtered : filtered.slice((options.page - 1) * options.limit, options.page * options.limit))
       .map(row => ({ id: row.id, values: row.values.map(value => value == null || value === "" ? null : String(value)) })),
-    total: filtered.length, page: options.page, limit: options.limit, generatedAt: new Date(),
+    total: filtered.length, page: options.page, limit: options.limit, generatedAt: new Date(), availableYears,
   };
 }

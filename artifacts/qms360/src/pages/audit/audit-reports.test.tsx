@@ -14,6 +14,7 @@ vi.mock("@workspace/api-client-react", () => ({
 import { AuditReports, AuditReportTableView, AUDIT_REPORT_TABS } from "./audit-reports";
 
 const table: AuditReportTable = {
+  availableYears: [2026, 2010],
   title: "Findings Log", total: 2, page: 1, limit: 25, generatedAt: "2026-03-04T10:00:00Z",
   columns: [{ label: "Finding ID", kind: "text" }, { label: "Raised On", kind: "date" }, { label: "Days Open", kind: "number" }],
   rows: [{ id: "a", values: ["F-001", "2026-02-15", "17"] }, { id: "b", values: ["F-002", null, ""] }],
@@ -22,6 +23,16 @@ const page = (search = "") => renderToStaticMarkup(<Router ssrPath="/audit/repor
 beforeEach(() => { state.canExport = true; state.calls = []; state.query = { data: table, isLoading: false, isError: false, refetch: () => {} }; });
 
 describe("AuditReports", () => {
+  it("shows only server-provided years with data, including older years", () => {
+    const html = page();
+    expect([...html.matchAll(/<option\b[^>]*value="([^"]*)"/g)].map(match => match[1]))
+      .toEqual(["", "2026", "2010"]);
+  });
+  it("does not offer any numbered years when the selected report has no data", () => {
+    state.query = { ...state.query, data: { ...table, availableYears: [], total: 0, rows: [] } };
+    expect([...page().matchAll(/<option\b[^>]*value="([^"]*)"/g)].map(match => match[1]))
+      .toEqual([""]);
+  });
   it("shows the four workbook tabs and no landing cards", () => {
     const html = page();
     expect(AUDIT_REPORT_TABS.map(t => t.label)).toEqual(["Open vs Closed Audits", "Findings Log", "CAR Status & Closure", "Annual Audit Schedule"]);

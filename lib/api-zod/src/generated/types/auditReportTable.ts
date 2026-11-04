@@ -16,4 +16,6 @@ export interface AuditReportTable {
   page: number;
   limit: number;
   generatedAt: Date;
+  /** Distinct years with authorized rows in this report, independent of pagination and selected filters, newest first. */
+  availableYears: number[];
 }

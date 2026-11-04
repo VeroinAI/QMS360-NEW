@@ -5267,7 +5267,7 @@ components:
         values: {type: array, items: {type: [string, "null"]}}
     AuditReportTable:
       type: object
-      required: [title, columns, rows, total, page, limit, generatedAt]
+      required: [title, columns, rows, total, page, limit, generatedAt, availableYears]
       properties:
         title: {type: string}
         columns: {type: array, items: {$ref: "#/components/schemas/AuditReportTableColumn"}}
@@ -5276,6 +5276,10 @@ components:
         page: {type: number}
         limit: {type: number}
         generatedAt: {type: string, format: date-time}
+        availableYears:
+          type: array
+          description: Distinct years with authorized rows in this report, independent of pagination and selected filters, newest first.
+          items: {type: number}
     ReportDelivery:
       type: object
       required: [delivery, fileName]

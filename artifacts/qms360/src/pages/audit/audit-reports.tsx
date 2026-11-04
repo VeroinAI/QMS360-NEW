@@ -87,8 +87,13 @@ export function AuditReports() {
   const params = { page, limit: PAGE_SIZE, ...filters };
   const query = useGetAuditReportTable(report, params, { query: { queryKey: getGetAuditReportTableQueryKey(report, params) } });
   const exportUrl = getGetAuditReportTableUrl(report, { ...filters, format: "csv" });
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 8 }, (_, i) => String(currentYear + 1 - i));
+  const years = (query.data?.availableYears ?? []).map(String);
+  useEffect(() => {
+    if (query.data?.availableYears && year && !query.data.availableYears.includes(Number(year))) {
+      setYear("");
+      setPage(1);
+    }
+  }, [query.data, year]);
   const selectTab = (key: string) => navigate(`${location}?report=${key}`, { replace: true });
 
   return <div className="space-y-5">
@@ -114,7 +119,7 @@ export function AuditReports() {
           <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground"/>
           <Input value={searchInput} maxLength={200} onChange={e => onSearchChange(e.target.value)} placeholder="Search this report" className="pl-8" data-testid="input-report-search"/>
         </div>
-        <select value={year} onChange={e => { setYear(e.target.value); setPage(1); }} aria-label="Year"
+        <select value={year} onChange={e => { setYear(e.target.value); setPage(1); }} aria-label="Year" disabled={!query.data}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm" data-testid="select-report-year">
           <option value="">All years</option>{years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>

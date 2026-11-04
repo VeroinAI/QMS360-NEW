@@ -14203,7 +14203,8 @@ export const GetAuditReportTableResponse = zod.object({
   "total": zod.number(),
   "page": zod.number(),
   "limit": zod.number(),
-  "generatedAt": zod.date()
+  "generatedAt": zod.date(),
+  "availableYears": zod.array(zod.number()).describe('Distinct years with authorized rows in this report, independent of pagination and selected filters, newest first.')
 })
 
 
