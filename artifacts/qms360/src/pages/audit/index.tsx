@@ -1,3 +1,4 @@
+import { AuditReports } from "./audit-reports";
 import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { responseFieldLabels } from "@/lib/response-field-labels";
@@ -113,7 +114,7 @@ import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { importDateOptions } from "@/lib/import-date-options";
 import { auditPlanDateErrors, datedActivities, plannedDate, checklistDeletionBlockReason } from "@workspace/field-controls";
 import {
-  AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
+  AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Send, ShieldCheck,
   Check, Info, Trash2, Upload, XCircle,
 } from "lucide-react";
@@ -2410,10 +2411,8 @@ function CarActionDetail() {
   </div>;
 }
 
-const reportCards=[["Open vs closed audits","open-vs-closed"],["Findings log","findings-log"],["Audit ageing","ageing"],["CAR status & closure","car-status"],["Annual audit schedule","schedule"]];
 function Reports() {
-  const capabilities = useAuditCapabilities();
-  return <div className="space-y-5"><PageHeader title="Report centre" description="Operational audit reports and export files"/>{!capabilities.canExport("reports") && <p className="text-sm text-muted-foreground">Your role can open Reports but does not have report export access.</p>}<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{reportCards.map(([title,path])=><Card key={path}><CardHeader><div className="mb-2 w-fit rounded-lg bg-accent p-2 text-accent-foreground"><BarChart3 className="size-5"/></div><CardTitle className="text-base">{title}</CardTitle><CardDescription>Current live audit workspace data</CardDescription></CardHeader><CardContent>{capabilities.canExport("reports") ? <Button variant="outline" className="w-full" asChild><a href={`/api/audit/reports/${path}?format=csv`} download><Download className="mr-2 size-4"/>Download CSV</a></Button> : <Button variant="outline" className="w-full" disabled><Download className="mr-2 size-4"/>Download CSV</Button>}</CardContent></Card>)}</div></div>;
+  return <AuditReports/>;
 }
 
 function Missing() { return <Card><CardContent className="py-14 text-center"><XCircle className="mx-auto mb-3 size-8 text-muted-foreground"/><h2 className="font-semibold">Audit page not found</h2><Button className="mt-4" asChild><Link href="/audit">Return to dashboard</Link></Button></CardContent></Card>; }

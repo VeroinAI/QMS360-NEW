@@ -1,4 +1,5 @@
-import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
+import { formatDate, formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
+import { buildAuditReportTable, reportKeys, type ReportKey } from "../lib/audit-report-tables";
 import { auditExecutionSummaries } from "../lib/audit-execution-summary";
 import { auditFindingRegisterRows } from "../lib/audit-finding-register";
 import { roleDepartments, validateRoleDepartments } from "../lib/role-departments";
@@ -4468,6 +4469,101 @@ async function dashboardData(req: Request, projectId?: string, scopeModule = "da
   };
 }
 router.get("/dashboard", asyncHandler(async (req, res) => res.json(await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined))));
+router.get("/reports/table/:report", asyncHandler(async (req, res) => {
+  const report = String(req.params.report) as ReportKey;
+  if (!reportKeys.includes(report)) throw new HttpError(404, "Audit report not found");
+  const parsed = Api.GetAuditReportTableQueryParams.safeParse(req.query);
+  if (!parsed.success || !Number.isInteger(parsed.data.page) || !Number.isInteger(parsed.data.limit))
+    throw new HttpError(422, "Provide a valid report year, page and page size");
+  const org = actor(req).organizationId, viewerId = actor(req).id;
+  const [readScope, readFullScope] = await Promise.all([
+    getAuthorizedProjectScope(req, "audit", { module: "reports", action: "select" }),
+    getAuthorizedFullProjectScope(req, "audit", { module: "reports", action: "select" }),
+  ]);
+  const scope = intersectAuditScopes(readScope, req.permissionProjectScope ?? readScope);
+  const fullScope = intersectAuditScopes(readFullScope, req.permissionFullProjectScope ?? readFullScope);
+  const [allSchedules, planRows, auditRows, userRows, projectRows, labels] = await Promise.all([
+    db.select().from(auditSchedules).where(active(auditSchedules, org)).orderBy(desc(auditSchedules.year), auditSchedules.id),
+    db.select().from(auditPlans).where(active(auditPlans, org)),
+    db.select().from(audits).where(and(active(audits, org), await auditProjectCondition(req, scope))).orderBy(desc(audits.createdAt), audits.id),
+    db.select({ id: users.id, fullName: users.fullName }).from(users).where(eq(users.organizationId, org)),
+    db.select({ id: projects.id, name: projects.name }).from(projects).where(active(projects, org)),
+    db.select({ group: masterDataGroups.code, id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label })
+      .from(masterDataValues).innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId)).where(and(
+        active(masterDataValues, org), active(masterDataGroups, org),
+        inArray(masterDataGroups.code, ["audit_types", "audit_categories", "departments", "nc_classifications", "risk_levels"]),
+      )),
+  ]);
+  const scheduleAllowed = async (row: AnyRow, permission: EffectiveProjectScope) => {
+    const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
+    return permission.unrestricted || ids.length > 0 && ids.every(id => permission.projectIds.includes(id))
+      || !isProgramme(row) && !ids.length && await processScheduleAllowed(req, row, permission);
+  };
+  const fullAuditIds = new Set<string>();
+  const visibleAudits: typeof auditRows = [];
+  const ownedLegacy = await db.select({ auditId: auditFindings.auditId }).from(correctiveActionReports)
+    .innerJoin(auditFindings, eq(auditFindings.id, correctiveActionReports.auditFindingId)).where(and(
+      active(correctiveActionReports, org), active(auditFindings, org), eq(correctiveActionReports.ownerId, viewerId),
+    ));
+  const ownedAuditIds = new Set(ownedLegacy.map(row => row.auditId));
+  // Reports' full/own grants are independent of the other Audit module grants.
+  // Label lookups below do not require separate Project Master or Plan access.
+  for (const audit of auditRows) {
+    const plan = planRows.find(row => row.id === audit.auditPlanId);
+    const schedule = allSchedules.find(row => row.id === plan?.auditScheduleId);
+    const full = audit.projectId
+      ? fullScope.unrestricted || fullScope.projectIds.includes(audit.projectId)
+      : !!schedule && await processScheduleAllowed(req, schedule, fullScope);
+    const owns = plan?.teamMemberIds.includes(viewerId) || planMeta(plan ?? {}).leadAuditorId === viewerId;
+    const hasAssignedFinding = Array.isArray(audit.checklistState)
+      && audit.checklistState.some((item: AnyRow) => item.actionTakerId === viewerId);
+    if (full || owns || hasAssignedFinding || ownedAuditIds.has(audit.id)) {
+      visibleAudits.push(audit);
+      if (full || owns) fullAuditIds.add(audit.id);
+    }
+  }
+  const auditIds = visibleAudits.map(row => row.id);
+  const findingRows = auditIds.length ? await db.select().from(auditFindings).where(and(active(auditFindings, org), inArray(auditFindings.auditId, auditIds))) : [];
+  const carRows = findingRows.length ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, org), inArray(correctiveActionReports.auditFindingId, findingRows.map(row => row.id)))) : [];
+  const scheduleIds = new Set<string>();
+  for (const row of allSchedules) {
+    if (isProgramme(row) || !await scheduleAllowed(row, scope)) continue;
+    const relatedPlans = planRows.filter(plan => plan.auditScheduleId === row.id);
+    if (await scheduleAllowed(row, fullScope) || row.ownerId === viewerId
+      || scheduleMeta(row).teamLeadIds?.includes(viewerId) || relatedPlans.some(plan =>
+        plan.teamMemberIds.includes(viewerId) || planMeta(plan).leadAuditorId === viewerId))
+      scheduleIds.add(row.id);
+  }
+  const relevantIds = [...auditIds, ...findingRows.map(row => row.id), ...carRows.map(row => row.id)];
+  const contextIds = [...allSchedules.filter(row => scheduleIds.has(row.id) || visibleAudits.some(audit =>
+    planRows.find(plan => plan.id === audit.auditPlanId)?.auditScheduleId === row.id))
+    .flatMap(row => [row.id, scheduleMeta(row).parentId].filter((id): id is string => !!id)),
+    ...planRows.filter(plan => scheduleIds.has(plan.auditScheduleId!) || visibleAudits.some(audit => audit.auditPlanId === plan.id)).map(plan => plan.id), ...auditIds];
+  const [evidence, events, escalations] = await Promise.all([
+    relevantIds.length ? db.select({ id: auditEvidenceFiles.id, recordId: auditEvidenceFiles.recordId, recordType: auditEvidenceFiles.recordType, status: auditEvidenceFiles.status })
+      .from(auditEvidenceFiles).where(and(active(auditEvidenceFiles, org), inArray(auditEvidenceFiles.recordId, relevantIds))) : [],
+    contextIds.length ? db.select().from(auditAuditLogEntries).where(and(eq(auditAuditLogEntries.organizationId, org), inArray(auditAuditLogEntries.entityId, contextIds))) : [],
+    relevantIds.length ? db.select().from(auditEscalationInstances).where(and(active(auditEscalationInstances, org), inArray(auditEscalationInstances.recordId, relevantIds))) : [],
+  ]);
+  const { page, limit, year, search } = parsed.data;
+  const exporting = req.query.format === "csv" || req.accepts(["json", "text/csv"]) === "text/csv";
+  const table = buildAuditReportTable(report, {
+    audits: visibleAudits, plans: planRows, schedules: allSchedules, findings: findingRows, cars: carRows,
+    users: userRows, projects: projectRows, labels, evidence, events, escalations,
+    viewerId, fullAuditIds, scheduleIds, now: dateOnly(new Date())!,
+  }, { page, limit, year, search, all: exporting });
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!exporting) { res.json(table); return; }
+  // Export the complete filtered report, including headers for an empty report.
+  const escape = (value: string | null) => `"${String(value ?? "-").replace(/"/g, '""').replace(/^[=+@-]/, "'$&")}"`;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-${report}.csv"`);
+  res.send("\uFEFF" + [
+    table.columns.map(column => escape(column.label)).join(","),
+    ...table.rows.map(row => row.values.map((value, i) =>
+      escape(value && table.columns[i]?.kind === "date" ? formatDate(value) : value)).join(",")),
+  ].join("\r\n"));
+}));
 router.get("/reports/open-vs-closed", asyncHandler(async (req, res) => {
   const report = await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined, "reports");
   const rows = Object.entries(report.metrics.audits as AnyRow).map(([status, count]) => ({ status, count }));

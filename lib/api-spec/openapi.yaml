@@ -2227,6 +2227,24 @@ paths:
     put: {operationId: confirmAuditEvidence, tags: [audit], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
   /audit/reports/open-vs-closed:
     get: {operationId: getAuditOpenVsClosedReport, tags: [audit], summary: Get open versus closed report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/reports/table/{report}:
+    get:
+      operationId: getAuditReportTable
+      tags: [audit]
+      summary: Read workbook-layout Audit report tables within Reports role scope
+      parameters:
+        - {name: report, in: path, required: true, schema: {type: string, enum: [open-vs-closed, findings-log, car-status, schedule]}}
+        - {$ref: "#/components/parameters/Page"}
+        - {$ref: "#/components/parameters/Limit"}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: year, in: query, schema: {type: integer, minimum: 1900, maximum: 2200}}
+        - {name: format, in: query, schema: {type: string, enum: [json, csv]}}
+      responses:
+        "200":
+          description: Authorized rows in the supplied Audit workbook column order
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuditReportTable"}
   /audit/finding-register:
     get:
       operationId: listAuditFindingRegister
@@ -5235,6 +5253,29 @@ components:
       type: object
       required: [audit, findings, cars, generatedAt]
       properties: {audit: {$ref: "#/components/schemas/Audit"}, findings: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}, cars: {type: array, items: {$ref: "#/components/schemas/CorrectiveActionReport"}}, sections: {type: array, items: {$ref: "#/components/schemas/AuditReportSection"}}, generatedAt: {type: string, format: date-time}, downloadUrl: {type: [string, "null"]}}
+    AuditReportTableColumn:
+      type: object
+      required: [label, kind]
+      properties:
+        label: {type: string}
+        kind: {type: string, enum: [text, date, number]}
+    AuditReportTableRow:
+      type: object
+      required: [id, values]
+      properties:
+        id: {type: string}
+        values: {type: array, items: {type: [string, "null"]}}
+    AuditReportTable:
+      type: object
+      required: [title, columns, rows, total, page, limit, generatedAt]
+      properties:
+        title: {type: string}
+        columns: {type: array, items: {$ref: "#/components/schemas/AuditReportTableColumn"}}
+        rows: {type: array, items: {$ref: "#/components/schemas/AuditReportTableRow"}}
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
+        generatedAt: {type: string, format: date-time}
     ReportDelivery:
       type: object
       required: [delivery, fileName]
