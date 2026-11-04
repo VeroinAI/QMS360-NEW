@@ -8,6 +8,7 @@ import {db,organizations,projects,platformRoles,users,audits,auditPlans,auditSch
   auditNotifications,organizationSettings} from "@workspace/db";
 import app from "../src/app";
 import {issueToken} from "../src/lib/auth";
+import {strFromU8,unzipSync} from "fflate";
 const suffix=randomUUID().slice(0,8);
 let server:Server,base:string,orgId:string,projectId:string,auditId:string,browserAuditId:string;
 const tokens:string[]=[],personIds:string[]=[];
@@ -44,7 +45,8 @@ beforeAll(async()=>{
     }
   }
   const [schedule]=await db.insert(auditSchedules).values({organizationId:orgId,projectId,title:"Approval schedule",year:2026}).returning();
-  const [plan]=await db.insert(auditPlans).values({organizationId:orgId,projectId,auditScheduleId:schedule!.id}).returning();
+  const [plan]=await db.insert(auditPlans).values({organizationId:orgId,projectId,auditScheduleId:schedule!.id,
+    status:JSON.stringify({leadAuditorId:personIds[0]})}).returning();
   const records=await db.insert(audits).values(["Approval workflow","Browser approval"].map(title=>({
     organizationId:orgId,projectId,auditPlanId:plan!.id,referenceNumber:`${title}-${suffix}`,workflowState:"planned",
     status:JSON.stringify({title,reportNumber:`REPORT-${suffix}-${title}`,reportDetails:{values:{overallConclusion:"Recorded conclusion"},rows:{}}}),
@@ -165,5 +167,17 @@ describe("Audit Report approval API",()=>{
     expect(final.body.reportApproval.pendingLevel).toBeNull();
     expect((await call("PUT",`/audits/${auditId}/report-details`,0,{values:{},rows:{}})).status).toBe(409);
     expect((await call("POST",`/audits/${auditId}/review`,2,{decision:"approve"})).status).toBe(409);
+  });
+  it("downloads conclusion sign-offs from the completed report's actual approval cycle",async()=>{
+    const response=await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`,{
+      headers:{authorization:`Bearer ${tokens[0]}`}});
+    expect(response.status).toBe(200);
+    const files=unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const conclusion=strFromU8(files["ppt/slides/slide17.xml"]);
+    expect(conclusion).toContain(">Author<");
+    expect(conclusion.match(/>First reviewer</g)).toHaveLength(1);
+    expect(conclusion.match(/>Final reviewer</g)).toHaveLength(1);
+    expect(conclusion).toMatch(/Report issue date: \d/);
+    expect(conclusion).not.toMatch(/Acknowledged by|Distribution:/);
   });
 });

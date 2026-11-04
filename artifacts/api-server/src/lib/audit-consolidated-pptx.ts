@@ -8,6 +8,7 @@ import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-la
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
 import { summaryPages, renderSummaryPage } from "./audit-pptx-summary-layout";
 import { carPages, renderCarPage } from "./audit-pptx-car-layout";
+import { renderConclusionSignoff } from "./audit-pptx-conclusion-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -154,6 +155,7 @@ async function template() {
 /** Edit only slide data in the original package; retain masters, branding and geometry. */
 export async function renderConsolidatedAuditPptx(input: {
   sections: ReportSectionData[]; photos?: Map<string, Uint8Array>;
+  signoffSignatures?: Map<string, Uint8Array[]>;
   skipPriorityActions?: boolean;
 }): Promise<Buffer> {
   const files = unzipSync(await template());
@@ -333,6 +335,7 @@ export async function renderConsolidatedAuditPptx(input: {
       if (slideNumber === 13) {
         await renderPhotographicPage({ doc, rels: slideRels, page: photos[page], target, files, photos: input.photos, setText });
       }
+      if (slideNumber === 17) renderConclusionSignoff(doc, slideRels, files, contentTypes, section("conclusion"), input.signoffSignatures, setText);
       files[targetPath] = xml(doc);
       files[`ppt/slides/_rels/slide${target}.xml.rels`] = xml(slideRels);
       if (!page) outputSlides.push(originals[slideNumber - 1]!);

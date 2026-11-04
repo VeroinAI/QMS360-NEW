@@ -53,3 +53,13 @@ actual entries even though each cloned row retained a bottom border.
 
 **How to apply:** Keep the header, ordinary body and grand Total styling distinct;
 check row separators in an office-rendered export after rebuilding dynamic tables.
+
+Template signature/date rules may be zero-height line shapes, not usable text
+boxes. Keep the lines and put signer values in separate nonzero-height text
+boxes or picture shapes above them.
+
+**Why:** Text can exist in the generated XML without being visible in Office
+when inserted into a zero-height line shape.
+
+**How to apply:** Check rendered signature/date fields, not just their XML
+contents, when updating any sign-off layout.

@@ -180,3 +180,19 @@ responses, not a change to CAR entry, storage, workflows or other report formats
 **How to apply:** Preserve field identity through row mapping and continuation
 pagination; never infer one response from the other or shift the owner, due date,
 status or verification data when changing the tracker columns.
+
+The PowerPoint conclusion uses the supplied three-row sign-off reference:
+Prepared by is the explicitly selected Audit Plan Team Lead with the stored
+Mark as complete date. Reviewed by uses actual intermediate Audit Report
+approval decisions; Approved by and Report issue date use the actual final
+approval. Only the current submission cycle signs the report. Distribution
+and Acknowledged by are omitted from this slide.
+
+**Why:** The user supplied an annotated conclusion image identifying workflow
+sources, rather than manually entered Report Details sign-off text.
+
+**How to apply:** Include available signature images for these identified
+users, never signatures belonging merely to eligible role holders. Preserve
+missing values as `-`, prior workflow history and all source data. Keep PDF/JSON
+mapping independent, and use the common PowerPoint generator for downloads and
+email attachments.

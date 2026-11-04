@@ -74,6 +74,7 @@ import { auditPlanReportData } from "../lib/audit-plan-report-data";
 import { auditAreaLabelsQuery, auditPlanActivityLabelsQuery } from "../lib/audit-plan-activity-labels";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
+import { auditPptxSignoff, applyAuditPptxSignoff } from "../lib/audit-pptx-signoff";
 import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
 import { checklistDeletionBlockReason } from "@workspace/field-controls";
 import { normalizeProjectProgress, projectProgressVariance } from "@workspace/field-controls";
@@ -4715,6 +4716,35 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
 export async function auditExecutionEmailReport(orgId: string, id: string, format: "pdf" | "pptx") {
   if (format === "pdf") return auditExecutionEmailPdf(orgId, id);
   const report = await consolidatedReport(orgId, id, true);
+  const auditState = auditMeta(report.audit);
+  const leadId = report.plan ? planMeta(report.plan).leadAuditorId : undefined;
+  const signatoryIds = [...new Set([leadId, ...(auditState.reportApproval?.history ?? [])
+    .map(row => row.userId)].filter((id): id is string => !!id))];
+  const signatories = signatoryIds.length ? await db.select({
+    id: users.id, name: users.fullName, signaturePath: users.signaturePath,
+  }).from(users).where(and(eq(users.organizationId, orgId), inArray(users.id, signatoryIds))) : [];
+  const signoff = auditPptxSignoff({ leadId, completedAt: auditState.closedAt,
+    approval: auditState.reportApproval }, new Map(signatories.map(row => [row.id, row.name])));
+  applyAuditPptxSignoff(report.sections, signoff);
+  const signoffSignatures = new Map<string, Uint8Array[]>();
+  const signatureCache = new Map<string, Uint8Array | undefined>();
+  for (const [role, people] of [
+    ["Prepared by", [signoff.prepared]], ["Reviewed by", signoff.reviewed],
+    ["Approved by", signoff.approved ? [signoff.approved] : []],
+  ] as const) {
+    const images: Uint8Array[] = [];
+    for (const person of people) {
+      if (!person.userId) continue;
+      const path = signatories.find(row => row.id === person.userId)?.signaturePath;
+      if (!path) continue;
+      try {
+        if (!signatureCache.has(path)) signatureCache.set(path, await readAuditPlanSignature(path));
+        const bytes = signatureCache.get(path);
+        if (bytes) images.push(bytes);
+      } catch { throw new HttpError(502, `Could not load the ${role.toLowerCase()} signature. Please retry the PowerPoint download.`); }
+    }
+    if (images.length) signoffSignatures.set(role, images);
+  }
   // Use the same CAR reference, classification deadline and workflow as the register.
   const tracker = report.sections.find(s => s.key === "corrective-actions")?.tables[0];
   const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
@@ -4761,7 +4791,7 @@ export async function auditExecutionEmailReport(orgId: string, id: string, forma
       throw new HttpError(502, `Could not load photograph "${photo.fileName}". Please retry the PowerPoint download.`);
     }
   }
-  const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images, skipPriorityActions: true });
+  const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images, signoffSignatures, skipPriorityActions: true });
   return bytes;
 }
 router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {

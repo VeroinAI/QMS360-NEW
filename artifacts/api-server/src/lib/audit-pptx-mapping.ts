@@ -69,12 +69,9 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
   put(17, {
     5: field("conclusion", "Headline conclusion"),
     6: `${f("conclusion", ["Objectives achieved", "System effectiveness and priority findings"]).join("\n")}\nFollow-up audit: ${f("conclusion", ["Follow-up audit date", "Follow-up scope"]).join(" · ")}`,
-    7: `Report issue date: ${field("conclusion", "Report issue date")}`, 8: `Distribution: ${field("conclusion", "Distribution")}`,
-    11: `Lead auditor: ${mappedText(signer("Prepared by")?.[1] ?? field("audit-overview", "Lead auditor"))}`,
-    17: mappedText(signer("Reviewed by")?.[1]), 23: mappedText(signer("Approved by")?.[1]), 29: mappedText(signer("Acknowledged by")?.[1]),
-    ...Object.fromEntries(["Prepared by", "Reviewed by", "Approved by", "Acknowledged by"].flatMap((role, i) => [
-      [12 + i * 6, mappedText(signer(role)?.[2])], [13 + i * 6, mappedText(signer(role)?.[3])],
-    ])),
+    7: `Report issue date: ${field("conclusion", "Report issue date")}`,
+    11: mappedText(signer("Prepared by")?.[1] ?? field("audit-overview", "Lead auditor")),
+    17: mappedText(signer("Reviewed by")?.[1]), 23: mappedText(signer("Approved by")?.[1]),
   });
   // These are attachment confirmations, not assumed merely because records exist.
   put(18, Object.fromEntries([6, 8, 10, 12, 14, 16].map(id => [id, PPTX_UNMAPPED])));

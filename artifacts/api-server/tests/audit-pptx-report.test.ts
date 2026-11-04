@@ -90,7 +90,8 @@ describe("Original Audit PowerPoint report template", () => {
         // nine columns, with explicit padding and variable-height body rows.
         if (slide === 15 && ["tblGrid", "tcPr"].includes(tag)) continue;
         // Programme text boxes are intentionally widened/repositioned to fix overflow.
-        if ([5, 7, 8, 10, 12, 13, 15].includes(slide) && tag === "xfrm") continue;
+        // Conclusion sign-off is explicitly rearranged to the supplied three-row reference.
+        if ([5, 7, 8, 10, 12, 13, 15, 17].includes(slide) && tag === "xfrm") continue;
         const rendered = Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         const originalParts = Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         // CAR rows now follow the actual response count; retained rows keep the template styling.
