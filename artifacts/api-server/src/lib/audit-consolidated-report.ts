@@ -1,4 +1,5 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
+import { validFindingDate } from "./car-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
 import { fillAuditPptxWorkbookFields, recordedGoodPractice } from "./audit-pptx-workbook-fields";
 import { meetingAttendeeLabel, notRepresentedClosingAttendees, NOT_REPRESENTED_CLOSING } from "@workspace/field-controls";
@@ -200,9 +201,13 @@ export function buildConsolidatedAuditReport(input: {
         evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`);
       return [...references, row.notes?.trim()].filter(Boolean).join("\n") || "-";
     };
-    s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
+    s.tables.push({ title, columns: ncrPptx ? ["Ref", "Date", "Finding", "Objective evidence", "Audit Area", "Grade"]
+      : ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
       // Never substitute an internal/client reference or a CAR number for an issued finding number.
-      rows: items.map(row => [input.pptxWorkbookMappings ? value(row.findingNumber?.trim()) : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
+      rows: items.map(row => [input.pptxWorkbookMappings ? value((row.findingNumber || (ncrPptx ? row.pptxNcrFindingNumber : undefined))?.trim()) : row.reference,
+        ncrPptx ? (validFindingDate(row.legacy ? row.pptxNcrFindingDate : row.findingDate)
+          ? date(row.legacy ? row.pptxNcrFindingDate : row.findingDate) : "-") : row.area,
+        value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
         objectiveEvidence(row),
         value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };

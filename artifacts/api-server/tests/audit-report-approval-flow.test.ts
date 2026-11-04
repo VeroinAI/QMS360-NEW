@@ -186,10 +186,10 @@ describe("Audit Report approval API",()=>{
       {id:currentId,organizationId:orgId,auditId,classification:"Major NC",description:"Current finding",
         evidence:{sourceChecklistItemId:itemId}},
       {id:legacyId,organizationId:orgId,auditId,classification:"Minor NC",description:"Standalone finding",
-        evidence:{findingNumber:"LEGACY-NCR-0123"}},
+        evidence:{findingNumber:"LEGACY-NCR-0123",findingDate:"2026-10-25"}},
     ]);
     await db.update(audits).set({checklistState:[{id:itemId,auditFinding:"Major NC",
-      findingNumber:"CURRENT-NCR-0456",description:"Current finding"}] as any}).where(eq(audits.id,auditId));
+      findingNumber:"CURRENT-NCR-0456",findingDate:"2026-10-26",description:"Current finding"}] as any}).where(eq(audits.id,auditId));
     await db.insert(correctiveActionReports).values([currentId,legacyId].map((findingId,i)=>({
       organizationId:orgId,auditFindingId:findingId,responsibleDepartment:"Quality",ownerId:personIds[0],
       workflowState:"draft",correction:`Recorded correction ${i}`,correctiveAction:`Recorded action ${i}`,
@@ -205,5 +205,12 @@ describe("Audit Report approval API",()=>{
       expect(plain).toContain(value);
     expect(plain).not.toContain(currentId);
     expect(plain).not.toContain(legacyId);
+    const ncr=strFromU8(files["ppt/slides/slide11.xml"]).replace(/<[^>]+>/g,"");
+    for(const value of ["Ref","Date","Finding","Objective evidence","Audit Area","Grade",
+      "CURRENT-NCR-0456","LEGACY-NCR-0123","Current finding","Standalone finding"])
+      expect(ncr).toContain(value);
+    expect(ncr).toMatch(/26[-/]10[-/]2026/);
+    expect(ncr).toMatch(/25[-/]10[-/]2026/);
+    expect(ncr).not.toContain("CAR-INDEPENDENT");
   });
 });

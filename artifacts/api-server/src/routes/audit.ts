@@ -4689,6 +4689,8 @@ async function consolidatedReport(orgId: string, id: string, pptxWorkbookMapping
         createdAt: row.createdAt,
         // Add the legacy workspace ID only to the CAR tracker, not other report mappings.
         pptxCarFindingNumber: (row.evidence as AnyRow)?.findingNumber,
+        pptxNcrFindingNumber: (row.evidence as AnyRow)?.findingNumber,
+        pptxNcrFindingDate: (row.evidence as AnyRow)?.findingDate,
       } : {}),
     })),
     cars: cars.map(car => {

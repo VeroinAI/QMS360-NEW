@@ -110,13 +110,20 @@ The NCR PowerPoint register also uses saved Finding References and exactly `-`
 when no evidence is linked. Unlike OFI, NCR objective evidence excludes generic
 finding notes; use linked uploaded file references only.
 
-**Why:** The user separately corrected the NCR register's reference and evidence
-semantics, while explicitly excluding table resizing, unused-row changes,
-number issuance and PDF/JSON changes.
+**Why:** The user corrected the NCR register's reference and evidence semantics,
+then supplied a revised six-column register image. The revised layout supersedes
+the earlier restriction on changing NCR table geometry.
 
 **How to apply:** Identify NCR by section content (template slide 11), not its
 displayed page number. Preserve historical unnumbered findings as missing data,
 legacy/checklist coexistence and OFI's independent notes-as-evidence behavior.
+Use the column order **Ref, Date, Finding, Objective evidence, Audit Area, Grade**.
+Date means the saved Finding Date, using the organization date format, never
+the record creation or upload date. Finding retains the audit-area context and
+saved description shown in the reference image. Do not infer missing dates or
+issue numbers. Preserve the shaded Grade column and readable, fully retained
+continuations; do not turn continued text into additional findings. PDF/JSON
+and other report sections remain independent.
 
 Conforming Areas in the PowerPoint report must distinguish unused source rows
 from missing cells in actual entries. Ignore wholly blank good-practice inputs,

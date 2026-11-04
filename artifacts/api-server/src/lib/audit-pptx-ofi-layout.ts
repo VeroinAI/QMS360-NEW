@@ -31,7 +31,7 @@ function lines(text: string, width: number): string[] {
   });
 }
 
-export function ofiPages(table: Element, rows: string[][]): OfiPage[] {
+export function ofiPages(table: Element, rows: string[][], options?: { labels: string[]; findingType: string }): OfiPage[] {
   const templateRows = nodes(table, A, "tr");
   const budget = templateRows.slice(2).reduce((sum, row) => sum + Number(row.getAttribute("h")), 0);
   const widths = nodes(table, A, "gridCol").map(col => Number(col.getAttribute("w")));
@@ -50,10 +50,10 @@ export function ofiPages(table: Element, rows: string[][]): OfiPage[] {
     if (used + height > budget && pages.at(-1)!.rows.length) { pages.push({ rows: [] }); used = 0; }
     pages.at(-1)!.rows.push({ cells, height }); used += height;
     if (overflow) {
-      const labels = ["Finding reference", "Audit area / finding", "Objective evidence", "Requirement", "Grade"];
+      const labels = options?.labels ?? ["Finding reference", "Audit area / finding", "Objective evidence", "Requirement", "Grade"];
       const rest = wrapped.flatMap((cell, col) => cell.length > limit
         ? lines(`${labels[col]} (continued)\n${cell.slice(limit).join("\n")}`, widths.reduce((a, b) => a + b, 0)) : []);
-      const heading = lines(`Continued text for ${row[0]} — not an additional OFI`, widths.reduce((a, b) => a + b, 0));
+      const heading = lines(`Continued text for ${row[0]} — not an additional ${options?.findingType ?? "OFI"}`, widths.reduce((a, b) => a + b, 0));
       const capacity = Math.max(1, maxLines - heading.length);
       for (let i = 0; i < rest.length; i += capacity) pages.push({
         rows: [], continuation: { reference: row[0]!, lines: [...heading, ...rest.slice(i, i + capacity)] },
@@ -89,7 +89,8 @@ function formatText(container: Element) {
   }
 }
 
-export function renderOfiPage(doc: Document, table: Element, page: OfiPage, setText: (node: Element, value: string) => void) {
+export function renderOfiPage(doc: Document, table: Element, page: OfiPage, setText: (node: Element, value: string) => void,
+  emptyMessage = "No opportunities for improvement recorded.") {
   const rows = nodes(table, A, "tr"), prototype = rows[2]!.cloneNode(true) as Element;
   for (const row of rows.slice(2)) table.removeChild(row);
   for (const item of page.rows) {
@@ -124,7 +125,7 @@ export function renderOfiPage(doc: Document, table: Element, page: OfiPage, setT
     box.appendChild(txBody);
     const notice = page.continuation
       ? page.continuation.lines.join("\n")
-      : "No opportunities for improvement recorded.";
+      : emptyMessage;
     setText(box, notice); formatText(box); tree.appendChild(box);
   }
 }

@@ -8,6 +8,7 @@ import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-la
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
 import { summaryPages, renderSummaryPage } from "./audit-pptx-summary-layout";
 import { carPages, renderCarPage } from "./audit-pptx-car-layout";
+import { NCR_HEADERS, prepareNcrTable } from "./audit-pptx-ncr-layout";
 import { renderConclusionSignoff } from "./audit-pptx-conclusion-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -210,12 +211,15 @@ export async function renderConsolidatedAuditPptx(input: {
     const base = parse(sourceSlide);
     if (slideNumber === 8) removeProgressTotal(base);
     const tables = elements(base, A, "tbl");
+    if (slideNumber === 11) prepareNcrTable(tables[0]!, setText);
     const mapping = mappings.get(slideNumber);
+    const ncr = slideNumber === 11 ? ofiPages(tables[0]!, mapping?.tables[0] ?? [],
+      { labels: NCR_HEADERS, findingType: "non-conformity" }) : undefined;
     const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const summary = slideNumber === 7 ? summaryPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const cars = slideNumber === 15 ? carPages(mapping?.tables[0] ?? []) : undefined;
     const pages = mapping?.tables.map((rows, i) => {
-      if ([7, 12, 15].includes(slideNumber)) return [];
+      if ([7, 11, 12, 15].includes(slideNumber)) return [];
       const start = tableStarts[slideNumber] ?? 1;
       const capacity = elements(tables[i]!, A, "tr").length - start;
       if (capacity < 1) throw new Error("PowerPoint template has no table data rows");
@@ -243,6 +247,7 @@ export async function renderConsolidatedAuditPptx(input: {
       programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, id === 6 ? 78 : 21), id === 6 ? 2 : 16));
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
       ofi?.length ?? 1,
+      ncr?.length ?? 1,
       summary?.length ?? 1,
       cars?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
@@ -257,9 +262,11 @@ export async function renderConsolidatedAuditPptx(input: {
         if (/\[[^\]]*\]|Engr\. \(Name|E\.g\. Project Manager/.test(text)) setText(s, PPTX_UNMAPPED);
       }
       const slideTables = elements(doc, A, "tbl");
+      if (ncr) prepareNcrTable(slideTables[0]!, setText);
       if (slideNumber === 8) removeProgressTotal(doc);
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
       if (summary) renderSummaryPage(slideTables[0]!, summary[page], setText);
+      else if (ncr) renderOfiPage(doc, slideTables[0]!, ncr[page]!, setText, "No non-conformities recorded.");
       else if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
       else if (cars) renderCarPage(slideTables[0]!, cars[page]!, setText);
       else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,

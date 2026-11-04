@@ -60,7 +60,8 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
   put(10, {}, [rows("conforming")]);
   for (const [slide, key] of [[11, "non-conformities"], [12, "ofi"]] as const) {
     // Slide 11's shape 5 is a template authoring instruction, not a data field.
-    put(slide, slide === 11 ? { 5: "" } : {}, [rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);
+    put(slide, slide === 11 ? { 5: "" } : {}, [slide === 11 ? rows(key).map(r => [r[0]!, r[1]!, `${r[4]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])
+      : rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);
   }
   put(15, {}, [rows("corrective-actions")]);
   put(16, Object.fromEntries([7, 11, 15].map((id, i) => [id, rows("priority-actions", i).map(r => r.join(" · ")).join("\n") || PPTX_EMPTY])));
