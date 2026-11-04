@@ -27960,7 +27960,7 @@ export const getGetAuditPlanNumberingUrl = () => {
 }
 
 /**
- * @summary Read Audit Plan yearly project and department numbering
+ * @summary Read continuous Audit Plan project and department numbering
  */
 export const getAuditPlanNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingSettings> => {
 
@@ -28007,7 +28007,7 @@ export type GetAuditPlanNumberingQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Read Audit Plan yearly project and department numbering
+ * @summary Read continuous Audit Plan project and department numbering
  */
 
 export function useGetAuditPlanNumbering<TData = Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError = ErrorType<unknown>>(
@@ -28179,7 +28179,7 @@ export const getGetAuditReportNumberingUrl = () => {
 }
 
 /**
- * @summary Read independent Audit Report yearly project and department numbering
+ * @summary Read independent continuous Audit Report project and department numbering
  */
 export const getAuditReportNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingSettings> => {
 
@@ -28226,7 +28226,7 @@ export type GetAuditReportNumberingQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Read independent Audit Report yearly project and department numbering
+ * @summary Read independent continuous Audit Report project and department numbering
  */
 
 export function useGetAuditReportNumbering<TData = Awaited<ReturnType<typeof getAuditReportNumbering>>, TError = ErrorType<unknown>>(
@@ -28327,7 +28327,7 @@ export const getGetAuditCarNumberingUrl = () => {
 }
 
 /**
- * @summary Read independent Audit CAR yearly numbering
+ * @summary Read independent continuous Audit CAR numbering
  */
 export const getAuditCarNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingSettings> => {
 
@@ -28374,7 +28374,7 @@ export type GetAuditCarNumberingQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Read independent Audit CAR yearly numbering
+ * @summary Read independent continuous Audit CAR numbering
  */
 
 export function useGetAuditCarNumbering<TData = Awaited<ReturnType<typeof getAuditCarNumbering>>, TError = ErrorType<unknown>>(
@@ -28475,7 +28475,7 @@ export const getUpdateAuditCarNumberRangeUrl = () => {
 }
 
 /**
- * @summary Set the next CAR running number for a project or department and year
+ * @summary Maintain the last-used CAR number for a project or department
  */
 export const updateAuditCarNumberRange = async (auditCarNumberRangeInput: AuditCarNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAuditCarNumberRange200> => {
 
@@ -28524,7 +28524,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAuditCarNumberRangeMutationError = ErrorType<unknown>
 
     /**
- * @summary Set the next CAR running number for a project or department and year
+ * @summary Maintain the last-used CAR number for a project or department
  */
 export const useUpdateAuditCarNumberRange = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumberRange>>, TError,{data: BodyType<AuditCarNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -28546,7 +28546,7 @@ export const getGetAuditFindingNumberingUrl = () => {
 }
 
 /**
- * @summary Read independent finding-type yearly numbering
+ * @summary Read independent continuous finding-type numbering
  */
 export const getAuditFindingNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditFindingNumberingSettings> => {
 
@@ -28593,7 +28593,7 @@ export type GetAuditFindingNumberingQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Read independent finding-type yearly numbering
+ * @summary Read independent continuous finding-type numbering
  */
 
 export function useGetAuditFindingNumbering<TData = Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError = ErrorType<unknown>>(
@@ -28694,7 +28694,7 @@ export const getUpdateAuditFindingNumberRangeUrl = () => {
 }
 
 /**
- * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ * @summary Maintain the last-used Audit Finding number for a finding type and project or department
  */
 export const updateAuditFindingNumberRange = async (auditFindingNumberRangeInput: AuditFindingNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAuditFindingNumberRange200> => {
 
@@ -28743,7 +28743,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAuditFindingNumberRangeMutationError = ErrorType<unknown>
 
     /**
- * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ * @summary Maintain the last-used Audit Finding number for a finding type and project or department
  */
 export const useUpdateAuditFindingNumberRange = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>, TError,{data: BodyType<AuditFindingNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -28765,7 +28765,7 @@ export const getUpdateAuditReportNumberRangeUrl = () => {
 }
 
 /**
- * @summary Maintain the last used Audit Report number for a project or department and year
+ * @summary Maintain the last used Audit Report number for a project or department
  */
 export const updateAuditReportNumberRange = async (auditPlanNumberRangeInput: AuditPlanNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAuditReportNumberRange200> => {
 
@@ -28814,7 +28814,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAuditReportNumberRangeMutationError = ErrorType<unknown>
 
     /**
- * @summary Maintain the last used Audit Report number for a project or department and year
+ * @summary Maintain the last used Audit Report number for a project or department
  */
 export const useUpdateAuditReportNumberRange = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditReportNumberRange>>, TError,{data: BodyType<AuditPlanNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

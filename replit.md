@@ -31,6 +31,33 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
+### Organization date-format rule
+
+Every new or modified QMS360 date field and user-facing date must use the
+organization setting in Integration Cockpit → Date Format. This applies to all
+applications, forms, lists, validation messages, dashboards, PDF/Word exports,
+Excel/CSV exports and emailed attachments.
+
+- Use the shared `Input` (`type="date"` or `type="datetime-local"`), not native
+  HTML date inputs or browser-locale formatting. Preserve picker bounds,
+  disabled/read-only permissions and in-progress edits.
+- Use `@workspace/spreadsheet-dates` presentation helpers. Full dates use
+  `formatDate`; month-only reporting periods use `formatReportingPeriod`.
+  Timestamp sign-offs retain the organization time zone and existing time precision.
+- Keep ISO dates/timestamps in API payloads, storage, calculations, filters,
+  URLs and filenames. Never change saved data to a presentation format.
+- Server requests must run in the existing organization-local date context;
+  background jobs must use `withOrganizationDateFormat`. Never set a mutable
+  global format for a server job.
+- Preserve native Excel date cells and organization-specific number formats;
+  imports accept ISO and explicitly declared legacy workbook formats, but must
+  not guess ambiguous numeric dates or accept impossible dates.
+- Verify a changed date surface against all supported organization formats.
+  Check downloadable and email render paths together, without rewriting queued mail.
+
+**Why:** Organization date-format consistency is a product requirement, including
+future development; hard-coded report formats and native controls previously bypassed it.
+
 ### QMS360 workflow confirmation rule
 
 In QA/QC & Document Governance, Lessons Learned and QMS Audit, any action that

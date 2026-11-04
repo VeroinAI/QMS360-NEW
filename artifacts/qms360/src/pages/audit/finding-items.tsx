@@ -342,7 +342,7 @@ export function FindingsGrid({ auditId, items, auditTitle = "", registerRows, aw
     </CardContent>
     <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl" onEscapeKeyDown={event => { if (saving) event.preventDefault(); }} onInteractOutside={event => { if (saving) event.preventDefault(); }}>
-        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. CAR due dates use Finding Date: Major NC +2 days, Minor NC +3 days, OFI +4 days. Finding numbering still uses the linked Schedule From Date year.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. CAR due dates use Finding Date: Major NC +2 days, Minor NC +3 days, OFI +4 days. Finding numbers continue separately for each finding type and project or department, without a year or annual reset.</DialogDescription></DialogHeader>
         <Form {...form}><form onSubmit={event => void save(event)} className="space-y-4">
           <FormField control={form.control} name="findingDate" render={({ field }) => <FormItem><FormLabel>Finding Date *</FormLabel><FormControl><Input {...field} type="date" required data-testid="input-finding-date"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="clause" render={({ field }) => <FormItem><FormLabel>Clause *</FormLabel><FormControl><Input {...field} data-testid="input-finding-clause" placeholder="Enter audit clause" autoFocus/></FormControl><FormMessage/></FormItem>}/>

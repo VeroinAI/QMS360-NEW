@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CSAT_RATINGS, DISCIPLINES, DISC_STATUSES, DOC_TYPES, ENTITIES, METRICS, PEND_BUCKETS, PEND_STATUSES, fmt, num, type Obj } from './reporting-types';
 import { ErrorBox, Loading, PageFrame, errMsg, saveFile, useBusy } from './shell';
 import { BUILTIN_TEMPLATE, PdfTemplatePicker } from './pdf-template-picker';
+import { formatDate, formatReportingPeriod } from '@workspace/spreadsheet-dates';
 
 const ALL = 'all';
 type Mode = 'latest' | 'date' | 'range';
@@ -34,8 +35,8 @@ export function DashboardPage() {
   const [tplType, setTplType] = useState<'monthly' | 'daily' | 'csat'>('monthly');
   const [templateId, setTemplateId] = useState(BUILTIN_TEMPLATE);
   const q = useGetQaqcSowDashboard(params);
-  const label = mode === 'range' && from && to ? `Net movement from ${from} to ${to}: end snapshot minus start snapshot, not a sum of daily entries.`
-    : mode === 'date' && date ? `Net movement on ${date}: that day's snapshot minus the preceding snapshot.` : 'Latest cumulative snapshot of daily reports.';
+  const label = mode === 'range' && from && to ? `Net movement from ${formatDate(from)} to ${formatDate(to)}: end snapshot minus start snapshot, not a sum of daily entries.`
+    : mode === 'date' && date ? `Net movement on ${formatDate(date)}: that day's snapshot minus the preceding snapshot.` : 'Latest cumulative snapshot of daily reports.';
   const download = (format: 'pdf' | 'xlsx') => run(async () => { try { saveFile(await exportQaqcSowDashboard({ ...params, format, ...(format === 'pdf' ? { templateId } : {}) }), `qaqc-dashboard.${format}`); } catch (e) { toast({ title: 'Export failed', description: errMsg(e), variant: 'destructive' }); } });
   const field = (l: string, el: React.ReactNode) => <div className="space-y-1"><Label className="text-xs text-muted-foreground">{l}</Label>{el}</div>;
   return <PageFrame title="Reporting dashboard" description="Monthly KPIs, closure trends, Customer Satisfaction (CSAT) and daily document snapshots from submitted reports."
@@ -61,7 +62,7 @@ export function DashboardPage() {
 
 function Grid({ title, note, cols, rows }: { title: string; note?: string; cols: string[]; rows: (string | number)[][] }) {
   return <Card><CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle>{note && <p className="text-xs text-muted-foreground">{note}</p>}</CardHeader><CardContent className="overflow-x-auto">
-    {rows.length ? <Table><TableHeader><TableRow>{cols.map((c, i) => <TableHead key={i} className={i ? 'text-right' : ''}>{c}</TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((r, i) => <TableRow key={i}>{r.map((v, j) => <TableCell key={j} className={j ? 'text-right tabular-nums' : 'font-medium'}>{v}</TableCell>)}</TableRow>)}</TableBody></Table> : <p className="py-6 text-center text-sm text-muted-foreground">No submitted reports match these filters.</p>}
+    {rows.length ? <Table><TableHeader><TableRow>{cols.map((c, i) => <TableHead key={i} className={i ? 'text-right' : ''}>{c}</TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((r, i) => <TableRow key={i}>{r.map((v, j) => <TableCell key={j} className={j ? 'text-right tabular-nums' : 'font-medium'}>{/^(date|month|period|.* date)$/i.test(cols[j] ?? '') ? formatReportingPeriod(v) : v}</TableCell>)}</TableRow>)}</TableBody></Table> : <p className="py-6 text-center text-sm text-muted-foreground">No submitted reports match these filters.</p>}
   </CardContent></Card>;
 }
 const pct = (v: unknown) => `${fmt(num(v))}%`;

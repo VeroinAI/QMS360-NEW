@@ -5,7 +5,12 @@ import { projectContactErrors } from './project-contact-validation';
 import type { DronaProjectMasterRecord } from '@workspace/api-client-react';
 
 vi.mock('@workspace/api-client-react', () => ({
+  getListMasterDataRolesQueryKey: () => ['/api/platform/master-data/roles'],
   useUpdateProjectAdditionalData: () => ({ isPending: false, mutate: vi.fn(), reset: vi.fn() }),
+  useListMasterDataRoles: () => ({ isSuccess: true, data: { items: [
+    { name: 'QAQC Representative', active: true }, { name: 'Audit Lead', active: true },
+    { name: 'Lessons Owner', active: true }, { name: 'Audit Lead', active: true },
+  ] } }),
 }));
 const record = { id: 'project-1', additionalData: { email: 'quality@example.com', phone: '+91 9876543210' } } as DronaProjectMasterRecord;
 const props = { record, canEdit: true, onSaved: vi.fn(), onPendingChange: vi.fn(), onCancel: vi.fn() };
@@ -48,11 +53,28 @@ describe('Project Additional Data contact fields', () => {
       const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} canEdit={canEdit} record={{ ...record, additionalData }} />);
       for (const [key, label] of [['consultant', 'Consultant'], ['projectManager', 'Project Manager'], ['contractValue', 'Contract Value'], ['ptsNumber', 'PTS #']] as const) {
         expect(html).toContain(`for="project-additional-${key}">${label}`);
-        expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*value="${additionalData[key]}"`));
+        if (key === 'projectManager') {
+          expect(html).toContain(`${additionalData[key]} (saved value)`);
+          expect(html).toContain(`data-testid="select-project-additional-${key}"`);
+        } else expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*value="${additionalData[key]}"`));
         expect(html).not.toMatch(new RegExp(`id="project-additional-${key}"[^>]*required=""`));
         if (!canEdit) expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*disabled=""`));
       }
     }
+  });
+  it('renders all three role fields in order as single-select comboboxes', () => {
+    const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} />);
+    const keys = ['projectManager', 'documentController', 'projectEngineer'];
+    for (const key of keys) {
+      expect(html).toMatch(new RegExp(`<button(?=[^>]*role="combobox")(?=[^>]*id="project-additional-${key}")[^>]*>`));
+      expect(html).not.toMatch(new RegExp(`<input[^>]*id="project-additional-${key}"`));
+    }
+    expect(html.indexOf('project-additional-projectManager')).toBeLessThan(html.indexOf('project-additional-documentController'));
+    expect(html.indexOf('project-additional-documentController')).toBeLessThan(html.indexOf('project-additional-projectEngineer'));
+    expect(normaliseProjectAdditionalData({ documentController: ' Audit Lead ', projectEngineer: ' Lessons Owner ' }))
+      .toMatchObject({ documentController: 'Audit Lead', projectEngineer: 'Lessons Owner' });
+    expect(normaliseProjectAdditionalData({ documentController: '', projectEngineer: '' }))
+      .toMatchObject({ documentController: null, projectEngineer: null });
   });
   it('renders all five project closure targets with saved zero and decimal values', () => {
     const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, closureTargets: { external_ncr: 0, internal_ncr: 100, rfi: 97.5, rmi: null, pqi: 80 } }} />);

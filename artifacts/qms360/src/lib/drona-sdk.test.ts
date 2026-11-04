@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { dronaProfileProof, dronaProfileEmail } from './drona-sdk';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+
+describe('Drona SDK runtime packaging', () => {
+  it('ships the original SDK with the application instead of depending on uploaded assets', async () => {
+    const loader = await readFile(new URL('./drona-sdk.ts', import.meta.url), 'utf8');
+    expect(loader).toContain("../vendor/dronahq.js?url");
+    expect(loader).not.toContain('attached_assets');
+    const sdk = await readFile(new URL('../vendor/dronahq.js', import.meta.url));
+    expect(createHash('sha256').update(sdk).digest('hex'))
+      .toBe('2db898f5337a72114b721ab2d9717b08de4891e0e6e014181e751778a135996a');
+  });
+});
 
 describe('Drona approved email-only handoff', () => {
   it('sends only normalized email, not nonce or UID', () => {

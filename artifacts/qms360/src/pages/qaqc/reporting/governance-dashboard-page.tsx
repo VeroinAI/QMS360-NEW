@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { formatDate, formatReportingPeriod } from '@workspace/spreadsheet-dates';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,7 +84,7 @@ function Dashboard({ ctxType, canMonthly, canDaily, canCsat, canExport }: { ctxT
 
     <Dialog open={!!list} onOpenChange={o => !o && setList(null)}><DialogContent className="max-w-lg">
       <DialogHeader><DialogTitle>{list?.title}</DialogTitle><DialogDescription>Authorized monthly reports matching the current filters.</DialogDescription></DialogHeader>
-      {list?.rows.length ? <ul className="max-h-80 space-y-1 overflow-y-auto">{list.rows.map((r, i) => <li key={r.id ?? i}>{r.id ? <Link href={`/qaqc/monthly/${r.id}`} className="flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted"><span>{r.projectName ?? r.projectId} <span className="text-muted-foreground">{String(r.period).slice(0, 7)}</span></span><ArrowUpRight className="size-4 text-primary" /></Link> : <span className="block px-3 py-2 text-sm">{r.projectName ?? r.projectId}</span>}</li>)}</ul> : <p className="py-6 text-center text-sm text-muted-foreground">No reports in this status.</p>}
+      {list?.rows.length ? <ul className="max-h-80 space-y-1 overflow-y-auto">{list.rows.map((r, i) => <li key={r.id ?? i}>{r.id ? <Link href={`/qaqc/monthly/${r.id}`} className="flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted"><span>{r.projectName ?? r.projectId} <span className="text-muted-foreground">{formatReportingPeriod(String(r.period).slice(0, 7))}</span></span><ArrowUpRight className="size-4 text-primary" /></Link> : <span className="block px-3 py-2 text-sm">{r.projectName ?? r.projectId}</span>}</li>)}</ul> : <p className="py-6 text-center text-sm text-muted-foreground">No reports in this status.</p>}
     </DialogContent></Dialog>
   </div>;
 }
@@ -125,7 +126,7 @@ function Body({ d, tab, visibleProjects, canMonthly, canCsat, onList, filtered, 
     {canMonthly && <Panel title="Projects overview" sub="Latest monthly report per project. Select a card to open the report.">
       {monthly.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{monthly.map(r => { const c = closure([r]); const nc = closure([r], ['external_ncr', 'internal_ncr']); const cr = csatByProject.get(String(r.projectId)); const p = r.computed?.pqi?.accumulated;
         return <Link key={r.id ?? r.projectId} href={r.id ? `/qaqc/monthly/${r.id}` : '/qaqc/monthly'} className="group rounded-lg border p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:soft-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-semibold">{r.projectName ?? r.projectId}</p><p className="text-xs text-muted-foreground">{String(r.period).slice(0, 7)}</p></div><span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.state === 'approved' ? 'bg-accent/15 text-accent' : 'bg-[hsl(var(--ag-yellow)/.18)] text-foreground'}`}>{r.state === 'approved' ? 'Approved' : 'Pending approval'}</span></div>
+          <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-semibold">{r.projectName ?? r.projectId}</p><p className="text-xs text-muted-foreground">{formatReportingPeriod(String(r.period).slice(0, 7))}</p></div><span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.state === 'approved' ? 'bg-accent/15 text-accent' : 'bg-[hsl(var(--ag-yellow)/.18)] text-foreground'}`}>{r.state === 'approved' ? 'Approved' : 'Pending approval'}</span></div>
           <dl className="mt-3 grid grid-cols-4 gap-2 text-center">{([['PQI', p === undefined || p === null ? '\u2014' : `${Number(p).toFixed(1)}%`], ['Closure', dash(c.rate, 0, '%')], ['Open NCR', nc.open === null ? '\u2014' : String(nc.open)], ['CSAT', cr?.computed?.averageRating != null ? Number(cr.computed.averageRating).toFixed(1) : '\u2014']] as const).map(([k, v]) => <div key={k}><dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</dt><dd className="font-semibold tabular-nums text-primary">{v}</dd></div>)}</dl>
         </Link>; })}</div> : <Unavailable text="No monthly reports in scope." />}
     </Panel>}
@@ -153,12 +154,12 @@ function Body({ d, tab, visibleProjects, canMonthly, canCsat, onList, filtered, 
       </Panel>
       <Panel title="Internal audits" sub="From the internal audit section of the latest monthly reports.">
         {audit.reported ? <div className="space-y-3"><div className="grid grid-cols-3 gap-2">{([['Reported', audit.reported], ['Conducted', audit.conducted], ['Next date passed', audit.overdueNext]] as const).map(([k, v]) => <div key={k} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{k}</p><p className="font-display text-2xl font-bold tabular-nums">{v}</p></div>)}</div>
-          {audit.upcoming.length > 0 && <ul className="divide-y text-sm">{audit.upcoming.slice(0, 5).map((u, i) => <li key={i} className="flex justify-between py-2"><span>{u.report.projectName ?? u.report.projectId}</span><span className="tabular-nums text-muted-foreground">Next {u.nextDate}</span></li>)}</ul>}</div> : <Unavailable text="Internal audit data unavailable in the reports in scope." />}
+          {audit.upcoming.length > 0 && <ul className="divide-y text-sm">{audit.upcoming.slice(0, 5).map((u, i) => <li key={i} className="flex justify-between py-2"><span>{u.report.projectName ?? u.report.projectId}</span><span className="tabular-nums text-muted-foreground">Next {formatDate(u.nextDate)}</span></li>)}</ul>}</div> : <Unavailable text="Internal audit data unavailable in the reports in scope." />}
       </Panel>
     </div>}
 
     <Panel title="Recent reports" sub="Most recent authorized reports in scope.">
-      {recent.length ? <ul className="divide-y">{recent.map(([t, r]) => <li key={r.id}><Link href={`/qaqc/${t}/${r.id}`} className="flex items-center justify-between gap-3 rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted"><span className="min-w-0 truncate"><span className="font-medium">{r.projectName ?? r.projectId}</span> <span className="text-muted-foreground">{t === 'csat' ? 'CSAT' : t === 'monthly' ? 'Monthly' : 'Daily'} · {String(r.period)}</span></span><ArrowUpRight className="size-4 shrink-0 text-primary" /></Link></li>)}</ul> : <Unavailable text="No reports to open." />}
+      {recent.length ? <ul className="divide-y">{recent.map(([t, r]) => <li key={r.id}><Link href={`/qaqc/${t}/${r.id}`} className="flex items-center justify-between gap-3 rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted"><span className="min-w-0 truncate"><span className="font-medium">{r.projectName ?? r.projectId}</span> <span className="text-muted-foreground">{t === 'csat' ? 'CSAT' : t === 'monthly' ? 'Monthly' : 'Daily'} · {formatReportingPeriod(t === 'monthly' ? String(r.period).slice(0, 7) : String(r.period))}</span></span><ArrowUpRight className="size-4 shrink-0 text-primary" /></Link></li>)}</ul> : <Unavailable text="No reports to open." />}
     </Panel>
   </div>;
 }
@@ -175,6 +176,6 @@ function Daily({ daily }: { daily: Obj[] }) {
     <Panel title="Drawings and submittals by discipline" sub={dd.movement ? 'Net movement per discipline and status.' : 'Latest cumulative snapshot per project, combined across projects.'}>
       <div className="h-72" role="img" aria-label="Discipline statuses"><ResponsiveContainer><BarChart data={dd.rows}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" /><XAxis dataKey="discipline" tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip cursor={{ fill: 'hsl(var(--muted))' }} /><Legend /><Bar dataKey="Approved" stackId="a" fill={TEAL} /><Bar dataKey="Under review" stackId="a" fill={PURPLE} /><Bar dataKey="Resubmit" stackId="a" fill={YELLOW} /><Bar dataKey="Rejected" stackId="a" fill={FUCHSIA} /></BarChart></ResponsiveContainer></div>
     </Panel>
-    <Panel title="Latest daily reports"><ul className="divide-y">{latest.map(r => <li key={r.id ?? r.projectId}>{r.id ? <Link href={`/qaqc/daily/${r.id}`} className="flex justify-between rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted"><span className="font-medium">{r.projectName ?? r.projectId}</span><span className="text-muted-foreground">{r.period}</span></Link> : <span className="block px-2 py-2.5 text-sm">{r.projectName ?? r.projectId}</span>}</li>)}</ul></Panel>
+    <Panel title="Latest daily reports"><ul className="divide-y">{latest.map(r => <li key={r.id ?? r.projectId}>{r.id ? <Link href={`/qaqc/daily/${r.id}`} className="flex justify-between rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted"><span className="font-medium">{r.projectName ?? r.projectId}</span><span className="text-muted-foreground">{formatDate(r.period)}</span></Link> : <span className="block px-2 py-2.5 text-sm">{r.projectName ?? r.projectId}</span>}</li>)}</ul></Panel>
   </div>;
 }

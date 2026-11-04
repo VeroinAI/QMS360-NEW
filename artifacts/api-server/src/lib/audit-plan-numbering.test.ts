@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { defaultPlanNumberPattern, formatPlanNumber, planNumberState, planNumberYear, validatePlanNumberPattern } from "./audit-plan-numbering";
 
 describe("Audit Plan number formatting and calendar year", () => {
-  it("inserts the automatic source between two literal text segments, two-digit year and padded numeric sequence", () => {
-    expect(formatPlanNumber({ prefix: "AGH", middle: "AP", separator: "-", padding: 4 }, "CC100", 2027, 1)).toBe("AGH-CC100-AP-27-0001");
-    expect(formatPlanNumber({ prefix: "AGH", middle: "AP", separator: "-", padding: 4 }, "engineering", 2026, 42)).toBe("AGH-engineering-AP-26-0042");
+  it("inserts the automatic source between two literal text segments and a padded sequence without a year", () => {
+    expect(formatPlanNumber({ prefix: "AGH", middle: "AP", separator: "-", padding: 4 }, "CC100", 2027, 1)).toBe("AGH-CC100-AP-0001");
+    expect(formatPlanNumber({ prefix: "AGH", middle: "AP", separator: "-", padding: 4 }, "engineering", 2026, 42)).toBe("AGH-engineering-AP-0042");
   });
   it("supports concatenation and empty optional text without changing the numeric sequence", () => {
-    expect(formatPlanNumber({ prefix: "", middle: "", separator: "", padding: 1 }, "CC100", 2027, 12)).toBe("CC1002712");
+    expect(formatPlanNumber({ prefix: "", middle: "", separator: "", padding: 1 }, "CC100", 2027, 12)).toBe("CC10012");
   });
   it("reads the wall-clock From Date year rather than the creation year or timezone-converted date", () => {
     expect(planNumberYear("2027-01-01")).toBe(2027);

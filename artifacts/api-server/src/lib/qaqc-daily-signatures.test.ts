@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setDateFormatResolver } from "@workspace/spreadsheet-dates";
+beforeEach(() => setDateFormatResolver(() => "DD-MM-YYYY"));
+afterEach(() => setDateFormatResolver(() => "DD/MM/YYYY"));
 import sharp from "sharp";
 import { PDFDocument, PDFPage, PDFName, PDFDict } from "pdf-lib";
 import { mkdir, writeFile } from "node:fs/promises";

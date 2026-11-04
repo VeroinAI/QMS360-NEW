@@ -3,19 +3,19 @@ name: Audit Plan numbering policy
 description: Business rules for Audit Plan identifiers and go-live counter maintenance.
 ---
 
-Audit Plans have their own numbers, separate from Audit Schedule QA/QC References, Audit Numbers and Audit Execution references. The configurable format has literal text before and after an automatic source value, followed by the two-digit year from the **linked child Audit Schedule's From Date**, then a numeric running sequence. Project audits use Project Master Additional Data **Contract / project no.**; department audits use Department Master **Cost ID** as text, preserving leading zeroes. Neither the old Cost Center nor Department Value/label is a fallback.
+Audit Plans have their own numbers, separate from Audit Schedule QA/QC References, Audit Numbers and Audit Execution references. The configurable format is prefix + automatic source + middle text + running number, without a year. Project audits use Project Master Additional Data **Contract / project no.**; department audits use Department Master **Cost ID** as text, preserving leading zeroes. Neither the old Cost Center nor Department Value/label is a fallback.
 
-The running sequence starts at 1 per **project or department and full four-digit year**. At a mid-year go-live, administrators enter the **last already used** number for a particular scope/year; the next new plan gets one more. This differs from Lessons Learned, whose go-live field is the *next* number. Preserve existing plan identifiers and never silently reuse allocated numbers.
+The running sequence starts at 1 per **project or department**, continues across years and never resets annually. At go-live, administrators enter the **last already used** number for that source; the next new plan gets one more. This differs from Lessons Learned, whose go-live field is the *next* number. Preserve existing plan identifiers and never silently reuse allocated numbers.
 
-**Why:** The user requested continuity for a mid-year rollout and wanted source selection to follow the Audit Plan's linked project or department, not require typing an identifier into each form. They subsequently explicitly changed all applicable Audit source mappings to Contract / project no. and Department Cost ID.
+**Why:** The user replaced yearly Plan, Report, Finding and CAR numbering with yearless continuous source sequences, retaining existing numbers and the master-owned source mappings.
 
-**How to apply:** Validate the source master value and schedule From Date before allocating; serialize counter maintenance with plan creation, keep an issued number on subsequent edits, and avoid renumbering existing plans when a format or schedule changes. Keep the other Audit numbering systems independent.
+**How to apply:** Continue above the highest saved last-used value across former yearly ranges, rather than resetting, summing or choosing only the latest year. Serialize counter maintenance with creation; preserve issued numbers and keep other Audit ranges independent.
 
 The Create Audit Plan screen must include a read-only **Audit Plan Number** field, not just instructional text. Before save, display the calculated next number without reserving or consuming the sequence; the actual number is assigned atomically on save.
 
 **Why:** The user explicitly requested the field. Reserving numbers merely by opening or changing a form would consume unused numbers, and concurrent plan creators can change the next available number before save.
 
-**How to apply:** Reuse the same source, From Date year, counter and format logic for display and allocation. Explain that the displayed next number is confirmed on save; keep existing saved plan numbers unchanged.
+**How to apply:** Reuse the same source, continuous counter and format logic for display and allocation. Explain that the displayed next number is confirmed on save; keep existing saved plan numbers unchanged.
 
 Dependent numbering lookups must follow the same Department master alias priority as the schedule dropdown; do not merge all alias-matching groups into one list.
 

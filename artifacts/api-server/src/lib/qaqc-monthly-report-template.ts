@@ -3,6 +3,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import { strFromU8, unzipSync } from "fflate";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
 import { monthlySignatories } from "./qaqc-monthly-signatories";
+import { formatDate, formatDateInTimeZone, parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 
 export const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const UNMAPPED = "To be mapped";
@@ -27,7 +28,7 @@ const percent = (v: unknown) => num(v) === undefined ? MISSING_DATA : `${decimal
 export function monthlyDate(v: unknown, missing = UNMAPPED) {
   const s = v instanceof Date ? v.toISOString() : String(v ?? "");
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(s);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : missing;
+  return match && parseSpreadsheetDate(s.slice(0, 10)) ? formatDate(s.slice(0, 10)) : missing;
 }
 // Keep the shared date helper's fallback unchanged for CSAT and Daily exports.
 const reportDate = (v: unknown) => monthlyDate(v, MISSING_DATA);
@@ -127,7 +128,13 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     children(row, "tc").forEach((cell, i) =>
       child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String([6438, 3200][i])));
   });
-  rebuild(16, d.meetings, r => [r.type, reportDate(r.lastDate)], "No meeting added");
+  rebuild(16, d.meetings, r => [r.type, `From Date : ${reportDate(r.lastDate)}`], "No meeting added");
+  rows(d.meetings).forEach((meeting, index) => {
+    const cell = cells(16, index + 1)[1]!, from = children(cell, "p")[0]!;
+    const to = from.cloneNode(true) as Element;
+    set(to, `To Date : ${reportDate(meeting.nextDate)}`);
+    cell.appendChild(to);
+  });
   para(17, `${rows(d.meetings).length} meetings conducted this month.`);
   const audit = d.internalAudit ?? {};
   put(19, 0, 1, typeof audit.conducted === "boolean" ? audit.conducted ? "Yes" : "No" : MISSING_DATA);
@@ -253,7 +260,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
   put(53,0,1,report.submittedByName,1); put(53,0,1,report.submittedByDesignation?.trim() || null,2);
-  put(53,0,2,reportDate(report.submittedAt),1);
+  const signoffDate = (at: unknown) => at && report.organizationTimezone
+    ? formatDateInTimeZone(at, report.organizationTimezone) || MISSING_DATA : reportDate(at);
+  put(53,0,2,signoffDate(report.submittedAt),1);
   const submittedDateCell = cells(53,0)[2]!;
   children(submittedDateCell,"p").slice(2).forEach(p => submittedDateCell.removeChild(p));
   // Preserve the source's lavender sign-off tiles and flow each approval row
@@ -270,7 +279,7 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     const sourceCells = children(sourceRow,"tc");
     for (const [index, label, value] of [
       [1, signatory.final ? "APPROVED BY" : "REVIEWED BY", signatory.name],
-      [2, signatory.final ? "APPROVED ON" : "REVIEWED ON", reportDate(signatory.at)],
+      [2, signatory.final ? "APPROVED ON" : "REVIEWED ON", signoffDate(signatory.at)],
     ] as const) {
       const cell = sourceCells[index]!.cloneNode(true) as Element;
       child(child(cell,"tcPr"),"tcW")!.setAttributeNS(W,"w:w","4819");

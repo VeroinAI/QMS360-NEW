@@ -15,6 +15,15 @@ Reserve “To be mapped” strictly for fields with no QMS mapping. Mapped field
 
 **How to apply:** Distinguish missing data from missing mappings at each report binding, not through a blanket replacement of PDF text. Preserve literal user content, saved calculations and other report types' existing fallback policies.
 
+The Monthly Report PDF's Meetings Conducted section shows both saved meeting
+dates, explicitly labelled “From Date :” and “To Date :” on separate lines.
+
+**Why:** The business treats these as a meeting date range, not only one
+meeting date; the input screen already captures both endpoints.
+
+**How to apply:** Use the organization date format for both endpoints. Do not
+reinterpret the end date as a future-meeting forecast or alter stored dates.
+
 Display Monthly Report PDF PQI scores and the eligible-project average with `%`;
 label PQI variance as percentage points (`pp`), not relative percent change.
 

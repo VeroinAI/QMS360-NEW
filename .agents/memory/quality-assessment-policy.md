@@ -15,6 +15,29 @@ AI suggestions remain separate from the final assessment. The representative may
 
 **How to apply:** Preserve draft saving and manual entry without requiring an AI call. Summarize the same accumulated-rate variances shown in the metric/PQI/material tiles; flag sustained low PQI only with exact consecutive-month evidence.
 
+AI-generated quality briefs must be short, business-friendly bullet summaries,
+not detailed analysis or recommendations. Prioritize supported figures,
+performance changes and critical issues, without repeating the report's tables.
+
+**Why:** The user said the detailed data is already presented separately and
+explicitly asked for concise, factual insights with no assumed missing information.
+
+**How to apply:** Keep evidence and critical-NCR rules intact. Require at most six
+bullets and 120 words for new AI suggestions; reject nonconforming responses
+explicitly rather than truncating potentially important facts. Do not rewrite
+previously saved assessments or constrain manually authored final text.
+
+New AI quality briefs identify the selected project by its saved Project Master
+name, not its UUID; omit organization identity.
+
+**Why:** The user reported organization and project UUIDs appearing as apparently
+random text in the generated assessment and asked for the actual project name.
+
+**How to apply:** Resolve the name within the current organization on the server,
+keep audit/routing identifiers out of model evidence, and add the name
+deterministically to the concise summary. Keep IDs for authorization and audit.
+Do not modify already saved assessments automatically.
+
 Evidence-heavy monthly assessment generation needs a bounded, feature-specific response budget rather than the deadline used for short text rephrasing.
 
 **Why:** The live assessment succeeded using the existing integration, but only after the generic short deadline had expired. A timeout here is not evidence that credentials need replacement.

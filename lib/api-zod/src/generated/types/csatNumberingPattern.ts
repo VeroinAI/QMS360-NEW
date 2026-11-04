@@ -10,6 +10,8 @@ export interface CsatNumberingPattern {
   /** @maxLength 80 */
   prefix: string;
   /** @maxLength 80 */
+  middle: string;
+  /** @maxLength 80 */
   separator: string;
   /**
      * @minimum 1

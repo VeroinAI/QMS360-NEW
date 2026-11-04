@@ -12,13 +12,8 @@ export interface AuditFindingNumberRangeInput {
   /** @minLength 1 */
   scope: string;
   /**
-     * @minimum 1900
-     * @maximum 9999
+     * @minimum 0
+     * @maximum 999999999998
      */
-  year: number;
-  /**
-     * @minimum 1
-     * @maximum 999999999999
-     */
-  nextNumber: number;
+  lastNumber: number;
 }

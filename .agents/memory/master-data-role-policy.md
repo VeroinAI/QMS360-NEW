@@ -9,6 +9,20 @@ Master Data role assignments must not restrict dropdown visibility or selection 
 
 **How to apply:** Preserve assigned roles when values are saved and edited, alongside other value configuration. Do not turn these references into access rules.
 
+## Project Additional Data role labels
+
+Project Manager, Document Controller and Project Engineer are single-role
+selections using unique active role names across all three applications.
+Retain existing free-text values for display and unchanged saves.
+
+**Why:** The user requested role dropdowns rather than user selectors. Additional
+Data historically stores display text consumed by reports; changing those values
+to role UUIDs would break that contract.
+
+**How to apply:** Treat these selections as descriptive project information,
+not permission grants, role assignments to users, or automatic email routing.
+Do not silently replace saved legacy text when application roles change.
+
 ## Audit activity defaults
 
 The user subsequently explicitly requested Audit activity roles to default from the Activities master, with auditees defaulting from schedule-local role-to-user assignments. Both selections remain editable.

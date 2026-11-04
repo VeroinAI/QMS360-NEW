@@ -70,10 +70,10 @@
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
 - [Audit reporting terminology](audit-reporting-terminology.md) — CAR Schedule means the parent schedule name; Audit Title means the individual audit selected in the Plan.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.
-- [Audit Plan numbering policy](audit-plan-numbering-policy.md) — separate per-project/department yearly sequences from Schedule From Date; go-live input is last used, not next.
-- [Audit Report numbering policy](audit-report-numbering-policy.md) — issue on first successful Save Report Details; independent yearly source counters; block completion without a number.
+- [Audit Plan numbering policy](audit-plan-numbering-policy.md) — yearless continuous source sequences; go-live input is last used; preserve highest former yearly counters.
+- [Audit Report numbering policy](audit-report-numbering-policy.md) — issue on first successful Save Report Details; continuous source counters; block completion without a number.
 - [Audit Finding numbering policy](audit-finding-numbering-policy.md) — configurable code per finding type; separate type/source/year sequences; issue on Save Finding; exclude Not applicable.
-- [Audit CAR numbering policy](audit-car-numbering-policy.md) — issue on first successful response save/submit; independent source/year counters; opening a CAR never issues a number.
+- [Audit CAR numbering policy](audit-car-numbering-policy.md) — issue on first successful response save/submit; continuous source counters; opening a CAR never issues a number.
 - [CAR Finding Date deadlines](audit-car-due-policy.md) — use Finding Date: Major NC +2 days, Minor NC +3, OFI +4; preserve historical deadlines until dates are entered.
 - [CAR response access](car-response-access-policy.md) — schedule links reuse Edit permissions; only the three response fields may be editable; read-only opening must not create a CAR.
 - [CAR register display semantics](car-register-display-policy.md) — initial CAR assignment dates are distinct from Finding Date; pending people reflect only the current stage.
@@ -128,4 +128,4 @@
 - [Audit participant boundaries](audit-participant-boundaries.md) — scope team/activity choices to the individual audit; separate historical names and never borrow marker scope or broad offline eligibility.
 - [Consolidated QA/QC dashboards](qaqc-consolidated-dashboard-policy.md) — approved-only web totals, signed snapshot movement, final CSAT surveys and separate cross-app authorization.
 - [Recharts component boundaries](recharts-component-boundaries.md) — forward measured dimensions through wrappers; keep axes as direct chart children and test real bars, labels and finite coordinates.
-- [CSAT reference numbering](csat-reference-numbering-policy.md) — allocate on Create Draft using CSAT Date year and independent project/year go-live counters; retain existing references.
+- [CSAT reference numbering](csat-reference-numbering-policy.md) — prefix + Contract / project no. + middle + sequence; continuous project counters; allocate on Create Draft and retain issued references.

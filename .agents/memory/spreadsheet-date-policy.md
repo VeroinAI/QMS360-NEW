@@ -7,6 +7,16 @@ QMS360 dates use the organization's configured format across platform, Lessons,
 QA/QC and Audit displays, date entry, PDF/Word reports and Excel/CSV boundaries.
 DD/MM/YYYY is the default, not a mandatory fixed policy. This explicitly includes Historical Balances / Go-live Setup workbooks and their upload parsing, as reinforced by the user on 2026-10-21.
 
+QA/QC Metrics Display/Edit's Month / Year field is an explicit presentation
+exception: show the full English month and comma-separated year, e.g.
+“September, 2026”, rather than a numeric month/year.
+
+**Why:** The user specifically requested named months for this field after the
+organization-wide date-format update.
+
+**How to apply:** Keep the stored reporting period and full-date fields unchanged.
+Do not extend this exception to other applications or reports without a request.
+
 Date-only fields must use a date-only calendar picker. Fields requiring both
 date and time must show a combined calendar and time picker; displaying a time
 in the text box without offering a time selection control is not sufficient.

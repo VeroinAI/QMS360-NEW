@@ -1,4 +1,17 @@
 ---
+
+Daily report PDF project-team names must resolve the Project Master Additional
+Data role labels through active QA/QC User and Access assignments in the same
+organization. Include all assigned users, separated by commas; use a centered
+“-” when no role or user can be resolved, not “To be mapped”.
+
+**Why:** The user explicitly replaced the older Reporting Settings person mapping
+with the Project Master role-based determination for all three team fields.
+
+**How to apply:** Project Manager, Project Engineer and Document Controller use
+the same shared download/email export resolver. Roles existing only in Lessons
+or Audit do not imply a QA/QC assignment. Do not grant access or fall back to
+legacy text/person IDs to fill an unresolved role.
 name: Daily Submission Word report policy
 description: Customer Word layout, saved-baseline semantics and shared Daily PDF downloads.
 ---

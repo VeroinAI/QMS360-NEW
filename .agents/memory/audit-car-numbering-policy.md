@@ -15,8 +15,8 @@ Previously saved CAR responses that predate numbering may have no reference even
 
 **How to apply:** Allocate and persist the number with the successful response transaction. Keep strict current Action Taker authorization; administrator visibility does not grant response ownership. Preserve existing metadata and historical CAR/finding identities.
 
-Use configurable prefix and middle text around the source value, followed by the linked child Schedule From Date's two-digit year and running number. The source is the linked Plan's Project Master Additional Data Contract / project no. or active Department Master Cost ID for process/department audits. Preserve text and leading zeroes; do not fall back to Cost Center or Department Value/label. Each project/department and full year has an independent sequence starting at 1, separate from Plan, Report and Finding ranges.
+Use configurable prefix and middle text around the source value, followed by the running number without a year. The source is the linked Plan's Project Master Additional Data Contract / project no. or active Department Master Cost ID for process/department audits. Preserve text and leading zeroes; do not fall back to Cost Center or Department Value/label. Each project/department has an independent continuous sequence starting at 1, separate from Plan, Report and Finding ranges, with no annual reset.
 
-**Why:** The user's requested source/year rules match the other Audit ranges but CAR issuance is independent. They subsequently explicitly changed Audit source mappings to Contract / project no. and Department Cost ID.
+**Why:** The user replaced yearly Plan, Report, Finding and CAR numbering with continuous yearless source sequences and last-used go-live maintenance.
 
-**How to apply:** Resolve the source and date on the server, never from client-supplied number text or the current date. Retain numbers through format changes. Manual next-number maintenance stores next minus one, rejects backward moves and does not rewrite existing CARs.
+**How to apply:** Resolve the source on the server, never from client-supplied number text. Continue above the highest saved former yearly last-used counter. Retain issued numbers through format changes. Manual last-used maintenance advances the next issuance by one, rejects backward moves and does not rewrite existing CARs.

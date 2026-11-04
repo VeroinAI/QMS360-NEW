@@ -24,6 +24,7 @@ import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
 import { monthlyDownloadAverage } from "../lib/qaqc-monthly-download-average";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import type { QaqcOperation } from "@workspace/field-controls";
+import { qaqcProjectTeam } from "../lib/qaqc-project-team";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -133,9 +134,8 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
     eq(auditLogEntries.organizationId, orgId), eq(auditLogEntries.entityType, "qaqc_report"),
     eq(auditLogEntries.entityId, report.id),
   )).orderBy(auditLogEntries.createdAt);
-  const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
-  const teamId = (key:string) => typeof dailySettings[key] === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
+  const projectTeam = report.reportType === "daily"
+    ? await qaqcProjectTeam(orgId, jsonObject(jsonObject(project?.customFields).qmsAdditionalData)) : undefined;
   const { dailySignatories, monthlySignatories } = await import("../lib/qaqc-monthly-signatories");
   const signerIds = report.reportType === "daily" ? new Set([
     report.createdById ?? report.submittedById,
@@ -144,8 +144,8 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
     report.submittedById,
     ...monthlySignatories({ ...report, history: audit } as QaqcReportExport).map(s => s.userId),
   ]) : new Set<string | null | undefined>();
-  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById, ...signerIds,
-    ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
+  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById, ...signerIds]
+    .filter((id): id is string => !!id))];
   const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation, signaturePath: users.signaturePath }).from(users)
     .where(and(eq(users.organizationId, orgId), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
@@ -179,8 +179,7 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
     ...(report.reportType === "daily" ? {
       createdByName:actorNames.get(report.createdById) ?? null,
       organizationTimezone:dailyOrganization?.timezone ?? null,
-      projectTeam:Object.fromEntries([["pmName","pmId"],["peName","peId"],["dcName","dcId"]]
-        .map(([name,key])=>[name,actorNames.get(teamId(key!) ?? "") ?? null])),
+      projectTeam,
     } : {}),
     reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
     history: audit.map(({ after, ...entry }) => ({

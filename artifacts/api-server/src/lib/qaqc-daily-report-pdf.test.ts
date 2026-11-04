@@ -1,12 +1,15 @@
-import { describe,expect,it } from "vitest";
-import { PDFDocument } from "pdf-lib";
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+import { setDateFormatResolver } from "@workspace/spreadsheet-dates";
+beforeEach(() => setDateFormatResolver(() => "DD-MM-YYYY"));
+afterEach(() => setDateFormatResolver(() => "DD/MM/YYYY"));
+import { PDFDocument, PDFPage } from "pdf-lib";
 import { XMLSerializer } from "@xmldom/xmldom";
 import { mkdir,writeFile } from "node:fs/promises";
 import { buildDailyReportDocument } from "./qaqc-daily-report-template";
 import { children,child,attr } from "./qaqc-monthly-report-template";
 import { calculateReport } from "./qaqc-reporting-model";
 import { DAILY_ADDITIONS } from "@workspace/field-controls";
-import { exportQaqcReportPdf,type QaqcReportExport } from "./qaqc-reporting-export";
+import { exportQaqcEmailReportPdf,exportQaqcReportPdf,type QaqcReportExport } from "./qaqc-reporting-export";
 
 const disciplines=["Civil","Structural","Mechanical","Electrical","Instrumentation"];
 const entities=["Client","Algihaz","Supplier"];
@@ -33,6 +36,31 @@ async function mapped(r=report) {
 const table=(result:Awaited<ReturnType<typeof mapped>>,heading:string)=>result.blocks.find(b=>b.localName==="tbl"&&b.textContent!.startsWith(heading))!;
 const cells=(t:ReturnType<typeof table>,r:number)=>children(children(t,"tr")[r]!,"tc");
 describe("Word-based Daily Submission download",()=>{
+  it("wraps multiple project team names and centers dashes only in unresolved team cells", async()=>{
+    const names=Array.from({length:18},(_,i)=>`Assigned Team Member ${i+1}`).join(", ");
+    const input={...report,projectTeam:{pmName:names,peName:null,dcName:"Controller One, Controller Two"}};
+    const result=await mapped(input), details=result.blocks[9]!;
+    expect(cells(details,2)[1]!.textContent).toBe(names);
+    expect(cells(details,2)[3]!.textContent).toBe("-");
+    expect(cells(details,3)[1]!.textContent).toBe("Controller One, Controller Two");
+    for(const [r,c,alignment] of [[2,1,"left"],[2,3,"center"],[3,1,"left"]] as const) {
+      const cell=cells(details,r)[c]!;
+      expect(attr(child(child(children(cell,"p")[0]!,"pPr"),"jc"),"val")).toBe(alignment);
+      expect(child(child(cell,"tcPr"),"noWrap")).toBeUndefined();
+    }
+    expect(result.text).not.toContain("PM – To be mapped");
+    const pdf=await exportQaqcReportPdf(input,{templateId:"daily-submission"});
+    expect(pdf.subarray(0,5).toString()).toBe("%PDF-");
+    await writeFile("../../generated-artifacts/daily-project-team-preview.pdf",pdf);
+    const drawn=vi.spyOn(PDFPage.prototype,"drawText");
+    try {
+      await exportQaqcEmailReportPdf(input,"report");
+      const text=drawn.mock.calls.map(([text])=>text).join(" ").replace(/\s+/g," ");
+      for(let i=1;i<=18;i++)expect(text).toContain(`Assigned Team Member ${i}`);
+      expect(text).toContain("Controller One, Controller Two");
+      expect(text).toContain("-");
+    } finally { drawn.mockRestore(); }
+  });
   it("renders new cumulative entries exactly once, matching the cumulative download rather than adding the baseline", async () => {
     const cumulative = { ...data, dailyDisciplineInputMode: "daily_cumulative_v2", dailySupplementInputMode: "daily_cumulative_v2" };
     const existing = await mapped();

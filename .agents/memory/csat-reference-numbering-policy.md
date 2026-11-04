@@ -1,10 +1,10 @@
 ---
 name: CSAT reference numbering scope
-description: Requested CSAT format, date source, go-live counters and staged integration boundary.
+description: Yearless CSAT format, continuous project sequences, last-used maintenance and allocation timing.
 ---
 
-CSAT Reference numbering is Prefix + Project + four-digit Year + Running number. The year must come from the CSAT form's Date, not the creation timestamp. Go-live maintenance accepts the last-used number, so the next running number is last-used plus one, using independent project/year ranges and no backwards movement.
+CSAT Reference numbering is Prefix + Project Master Contract / project no. + Middle text + Running number. Do not include a year or reset annually. Go-live maintenance accepts the last-used number for each project without a year, so the next running number is last-used plus one, using independent continuous project ranges and no backwards movement. An empty middle text is allowed.
 
-**Why:** The user requested parity with Audit go-live counter maintenance, then explicitly authorized linking the configured range to CSAT Create Draft.
+**Why:** The user replaced yearly CSAT ranges with yearless continuous numbering and explicitly requested configurable middle text after the contract/project segment.
 
-**How to apply:** Allocate only on successful Create Draft, atomically with creation. Reference is read-only in the form and visible in the CSAT landing list. Preserve issued references on later saves and do not renumber legacy records. Never consume counters when saving or previewing settings. The user explicitly changed the Project segment to Project Master → Additional Data → Contract / project no., not Project Code. A missing contract/project number must block allocation with a clear maintenance message, not fall back to Project Code. Counters remain keyed by project identity and year, so changing this source text does not reset them.
+**How to apply:** Allocate only on successful Create Draft, atomically with creation. Reference is read-only in the form and visible in the CSAT landing list. Preserve issued references on later saves and do not renumber legacy records. Never consume counters when saving or previewing settings. A missing contract/project number must block allocation with a clear maintenance message, not fall back to Project Code. Continue above the highest saved last-used value across former yearly ranges; do not sum them or select only the latest year. Counters remain keyed by project identity, so changing source text or middle text does not reset them. Keep CSAT date validation, but do not use its year to format or partition the reference.

@@ -19,12 +19,17 @@ describe('Daily discipline submission layout', () => {
       for (const [format, expected] of [['DD-MM-YYYY', '29-10-2026'], ['MM/DD/YYYY', '10/29/2026']] as const) {
         setDateFormatResolver(() => format);
         const html = render({}, {}, false, false, '2026-10-29');
-        expect(html.match(new RegExp(`Current Date \\(${expected}\\)`, 'g'))).toHaveLength(14);
+        expect(html.match(new RegExp(`Till Current Date \\(${expected}\\)`, 'g'))).toHaveLength(14);
         expect(html.match(/>Till yesterday</g)).toHaveLength(14);
         expect(html).not.toContain('Yesterday (auto)');
         expect(html).toContain('Enter cumulative figures through the selected date');
       }
     } finally { setDateFormatResolver(() => 'DD/MM/YYYY'); }
+  });
+  it('uses Till Current Date without an invented date when none is selected', () => {
+    const html = render();
+    expect(html.match(/>Till Current Date(?:<| )/g)).toHaveLength(14);
+    expect(html).not.toContain('Till Current Date (');
   });
   it('explains daily additions while showing cumulative Yesterday and separate current counts', () => {
     const data = { dailyDisciplineInputMode: DAILY_ADDITIONS, disciplines: { drawings: { Civil: { approved: 5, resubmit: 2, rejected: 1, underReview: 4 } } } };
@@ -137,7 +142,7 @@ describe('Daily discipline submission layout', () => {
       revisions: { drawings: [{ name: '0', value: 20 }], submittals: [{ name: 'A', value: 15 }] },
     }, { revisions: { drawings: [{ name: '0', value: 12 }], submittals: [{ name: 'A', value: 10 }] } });
     expect(html.indexOf('Approved status by Rivision')).toBeGreaterThan(html.indexOf('Document Types'));
-    for (const label of ['Document Type', 'Revision No.', 'Till yesterday', 'Current Date', '% of Overall Cum', 'Add Revision']) expect(html).toContain(label);
+    for (const label of ['Document Type', 'Revision No.', 'Till yesterday', 'Till Current Date', '% of Overall Cum', 'Add Revision']) expect(html).toContain(label);
     expect(html.match(/<select /g)).toHaveLength(2);
     expect(html.match(/<option[^>]*value="drawings"/g)).toHaveLength(2);
     expect(html.match(/<option[^>]*value="submittals"/g)).toHaveLength(2);

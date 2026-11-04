@@ -1,4 +1,4 @@
-import sdkUrl from '../../../../attached_assets/dronahq_1446_1791109292884.js?url';
+import sdkUrl from '../vendor/dronahq.js?url';
 
 type Profile = { uid?: unknown; nonce?: unknown; email?: unknown };
 type DronaSdk = {
