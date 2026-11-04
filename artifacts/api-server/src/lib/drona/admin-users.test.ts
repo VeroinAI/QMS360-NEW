@@ -87,6 +87,14 @@ describe("administrator Drona user discovery", () => {
     expect(provision).not.toHaveBeenCalled();
   });
 
+  it("skips the QMS module assignment check when DRONA_REQUIRE_QMS_MODULE=false", async () => {
+    vi.stubEnv("DRONA_REQUIRE_QMS_MODULE", "false");
+    vi.stubEnv("DRONA_QMS_MODULE_VALUE", "");
+    rows = [[source], []];
+    expect(await lookupDronaAdminUser(input.email, org)).toMatchObject({ externalUserId: "41", alreadyPresent: false });
+    expect(queries.some(query => query.sql.includes("user_role_mapping"))).toBe(false);
+  });
+
   it("rejects malformed email before source SQL", async () => {
     await expect(lookupDronaAdminUser("not-email", org)).rejects.toMatchObject({ status: 422 });
     expect(execute).not.toHaveBeenCalled();

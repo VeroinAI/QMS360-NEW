@@ -31,7 +31,7 @@ spec:
       containers:
         - name: qms360-scheduler
           # Same image as qms360-api -- PROCESS_ROLE picks the entry path.
-          image: 932492652339.dkr.ecr.ap-south-1.amazonaws.com/qms360-api:1.0.2-2c6e368
+          image: 932492652339.dkr.ecr.ap-south-1.amazonaws.com/qms360-api:1.0.5-4641d45
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

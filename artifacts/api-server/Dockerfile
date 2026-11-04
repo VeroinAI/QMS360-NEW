@@ -5,6 +5,8 @@ RUN corepack enable
 # Workspace manifests first (cache-friendly) -- everything pnpm needs to
 # resolve the graph, nothing that changes on every source edit.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
+# pnpm-workspace.yaml's patchedDependencies are hashed at install time.
+COPY patches patches
 COPY artifacts/api-server/package.json artifacts/api-server/package.json
 COPY lib/db/package.json lib/db/package.json
 COPY lib/api-zod/package.json lib/api-zod/package.json

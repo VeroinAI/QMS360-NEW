@@ -13,6 +13,11 @@ function discoveryTarget(organizationId: string) {
   if (target.organizationId.toLowerCase() !== organizationId.toLowerCase()) {
     throw new DronaAccessError(403, "Drona user search is not available for this organization.");
   }
+  // Opt-out for deployments whose Drona user_role_mapping.modules doesn't
+  // (yet) carry the QMS360 value -- any active Drona user can then be added.
+  if (process.env.DRONA_REQUIRE_QMS_MODULE === "false") {
+    return { ...target, moduleValue: null };
+  }
   // Source module fields exist, but their business values are deployment-owned.
   // Do not guess that every active Drona user has QMS360 access.
   const moduleValue = process.env.DRONA_QMS_MODULE_VALUE?.trim();
@@ -47,6 +52,19 @@ async function candidate(tx: ProvisionExecutor, email: string, organizationId: s
   if (user.is_active !== true) throw new DronaAccessError(403, "This Drona user is inactive.");
   const externalUserId = dronaId(user.external_id);
   if (!user.user_name?.trim()) throw new DronaAccessError(409, "The Drona user has no name. Update the Drona master first.");
+  if (target.moduleValue !== null) await requireQmsAssignment(tx, externalUserId, target.moduleValue);
+  const existing = await tx.execute(sql`
+    SELECT id FROM shared.users WHERE organization_id = ${organizationId}::uuid
+      AND lower(btrim(email)) = ${normalized} LIMIT 2
+  `);
+  if (existing.rows.length > 1) throw new DronaAccessError(409, "Multiple QMS360 users match this email. Administrator review is required.");
+  return {
+    target, externalUserId, email: normalized, fullName: user.user_name.trim(),
+    alreadyPresent: existing.rows.length === 1,
+  };
+}
+
+async function requireQmsAssignment(tx: ProvisionExecutor, externalUserId: string, moduleValue: string) {
   const eligible = await tx.execute(sql`
     SELECT a.user_role_map_id
     FROM public.user_role_mapping a
@@ -58,22 +76,13 @@ async function candidate(tx: ProvisionExecutor, email: string, organizationId: s
           SELECT 1 FROM jsonb_array_elements_text(
             CASE WHEN jsonb_typeof(to_jsonb(a.modules)) = 'array'
               THEN to_jsonb(a.modules) ELSE '[]'::jsonb END
-          ) AS assigned(value) WHERE lower(btrim(assigned.value)) = lower(${target.moduleValue})
+          ) AS assigned(value) WHERE lower(btrim(assigned.value)) = lower(${moduleValue})
       )
     LIMIT 1
   `);
   if (!eligible.rows.length) {
     throw new DronaAccessError(403, "This user has no active QMS360 assignment on an active Drona project.");
   }
-  const existing = await tx.execute(sql`
-    SELECT id FROM shared.users WHERE organization_id = ${organizationId}::uuid
-      AND lower(btrim(email)) = ${normalized} LIMIT 2
-  `);
-  if (existing.rows.length > 1) throw new DronaAccessError(409, "Multiple QMS360 users match this email. Administrator review is required.");
-  return {
-    target, externalUserId, email: normalized, fullName: user.user_name.trim(),
-    alreadyPresent: existing.rows.length === 1,
-  };
 }
 
 /** Read-only discovery; no user/link/project/role changes occur on Search. */
