@@ -5,6 +5,7 @@ import { auditPptxMappings, PPTX_EMPTY } from "../src/lib/audit-pptx-mapping";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import { DOMParser } from "@xmldom/xmldom";
+import { applyAuditPptxSignoff, auditPptxSignoff } from "../src/lib/audit-pptx-signoff";
 
 const fixture = () => ({
   audit: {
@@ -216,6 +217,8 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   });
   it("writes the filled fields to the real PPTX, omits only slide 16 and preserves grading and template styles", async () => {
     const sections = build();
+    const input = fixture();
+    applyAuditPptxSignoff(sections, auditPptxSignoff({ leadId: input.plan.leadAuditorId }, input.names));
     const original = unzipSync(await renderConsolidatedAuditPptx({ sections }));
     const output = unzipSync(await renderConsolidatedAuditPptx({ sections, skipPriorityActions: true }));
     const xml = (name: string) => strFromU8(output[name]!);

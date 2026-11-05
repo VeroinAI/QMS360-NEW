@@ -11,6 +11,7 @@ import { carPages, renderCarPage } from "./audit-pptx-car-layout";
 import { NCR_HEADERS, prepareNcrTable } from "./audit-pptx-ncr-layout";
 import { designProcurementPages, renderDesignProcurementPage } from "./audit-pptx-design-procurement-layout";
 import { renderConclusionSignoff } from "./audit-pptx-conclusion-layout";
+import { documentControlPages, renderDocumentControlPage } from "./audit-pptx-document-control-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -222,8 +223,9 @@ export async function renderConsolidatedAuditPptx(input: {
     const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const summary = slideNumber === 7 ? summaryPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const cars = slideNumber === 15 ? carPages(mapping?.tables[0] ?? []) : undefined;
+    const control = slideNumber === 2 ? documentControlPages(section("document-control")) : undefined;
     const pages = mapping?.tables.map((rows, i) => {
-      if ([7, 9, 11, 12, 15].includes(slideNumber)) return [];
+      if ([2, 7, 9, 11, 12, 15].includes(slideNumber)) return [];
       const start = tableStarts[slideNumber] ?? 1;
       const capacity = elements(tables[i]!, A, "tr").length - start;
       if (capacity < 1) throw new Error("PowerPoint template has no table data rows");
@@ -255,6 +257,7 @@ export async function renderConsolidatedAuditPptx(input: {
       designProcurement?.length ?? 1,
       summary?.length ?? 1,
       cars?.length ?? 1,
+      control?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
       ...(slideNumber === 4 ? scopeText.map(pages => pages.length) : [1]),
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
@@ -275,7 +278,7 @@ export async function renderConsolidatedAuditPptx(input: {
       else if (ncr) renderOfiPage(doc, slideTables[0]!, ncr[page]!, setText, "No non-conformities recorded.");
       else if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
       else if (cars) renderCarPage(slideTables[0]!, cars[page]!, setText);
-      else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
+      else if (!control) mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
         elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [8, 10].includes(slideNumber)));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;
@@ -349,6 +352,7 @@ export async function renderConsolidatedAuditPptx(input: {
         await renderPhotographicPage({ doc, rels: slideRels, page: photos[page], target, files, photos: input.photos, setText });
       }
       if (slideNumber === 17) renderConclusionSignoff(doc, slideRels, files, contentTypes, section("conclusion"), input.signoffSignatures, setText);
+      if (control) renderDocumentControlPage(doc, slideRels, files, contentTypes, control[page]!, page, input.signoffSignatures, setText);
       files[targetPath] = xml(doc);
       files[`ppt/slides/_rels/slide${target}.xml.rels`] = xml(slideRels);
       if (!page) outputSlides.push(originals[slideNumber - 1]!);

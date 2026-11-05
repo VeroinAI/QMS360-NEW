@@ -174,6 +174,14 @@ describe("Audit Report approval API",()=>{
     expect(response.status).toBe(200);
     const files=unzipSync(new Uint8Array(await response.arrayBuffer()));
     const conclusion=strFromU8(files["ppt/slides/slide17.xml"]);
+    const control=strFromU8(files["ppt/slides/slide2.xml"]);
+    for(const name of ["Author","First reviewer","Final reviewer"]) expect(control).toContain(`>${name}<`);
+    expect(control).toContain("Approval History");
+    expect(control).not.toContain("Revision history");
+    const controlHistory=Object.entries(files).filter(([path])=>/^ppt\/slides\/slide\d+\.xml$/.test(path))
+      .map(([,bytes])=>strFromU8(bytes)).filter(xml=>xml.includes("Document control and approval")).join("");
+    expect(controlHistory).toContain("L1 — Approved");
+    expect(controlHistory).toContain("L2 — Approved");
     expect(conclusion).toContain(">Author<");
     expect(conclusion.match(/>First reviewer</g)).toHaveLength(1);
     expect(conclusion.match(/>Final reviewer</g)).toHaveLength(1);

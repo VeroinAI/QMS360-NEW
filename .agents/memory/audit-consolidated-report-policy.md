@@ -231,3 +231,18 @@ the required two-panel screenshot again.
 comments. Add table rows and resize/reposition the padded comment boxes first;
 only continue when the content cannot fit. Continuations retain the same panel
 format, headings and footer clearance. Keep PDF/JSON and other sections independent.
+
+Document control and approval uses the same actual Audit Report signatories
+as the Conclusion: selected Audit Lead with Mark Complete date, actual
+intermediate approval decisions, and actual final approval decision. Include
+available signatures, never infer a signature or approval from eligibility.
+Replace the Revision history table with Approval History, without its Revision
+column, showing recorded decisions chronologically, including earlier cycles.
+
+**Why:** The user explicitly replaced manual document-control sign-offs and
+revision placeholders with the report's factual approval workflow details.
+
+**How to apply:** Preserve the left-hand Document information fields and
+original branding. Use missing-value dashes, retain recorded approval remarks
+and dates, and continue lengthy history in matching slides without losing text.
+Do not change PDF/JSON, report completion guards or the separate CAR workflow.

@@ -86,6 +86,9 @@ describe("Original Audit PowerPoint report template", () => {
       const path = `ppt/slides/slide${slide}.xml`;
       const source = parse(original[path]!); const output = parse(result[path]!);
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
+        // Document control now has factual approval rows and a three-column
+        // Approval History table, with bounded dynamic rows.
+        if (slide === 2 && ["xfrm", "tblGrid", "tcPr"].includes(tag)) continue;
         // The CAR tracker alone extends its pristine eight-column template to
         // ten columns, with explicit padding and variable-height body rows.
         if (slide === 9 && tag === "tcPr") continue;
