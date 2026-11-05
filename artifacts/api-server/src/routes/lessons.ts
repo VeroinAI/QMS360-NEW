@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import { visibleAdminUsers, searchAdminUsers } from "../lib/admin-user-discovery";
 import { Router, type IRouter } from "express";
 import {
   and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
@@ -1407,12 +1407,12 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt));
   const [allRows, assignments, roles, platform] = await Promise.all([
-    db.select().from(users).where(where).orderBy(asc(users.username)),
+    db.select().from(users).where(where).orderBy(asc(users.username), asc(users.id)),
     db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsUserWorkspaceRoles.deletedAt))),
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))),
     db.select().from(platformRoles),
   ]);
-  const visibleRows = await visibleAdminUsers(req, allRows, assignments);
+  const visibleRows = searchAdminUsers(req, await visibleAdminUsers(req, allRows, assignments), assignments, roles);
   const rows = visibleRows.slice(offset, offset + limit);
   const rolePayload = new Map((await Promise.all(roles.map(roleJson))).map((r) => [r.id, r]));
   res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds, a.departmentIds)).map((a) => ({ ...rolePayload.get(a.workspaceRoleId)!, scopeType: a.departmentIds?.length ? "department" as const : a.projectIds?.length ? "project" as const : "organization" as const, scopeIds: a.departmentIds?.length ? a.departmentIds : a.projectIds ?? [] })).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), visibleRows.length, page, limit));

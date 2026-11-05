@@ -6,7 +6,7 @@ import { roleDepartments, validateRoleDepartments } from "../lib/role-department
 import { participantAssignmentMatches, processTeamAssignmentMatches, type ParticipantContext } from "../lib/audit-participant-scope";
 import { standardAuditCategories } from "../lib/audit-category-rule";
 import { auditDepartmentId, processDepartmentAllowed, intersectAuditScopes } from "../lib/audit-department-scope";
-import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import { visibleAdminUsers, searchAdminUsers } from "../lib/admin-user-discovery";
 import { auditOverviewContext } from "../lib/audit-overview-context";
 import { auditScheduleApprovalPermission } from "@workspace/field-controls";
 import { reportReviewers, submitReportApproval, canReviewReport, reviewReportApproval, reportContentLocked, reportApprovalSummary, type AuditReportApprovalState } from "../lib/audit-report-approval";
@@ -5073,12 +5073,13 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt));
-  const [allRows, allAssignments, availablePlatformRoles] = await Promise.all([
-    db.select().from(users).where(where).orderBy(asc(users.username)),
+  const [allRows, allAssignments, availablePlatformRoles, searchableRoles] = await Promise.all([
+    db.select().from(users).where(where).orderBy(asc(users.username), asc(users.id)),
     db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), isNull(auditUserWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, actor(req).organizationId), isNull(platformRoles.deletedAt))),
+    db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles).where(and(eq(auditWorkspaceRoles.organizationId, actor(req).organizationId), isNull(auditWorkspaceRoles.deletedAt))),
   ]);
-  const visibleRows = await visibleAdminUsers(req, allRows, allAssignments);
+  const visibleRows = searchAdminUsers(req, await visibleAdminUsers(req, allRows, allAssignments), allAssignments, searchableRoles);
   const rows = visibleRows.slice(offset, offset + limit);
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
   const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds));

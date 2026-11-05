@@ -13,7 +13,7 @@ vi.mock("@workspace/db", async original => {
   return { ...actual, db: { execute: (query: SQL) => state.execute!(query) } };
 });
 import { pool } from "@workspace/db";
-import { visibleAdminUsers } from "../src/lib/admin-user-discovery";
+import { visibleAdminUsers, searchAdminUsers } from "../src/lib/admin-user-discovery";
 import { canManageAssignmentScope } from "../src/middlewares/rbac";
 
 const schema = `discovery_${randomUUID().replaceAll("-", "")}`;
@@ -79,6 +79,28 @@ afterAll(async () => {
 });
 
 describe("scope-safe first-role user discovery shared by all three applications", () => {
+  it("searches visible users and only their manageable role assignments before pagination", () => {
+    const people = Array.from({ length: 45 }, (_, i) => ({
+      id: `user-${i}`, fullName: `Name ${i}`, username: `account-${i}`, email: `person-${i}@example.test`,
+    }));
+    const assignments = [
+      { userId: "user-44", workspaceRoleId: "role", projectIds: [project] },
+      { userId: "user-43", workspaceRoleId: "role", projectIds: [outside] },
+    ];
+    req.query = { search: "  OVERSIGHT officer " };
+    expect(searchAdminUsers(req, people, assignments, [{ id: "role", name: "Oversight Officer" }]).map(user => user.id))
+      .toEqual(["user-44"]);
+    // A role match cannot reintroduce an identity excluded by visibility.
+    expect(searchAdminUsers(req, people.slice(0, 20), assignments, [{ id: "role", name: "Oversight Officer" }])).toEqual([]);
+    req.query = { search: "person-44@" };
+    expect(searchAdminUsers(req, people, [], []).map(user => user.id)).toEqual(["user-44"]);
+    req.query = { search: "account-44" };
+    expect(searchAdminUsers(req, people, [], []).map(user => user.id)).toEqual(["user-44"]);
+    req.query = { search: " " };
+    expect(searchAdminUsers(req, people, [], [])).toHaveLength(45);
+    req.query = { search: "x".repeat(201) };
+    expect(() => searchAdminUsers(req, people, [], [])).toThrow("at most 200");
+  });
   it("shows a provisioned, unassigned Employee without creating roles or approvals", async () => {
     expect(await visibleAdminUsers(req, rows, [])).toEqual(rows.slice(0, 2));
     expect(statements).toHaveLength(1);

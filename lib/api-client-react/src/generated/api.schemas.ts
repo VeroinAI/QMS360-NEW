@@ -6019,6 +6019,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListQaqcAccessQueueParams = {
@@ -6274,6 +6278,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListLessonsAccessQueueParams = {
@@ -6686,6 +6694,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListAuditAccessQueueParams = {

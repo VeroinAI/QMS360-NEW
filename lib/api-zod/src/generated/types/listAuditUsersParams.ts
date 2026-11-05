@@ -18,4 +18,8 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };

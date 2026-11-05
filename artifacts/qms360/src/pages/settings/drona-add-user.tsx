@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** Only mounted for Super Admin. Server authorization remains authoritative. */
-export function DronaAddUser({ onAdded }: { onAdded: (userId: string) => void }) {
+export function DronaAddUser({ onAdded }: { onAdded: (userId: string, email: string) => void }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [candidate, setCandidate] = useState<DronaUserCandidate>();
@@ -49,7 +49,7 @@ export function DronaAddUser({ onAdded }: { onAdded: (userId: string) => void })
       version.current++;
       setCandidate(undefined);
       setEmail("");
-      onAdded(result.userId);
+      onAdded(result.userId, candidate.email);
     } catch (cause) { setError(message(cause)); }
   }
 

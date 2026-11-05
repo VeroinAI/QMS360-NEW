@@ -5460,11 +5460,14 @@ export const listQaqcUsersQueryPageDefault = 1;
 export const listQaqcUsersQueryLimitDefault = 20;
 export const listQaqcUsersQueryLimitMax = 200;
 
+export const listQaqcUsersQuerySearchMax = 200;
+
 
 
 export const ListQaqcUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listQaqcUsersQuerySearchMax).optional()
 })
 
 export const listQaqcUsersResponseOneTotalMin = 0;
@@ -7136,11 +7139,14 @@ export const listLessonsUsersQueryPageDefault = 1;
 export const listLessonsUsersQueryLimitDefault = 20;
 export const listLessonsUsersQueryLimitMax = 200;
 
+export const listLessonsUsersQuerySearchMax = 200;
+
 
 
 export const ListLessonsUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listLessonsUsersQuerySearchMax).optional()
 })
 
 export const listLessonsUsersResponseOneTotalMin = 0;
@@ -14903,11 +14909,14 @@ export const listAuditUsersQueryPageDefault = 1;
 export const listAuditUsersQueryLimitDefault = 20;
 export const listAuditUsersQueryLimitMax = 200;
 
+export const listAuditUsersQuerySearchMax = 200;
+
 
 
 export const ListAuditUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listAuditUsersQuerySearchMax).optional()
 })
 
 export const listAuditUsersResponseOneTotalMin = 0;

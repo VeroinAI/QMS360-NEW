@@ -2,8 +2,8 @@ import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { getListRoleAssignmentProjectsQueryKey, useListRoleAssignmentProjects } from "@workspace/api-client-react";
 import { getListRoleAssignmentDepartmentsQueryKey, useListRoleAssignmentDepartments } from "@workspace/api-client-react";
 import { responseFieldLabel } from "@/lib/response-field-labels";
-import { useQueryClient } from '@tanstack/react-query';
-import { matchesWorkspaceUserSearch } from './workspace-user-search';
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
+import { WorkspaceUserPagination } from './workspace-user-pagination';
 import { NumberingForm } from './numbering-form';
 import { DronaAddUser } from './drona-add-user';
 import { AuditPlanNumberingSettings } from './audit-plan-numbering';
@@ -104,26 +104,29 @@ function PageState({ loading, error, empty, onRetry, children }: { loading: bool
   return <>{children}</>;
 }
 
-function useAdmin(app: AppKey, page = 1, filters?: { from?: string; to?: string; actorId?: string; action?: string }) {
+function useAdmin(app: AppKey, page = 1, filters?: { from?: string; to?: string; actorId?: string; action?: string },
+  userList?: { page: number; search?: string }) {
+  const userParams = { page: userList?.page ?? page, limit: 20, ...(userList?.search ? { search: userList.search.trim() } : {}) };
   const cap = useQaqcCapabilities(app === 'qaqc');
   const opts = (key: AppKey): any => ({ query: { enabled: app === key } });
+  const userOpts = (key: AppKey): any => ({ query: { enabled: app === key, placeholderData: keepPreviousData } });
   const qopts = (task: string): any => ({ query: { enabled: app === 'qaqc' && cap.canTask(task as never) } });
   const q = {
     qaqc: {
-      roles: useListQaqcRoles({ page, limit: 20 }, qopts('manage_roles')), users: useListQaqcUsers({ page, limit: 20 }, { query: { enabled: app === 'qaqc' && (cap.canTask('manage_roles' as never) || cap.canTask('delegate' as never)) } } as any),
+      roles: useListQaqcRoles({ page, limit: 20 }, qopts('manage_roles')), users: useListQaqcUsers(userParams, { query: { enabled: app === 'qaqc' && (cap.canTask('manage_roles' as never) || cap.canTask('delegate' as never)), placeholderData: keepPreviousData } } as any),
       delegations: useListQaqcDelegations({ page, limit: 20 }, qopts('delegate')),
       escalations: useListQaqcEscalationRules(qopts('configure_masters')), templates: useListQaqcNotificationTemplates({ page, limit: 20 }, qopts('configure_masters')),
       log: useListQaqcAuditLog({ ...filters, page, limit: 20 }, qopts('view_audit_log')), ai: useGetQaqcAiSettings(qopts('manage_ai_settings')),
     },
     lessons: {
-      roles: useListLessonsRoles({ page, limit: 20 }, opts('lessons')), users: useListLessonsUsers({ page, limit: 20 }, opts('lessons')),
+      roles: useListLessonsRoles({ page, limit: 20 }, opts('lessons')), users: useListLessonsUsers(userParams, userOpts('lessons')),
       delegations: useListLessonsDelegations({ page, limit: 20 }, opts('lessons')),
       escalations: useListLessonsEscalationRules(opts('lessons')), templates: useListLessonsNotificationTemplates({ page, limit: 20 }, opts('lessons')),
       job: useGetLessonsEscalationReportJob(opts('lessons')),
       log: useListLessonsAuditLog({ ...filters, page, limit: 20 }, opts('lessons')), ai: useGetLessonsAiSettings(opts('lessons')),
     },
     audit: {
-      roles: useListAuditRoles({ page, limit: 20 }, opts('audit')), users: useListAuditUsers({ page, limit: 20 }, opts('audit')),
+      roles: useListAuditRoles({ page, limit: 20 }, opts('audit')), users: useListAuditUsers(userParams, userOpts('audit')),
       delegations: useListAuditDelegations({ page, limit: 20 }, opts('audit')),
       escalations: useListAuditEscalationRules(opts('audit')), templates: useListAuditNotificationTemplates({ page, limit: 20 }, opts('audit')),
       log: useListAuditWorkspaceAuditLog({ ...filters, page, limit: 20 }, opts('audit')), ai: null,
@@ -192,7 +195,16 @@ function ApproverScopes() {
 }
 
 function UsersAccess({ app }: { app: AppKey }) {
-  const api = useAdmin(app); const act = useActions(app); const [search, setSearch] = useState('');
+  const [usersPage, setUsersPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const api = useAdmin(app, 1, undefined, { page: usersPage, search }); const act = useActions(app);
+  useEffect(() => { setUsersPage(1); setSearch(''); }, [app]);
+  useEffect(() => {
+    if (api.users.data && !api.users.isFetching) {
+      const last = Math.max(1, Math.ceil(api.users.data.total / 20));
+      if (usersPage > last) setUsersPage(last);
+    }
+  }, [api.users.data, api.users.isFetching, usersPage]);
   const [roleDialog, setRoleDialog] = useState<{ userId: string; editing?: Role }>();
   const [roleId, setRoleId] = useState(''); const [scopeType, setScopeType] = useState<'organization' | 'project' | 'department'>('organization');
   const [roleSaveError, setRoleSaveError] = useState('');
@@ -284,7 +296,7 @@ function UsersAccess({ app }: { app: AppKey }) {
     pendingFormParams,
     { query: { enabled: app === 'lessons' && delegateOpen && !!delegation.projectId && !!delegation.delegatorId, queryKey: getListLessonsDelegationPendingFormsQueryKey(pendingFormParams) } },
   );
-  const users = api.users.data?.items.filter(u => matchesWorkspaceUserSearch(u, search)) ?? [];
+  const users = api.users.data?.items ?? [];
   const projects = assignmentProjects.data?.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(projectSearch.toLowerCase())) ?? [];
   const scopeOptions = scopeType === 'department'
     ? (departmentReferences.data ?? []).filter(d => `${d.name} ${d.code}`.toLowerCase().includes(projectSearch.toLowerCase()))
@@ -333,15 +345,16 @@ function UsersAccess({ app }: { app: AppKey }) {
   const error = (cR || app !== 'qaqc' ? api.users.error || api.roles.error : null) || (cD ? api.delegations.error : null) || currentUser.error || assignmentProjects.error || (canManagePlatformRoles ? platformRoles.error : null);
   return <PageState loading={loading} error={error} onRetry={() => { api.users.refetch(); api.roles.refetch(); api.delegations.refetch(); assignmentProjects.refetch(); }}>
     {cR && currentUser.data?.platformRole === 'Super Admin' && <div className="mb-4 flex justify-end">
-      <DronaAddUser onAdded={(userId) => {
-        void api.users.refetch();
+      <DronaAddUser onAdded={(userId, email) => {
+        setUsersPage(1); setSearch(email);
         act.done('User available in QMS360. Select the required role.');
         openRoleDialog(userId);
       }} />
     </div>}
     {!cR && cD && <div className="mb-5"><Button onClick={() => setDelegateOpen(true)}><Plus className="mr-2 h-4 w-4" />Delegate access</Button></div>}
-    {cR && <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Workspace users</CardTitle><CardDescription>Assign application roles and review access.</CardDescription></div>{cD && <Button onClick={() => setDelegateOpen(true)}><Plus className="mr-2 h-4 w-4" />Delegation</Button>}</CardHeader><CardContent><div className="relative mb-4 max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={e => setSearch(e.target.value)} className="pl-9" placeholder="Search user, email or workspace role" aria-label="Search user, email or workspace role" /></div>
-      <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Platform role</TableHead><TableHead>Workspace roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{users.map(u => <TableRow key={u.id}>
+    {cR && <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Workspace users</CardTitle><CardDescription>Assign application roles and review access.</CardDescription></div>{cD && <Button onClick={() => setDelegateOpen(true)}><Plus className="mr-2 h-4 w-4" />Delegation</Button>}</CardHeader><CardContent><div className="relative mb-4 max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={e => { setUsersPage(1); setSearch(e.target.value); }} maxLength={200} className="pl-9" placeholder="Search user, email or workspace role" aria-label="Search user, email or workspace role" /></div>
+      {api.users.isFetching && <p role="status" className="mb-3 text-sm text-muted-foreground">Updating user list…</p>}
+      <Table aria-busy={api.users.isFetching}><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Platform role</TableHead><TableHead>Workspace roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{users.map(u => <TableRow key={u.id}>
         <TableCell><p className="font-medium">{u.fullName}</p><p className="text-xs text-muted-foreground">{u.email}</p></TableCell>
         <TableCell>{canManagePlatformRoles ? <Select value={platformRoles.data?.find(r => r.name === u.platformRole)?.id ?? ''} disabled={updatePlatformRole.isPending || u.id === currentUser.data?.id} onValueChange={roleId => changePlatformRole(u.id, roleId)}><SelectTrigger className="min-w-44" aria-label={`Platform role for ${u.fullName}`}><SelectValue placeholder={u.platformRole} /></SelectTrigger><SelectContent>{platformRoles.data?.map(role => <SelectItem key={role.id} value={role.id} disabled={role.name === 'Super Admin' && currentUser.data?.platformRole !== 'Super Admin'}>{role.name}</SelectItem>)}</SelectContent></Select> : <Badge variant="outline">{u.platformRole}</Badge>}</TableCell>
         <TableCell><div className="flex flex-col items-start gap-2">{u.workspaceRoles.map(r => {
@@ -350,7 +363,9 @@ function UsersAccess({ app }: { app: AppKey }) {
           return <div key={r.id} className="flex flex-wrap items-center gap-2"><div><Badge variant="secondary">{r.name}</Badge><p className="text-xs text-muted-foreground">{r.scopeType === 'department' ? `Selected departments: ${selectedNames.join(', ') || 'None'}` : r.scopeType === 'project' ? `Selected projects: ${selectedNames.join(', ') || 'None'}` : 'Organization-wide'}</p></div><Button type="button" size="sm" variant="outline" onClick={() => openRoleDialog(u.id, r)}>Edit scope</Button><Button type="button" size="sm" variant="outline" className="h-7 border-destructive/50 px-2 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground" disabled={act.removeRole.isPending} onClick={() => removeRole(u.id, r)}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove role</Button></div>;
         })}{!u.workspaceRoles.length && <span className="text-sm text-muted-foreground">No role assigned</span>}</div></TableCell>
         <TableCell><Badge variant={u.status === 'Active' ? 'default' : 'secondary'}>{u.status}</Badge></TableCell><TableCell className="space-x-2"><Button size="sm" variant="outline" onClick={() => openRoleDialog(u.id)}>Assign role</Button><Button size="sm" variant="outline" onClick={() => openEmail(u)}>Edit email</Button><Button size="sm" variant="outline" onClick={() => openPassword(u)}><KeyRound className="mr-1 h-4 w-4" />Set password</Button>{cR && <Button size="sm" variant="ghost" onClick={() => openProfile(u)}>Edit profile</Button>}</TableCell></TableRow>)}</TableBody></Table>
-      {!users.length && <p className="py-10 text-center text-sm text-muted-foreground">No users match this search.</p>}</CardContent></Card>}
+      {!users.length && <p className="py-10 text-center text-sm text-muted-foreground">No users match this search.</p>}
+      <WorkspaceUserPagination page={usersPage} total={api.users.data?.total ?? 0}
+        busy={api.users.isFetching} onPageChange={setUsersPage} /></CardContent></Card>}
     <div className="mt-5 grid gap-5">
       {cD && <Card><CardHeader><CardTitle>Delegations</CardTitle><CardDescription>Access expires automatically at the end date.</CardDescription></CardHeader><CardContent className="space-y-3">{api.delegations.data?.items.map((d: any) => <div key={d.id} className="flex items-center gap-3 rounded-lg border p-3"><div className="min-w-0 flex-1">{app === 'lessons' ? <p className="font-medium">{d.delegatorName} → {d.delegateName}</p> : <div className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"><DelegationPerson name={d.delegatorFullName} username={d.delegatorUsername} email={d.delegatorEmail} status={d.delegatorUserStatus} fallbackId={d.delegatorId} /><span className="text-muted-foreground" aria-hidden="true">→</span><DelegationPerson name={d.delegateFullName} username={d.delegateUsername} email={d.delegateEmail} status={d.delegateUserStatus} fallbackId={d.delegateId} /></div>}<p className="mt-2 text-xs text-muted-foreground">{app === 'lessons' ? `${d.projectName} · ${d.lessonForms.length} selected form${d.lessonForms.length === 1 ? '' : 's'}${d.lessonForms.length <= 2 ? ` (${d.lessonForms.map((form: any) => form.referenceNumber).join(', ')})` : ''}` : d.scope} · expires {formatDate(d.endDate)}</p></div><Badge variant={d.status === 'active' ? 'default' : 'secondary'}>{d.status}</Badge>{['active', 'pending'].includes(d.status) && <Button size="icon" variant="ghost" onClick={() => act.revoke.mutate({ id: d.id }, { onSuccess: () => act.done('Delegation revoked'), onError: act.fail })}><Trash2 className="h-4 w-4" /></Button>}</div>)}{!api.delegations.data?.items.length && <p className="py-8 text-center text-sm text-muted-foreground">No delegations configured.</p>}</CardContent></Card>}</div>
     {app === 'lessons' && <ApproverScopes />}

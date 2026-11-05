@@ -2,6 +2,7 @@ import type { Request } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { canManageAssignmentScope, isSuperAdminRoleAdministration } from "../middlewares/rbac";
+import { HttpError } from "./workspace";
 
 type Assignment = {
   userId: string;
@@ -9,6 +10,25 @@ type Assignment = {
   businessUnitIds?: string[] | null;
   departmentIds?: string[] | null;
 };
+
+/** Apply only AFTER identity visibility and BEFORE pagination. Role names must
+ * come from manageable assignments, never a hidden assignment outside scope. */
+export function searchAdminUsers<T extends { id: string; fullName: string; username: string; email: string | null }>(
+  req: Request, visibleUsers: T[], assignments: Array<Assignment & { workspaceRoleId: string }>,
+  roles: Array<{ id: string; name: string }>,
+): T[] {
+  const value = req.query.search;
+  if (value === undefined) return visibleUsers;
+  if (typeof value !== "string" || value.length > 200) throw new HttpError(422, "User search must be text of at most 200 characters");
+  const search = value.trim().toLowerCase();
+  if (!search) return visibleUsers;
+  const matchingRoles = new Set(roles.filter(role => role.name.toLowerCase().includes(search)).map(role => role.id));
+  const matchingUsers = new Set(assignments.filter(assignment => matchingRoles.has(assignment.workspaceRoleId)
+    && canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds))
+    .map(assignment => assignment.userId));
+  return visibleUsers.filter(user => `${user.fullName} ${user.username} ${user.email ?? ""}`.toLowerCase().includes(search)
+    || matchingUsers.has(user.id));
+}
 
 /** Discover identities, not privileges. Existing role and approval writes retain
  * their own authorization. Never list an unassigned identity outside live scope. */

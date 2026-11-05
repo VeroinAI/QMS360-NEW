@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { validateRoleDepartments } from "../lib/role-departments";
 import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
-import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import { visibleAdminUsers, searchAdminUsers } from "../lib/admin-user-discovery";
 import qaqcUserProfileRouter from "./qaqc-user-profile";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
@@ -857,12 +857,13 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const [allRows, allAssignments, availablePlatformRoles] = await Promise.all([
-    db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))).orderBy(asc(users.fullName)),
+  const [allRows, allAssignments, availablePlatformRoles, searchableRoles] = await Promise.all([
+    db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))).orderBy(asc(users.fullName), asc(users.id)),
     db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), isNull(userWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, org(req)), isNull(platformRoles.deletedAt))),
+    db.select({ id: workspaceRoles.id, name: workspaceRoles.name }).from(workspaceRoles).where(and(eq(workspaceRoles.organizationId, org(req)), isNull(workspaceRoles.deletedAt))),
   ]);
-  const visibleRows = await visibleAdminUsers(req, allRows, allAssignments);
+  const visibleRows = searchAdminUsers(req, await visibleAdminUsers(req, allRows, allAssignments), allAssignments, searchableRoles);
   const rows = visibleRows.slice(offset, offset + limit);
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));

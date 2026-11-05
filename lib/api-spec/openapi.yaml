@@ -1628,7 +1628,7 @@ paths:
   /qaqc/admin/roles/{id}:
     put: {operationId: updateQaqcRole, tags: [qaqc-admin], summary: Update workspace role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /qaqc/admin/users:
-    get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+    get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: search, in: query, schema: {type: string, maxLength: 200}}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /qaqc/admin/users/{userId}/profile:
     put: {operationId: updateQaqcUserProfile, tags: [qaqc-admin], summary: Update a user's designation and signature, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated profile, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcUserProfileResult"}}}}, "403": {description: Role management access required}, "404": {description: User not found}, "422": {description: Invalid profile or signature}}}
   /qaqc/admin/users/{userId}/signature:
@@ -1818,7 +1818,7 @@ paths:
   /lessons/admin/roles/{id}:
     put: {operationId: updateLessonsRole, tags: [lessons-admin], summary: Update role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /lessons/admin/users:
-    get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+    get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: search, in: query, schema: {type: string, maxLength: 200}}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /lessons/admin/users/{userId}/roles:
     post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsRoleAssignment"}}}}, responses: {"200": {description: Assigned}}}
   /lessons/admin/users/{userId}/roles/{id}:
@@ -2316,7 +2316,7 @@ paths:
   /audit/admin/roles/{id}:
     put: {operationId: updateAuditRole, tags: [audit-admin], summary: Update role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /audit/admin/users:
-    get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Audit users, content: {application/json: {schema: {$ref: "#/components/schemas/AuditWorkspaceUserPage"}}}}}}
+    get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: search, in: query, schema: {type: string, maxLength: 200}}], responses: {"200": {description: Audit users, content: {application/json: {schema: {$ref: "#/components/schemas/AuditWorkspaceUserPage"}}}}}}
   /audit/admin/users/{userId}/profile:
     put: {operationId: updateAuditUserProfile, tags: [audit-admin], summary: Update a user's designation and signature (admin), parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated profile, content: {application/json: {schema: {$ref: "#/components/schemas/AuditUserProfileUpdateResult"}}}}, "403": {description: Audit administrator access required}, "404": {description: User not found}, "422": {description: Invalid profile or signature data}}}
   /audit/admin/users/{userId}/signature:
