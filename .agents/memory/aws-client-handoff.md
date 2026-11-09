@@ -93,29 +93,16 @@ not prevent a public distribution with origin access from exposing files.
 unauthenticated CloudFront access as well as public S3 access. Keep the deployment
 handoff configuration-only; no frontend/backend development is assigned to them.
 
-The user stated on 2026-11-09 that the combined code is already synced to their
-GitHub repository for Drona/AWS delivery, and the customer now requests two
-separate GitHub repositories for frontend and backend delivery.
+The user confirmed on 2026-11-09 that the customer accepts the combined
+frontend/backend repository in their GitHub. This supersedes the earlier request
+for two delivery repositories and customer-managed split automation.
 
-**Why:** The requested split concerns customer delivery repositories; it does not
-authorize replacing the existing source repository or disrupting its deployment.
+**Why:** The customer explicitly accepted combined delivery; the user requested
+undoing the split-repository setup before syncing their existing GitHub.
 
-**How to apply:** Preserve the existing delivery path while evaluating a separate
-customer export. Confirm destination repositories and branches before writing to
-them, and validate each export with its required shared packages and build files.
-
-The user selected **customer-managed automatic sync** on 2026-11-09: the
-customer's GitHub administrators should own automation that delivers the combined
-source into their frontend/backend repositories.
-
-**Why:** The user rejected managing the source-side GitHub Actions and credential
-setup as too complicated and chose customer ownership rather than manual ZIP
-delivery.
-
-**How to apply:** Keep the combined repository as the authoring source and hand
-off the tested export tooling. The customer owns automation, credentials and
-release-branch policy. Do not assume the earlier source-side workflow is still
-the desired setup or rewrite pending Git history without explicit approval.
+**How to apply:** Preserve combined authoring and the existing Drona/AWS delivery
+path. Do not reintroduce split exports or their GitHub workflow unless requested.
+Undo only the repository-splitting setup, preserving application fixes.
 
 For source pushes rejected because an OAuth credential lacks GitHub's `workflow`
 scope, distinguish that source credential from the customer-repository token.
