@@ -103,3 +103,19 @@ authorize replacing the existing source repository or disrupting its deployment.
 **How to apply:** Preserve the existing delivery path while evaluating a separate
 customer export. Confirm destination repositories and branches before writing to
 them, and validate each export with its required shared packages and build files.
+
+For source pushes rejected because an OAuth credential lacks GitHub's `workflow`
+scope, distinguish that source credential from the customer-repository token.
+GitHub permits an identical workflow path and contents already present on another
+branch in the same repository; a GitHub-web temporary-branch bootstrap can avoid
+changing credentials or rewriting history.
+
+**Why:** The generic push-rejection UI can mislabel a workflow-authorization
+failure as a branch-divergence problem. Pulling, force-pushing or changing the
+customer delivery token does not resolve the missing source permission.
+
+**How to apply:** Consult GitHub's current OAuth scope documentation before using
+the exception. Seed the exact local workflow on a separate branch through an
+authorized GitHub UI, leave source main unchanged, then retry the normal push.
+The workaround does not grant permanent workflow scope; future workflow edits
+may need the same bootstrap or appropriately authorized source credentials.

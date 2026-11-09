@@ -46,6 +46,37 @@ release. Frontend delivery retains Drona mode; backend includes runtime report
 templates, fonts and migration resources. API routing, environment configuration,
 storage and production data are not transferred by this workflow.
 
+## Source push rejected for missing `workflow` scope
+
+If GitHub says an OAuth App cannot create/update
+`.github/workflows/sync-customer-repos.yml` without `workflow` scope, this is an
+authorization failure, not evidence of divergent branches. The customer
+`CUSTOMER_REPO_TOKEN` does not authenticate Replit's push to the source repository.
+Do not force-push, reset history or broaden the customer token to address it.
+
+GitHub documents an exception: an OAuth token without this scope can commit a
+workflow if the **same path and exact contents** already exist on another branch
+in the same repository.
+
+1. On the **source repository's GitHub website**, create a temporary branch such
+   as `workflow-permission-bootstrap` from its current `main`. Do not change
+   `main` on the website, so the local source branch does not need reconciliation.
+2. On that temporary branch, use Add file → Create new file, enter
+   `.github/workflows/sync-customer-repos.yml`, and paste the complete, unchanged
+   contents of the prepared local file. Commit to the temporary branch only.
+3. Retry the normal Replit push to `main`. The identical workflow now exists on
+   another branch, satisfying GitHub's documented exception.
+4. After the push succeeds, confirm the workflow is on `main`; the temporary
+   branch can then be removed through the normal GitHub UI.
+
+This does not grant Replit's OAuth credential additional scopes. Future workflow
+content changes may require repeating the exact-content bootstrap, or using a
+source push credential explicitly authorized to write workflows. Ordinary source
+code changes do not need a new workflow permission.
+
+Reference: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps
+(`workflow` scope).
+
 ## File ownership and safety
 
 - Only tracked files in the selected app and its workspace dependency closure
