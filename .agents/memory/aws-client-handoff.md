@@ -104,6 +104,19 @@ authorize replacing the existing source repository or disrupting its deployment.
 customer export. Confirm destination repositories and branches before writing to
 them, and validate each export with its required shared packages and build files.
 
+The user selected **customer-managed automatic sync** on 2026-11-09: the
+customer's GitHub administrators should own automation that delivers the combined
+source into their frontend/backend repositories.
+
+**Why:** The user rejected managing the source-side GitHub Actions and credential
+setup as too complicated and chose customer ownership rather than manual ZIP
+delivery.
+
+**How to apply:** Keep the combined repository as the authoring source and hand
+off the tested export tooling. The customer owns automation, credentials and
+release-branch policy. Do not assume the earlier source-side workflow is still
+the desired setup or rewrite pending Git history without explicit approval.
+
 For source pushes rejected because an OAuth credential lacks GitHub's `workflow`
 scope, distinguish that source credential from the customer-repository token.
 GitHub permits an identical workflow path and contents already present on another
