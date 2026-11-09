@@ -92,3 +92,14 @@ not prevent a public distribution with origin access from exposing files.
 **How to apply:** Ask infrastructure operators to isolate the QMS360 prefix from
 unauthenticated CloudFront access as well as public S3 access. Keep the deployment
 handoff configuration-only; no frontend/backend development is assigned to them.
+
+The user stated on 2026-11-09 that the combined code is already synced to their
+GitHub repository for Drona/AWS delivery, and the customer now requests two
+separate GitHub repositories for frontend and backend delivery.
+
+**Why:** The requested split concerns customer delivery repositories; it does not
+authorize replacing the existing source repository or disrupting its deployment.
+
+**How to apply:** Preserve the existing delivery path while evaluating a separate
+customer export. Confirm destination repositories and branches before writing to
+them, and validate each export with its required shared packages and build files.
