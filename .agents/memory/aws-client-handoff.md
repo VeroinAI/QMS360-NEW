@@ -92,30 +92,3 @@ not prevent a public distribution with origin access from exposing files.
 **How to apply:** Ask infrastructure operators to isolate the QMS360 prefix from
 unauthenticated CloudFront access as well as public S3 access. Keep the deployment
 handoff configuration-only; no frontend/backend development is assigned to them.
-
-The user confirmed on 2026-11-09 that the customer accepts the combined
-frontend/backend repository in their GitHub. This supersedes the earlier request
-for two delivery repositories and customer-managed split automation.
-
-**Why:** The customer explicitly accepted combined delivery; the user requested
-undoing the split-repository setup before syncing their existing GitHub.
-
-**How to apply:** Preserve combined authoring and the existing Drona/AWS delivery
-path. Do not reintroduce split exports or their GitHub workflow unless requested.
-Undo only the repository-splitting setup, preserving application fixes.
-
-For source pushes rejected because an OAuth credential lacks GitHub's `workflow`
-scope, distinguish that source credential from the customer-repository token.
-GitHub permits an identical workflow path and contents already present on another
-branch in the same repository; a GitHub-web temporary-branch bootstrap can avoid
-changing credentials or rewriting history.
-
-**Why:** The generic push-rejection UI can mislabel a workflow-authorization
-failure as a branch-divergence problem. Pulling, force-pushing or changing the
-customer delivery token does not resolve the missing source permission.
-
-**How to apply:** Consult GitHub's current OAuth scope documentation before using
-the exception. Seed the exact local workflow on a separate branch through an
-authorized GitHub UI, leave source main unchanged, then retry the normal push.
-The workaround does not grant permanent workflow scope; future workflow edits
-may need the same bootstrap or appropriately authorized source credentials.
