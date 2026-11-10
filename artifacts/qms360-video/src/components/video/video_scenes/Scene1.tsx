@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import logoUrl from '@assets/algihaz-logo.svg';
+import logoUrl from '../../../../public/brand/algihaz-logo.svg?url';
 
 export function Scene1() {
   const [phase, setPhase] = useState(0);

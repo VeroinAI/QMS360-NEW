@@ -4776,6 +4776,37 @@ export interface GeneratedAuditReport {
   downloadUrl?: string | null;
 }
 
+export type AuditReportTableColumnKind = typeof AuditReportTableColumnKind[keyof typeof AuditReportTableColumnKind];
+
+
+export const AuditReportTableColumnKind = {
+  text: 'text',
+  date: 'date',
+  number: 'number',
+} as const;
+
+export interface AuditReportTableColumn {
+  label: string;
+  kind: AuditReportTableColumnKind;
+}
+
+export interface AuditReportTableRow {
+  id: string;
+  values: (string | null)[];
+}
+
+export interface AuditReportTable {
+  title: string;
+  columns: AuditReportTableColumn[];
+  rows: AuditReportTableRow[];
+  total: number;
+  page: number;
+  limit: number;
+  generatedAt: string;
+  /** Distinct years with authorized rows in this report, independent of pagination and selected filters, newest first. */
+  availableYears: number[];
+}
+
 export type ReportDeliveryDelivery = typeof ReportDeliveryDelivery[keyof typeof ReportDeliveryDelivery];
 
 
@@ -5988,6 +6019,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListQaqcAccessQueueParams = {
@@ -6243,6 +6278,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListLessonsAccessQueueParams = {
@@ -6544,6 +6583,36 @@ from?: FromParameter;
 to?: ToParameter;
 };
 
+export type GetAuditReportTableParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
+/**
+ * @minimum 1900
+ * @maximum 2200
+ */
+year?: number;
+format?: GetAuditReportTableFormat;
+};
+
+export type GetAuditReportTableFormat = typeof GetAuditReportTableFormat[keyof typeof GetAuditReportTableFormat];
+
+
+export const GetAuditReportTableFormat = {
+  json: 'json',
+  csv: 'csv',
+} as const;
+
 export type ListAuditFindingRegisterParams = {
 /**
  * @minimum 1
@@ -6625,6 +6694,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * @maxLength 200
+ */
+search?: string;
 };
 
 export type ListAuditAccessQueueParams = {

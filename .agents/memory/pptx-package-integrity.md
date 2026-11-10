@@ -53,3 +53,23 @@ actual entries even though each cloned row retained a bottom border.
 
 **How to apply:** Keep the header, ordinary body and grand Total styling distinct;
 check row separators in an office-rendered export after rebuilding dynamic tables.
+
+Template signature/date rules may be zero-height line shapes, not usable text
+boxes. Keep the lines and put signer values in separate nonzero-height text
+boxes or picture shapes above them.
+
+**Why:** Text can exist in the generated XML without being visible in Office
+when inserted into a zero-height line shape.
+
+**How to apply:** Check rendered signature/date fields, not just their XML
+contents, when updating any sign-off layout.
+
+Validate parallel-column content as independent ordered streams, not one
+concatenation of every slide's text.
+
+**Why:** Dynamic columns can continue mid-sentence on different slides. Mixing
+both streams inserts unrelated text between sentence fragments and falsely
+suggests saved words were lost.
+
+**How to apply:** Reassemble each semantic section's text separately for
+round-trip checks, then verify placement, overlap and page bounds independently.

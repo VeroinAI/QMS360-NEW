@@ -110,13 +110,20 @@ The NCR PowerPoint register also uses saved Finding References and exactly `-`
 when no evidence is linked. Unlike OFI, NCR objective evidence excludes generic
 finding notes; use linked uploaded file references only.
 
-**Why:** The user separately corrected the NCR register's reference and evidence
-semantics, while explicitly excluding table resizing, unused-row changes,
-number issuance and PDF/JSON changes.
+**Why:** The user corrected the NCR register's reference and evidence semantics,
+then supplied a revised six-column register image. The revised layout supersedes
+the earlier restriction on changing NCR table geometry.
 
 **How to apply:** Identify NCR by section content (template slide 11), not its
 displayed page number. Preserve historical unnumbered findings as missing data,
 legacy/checklist coexistence and OFI's independent notes-as-evidence behavior.
+Use the column order **Ref, Date, Finding, Objective evidence, Audit Area, Grade**.
+Date means the saved Finding Date, using the organization date format, never
+the record creation or upload date. Finding retains the audit-area context and
+saved description shown in the reference image. Do not infer missing dates or
+issue numbers. Preserve the shaded Grade column and readable, fully retained
+continuations; do not turn continued text into additional findings. PDF/JSON
+and other report sections remain independent.
 
 Conforming Areas in the PowerPoint report must distinguish unused source rows
 from missing cells in actual entries. Ignore wholly blank good-practice inputs,
@@ -180,3 +187,62 @@ responses, not a change to CAR entry, storage, workflows or other report formats
 **How to apply:** Preserve field identity through row mapping and continuation
 pagination; never infer one response from the other or shift the owner, due date,
 status or verification data when changing the tracker columns.
+
+The PowerPoint conclusion uses the supplied three-row sign-off reference:
+Prepared by is the explicitly selected Audit Plan Team Lead with the stored
+Mark as complete date. Reviewed by uses actual intermediate Audit Report
+approval decisions; Approved by and Report issue date use the actual final
+approval. Only the current submission cycle signs the report. Distribution
+and Acknowledged by are omitted from this slide.
+
+**Why:** The user supplied an annotated conclusion image identifying workflow
+sources, rather than manually entered Report Details sign-off text.
+
+**How to apply:** Include available signature images for these identified
+users, never signatures belonging merely to eligible role holders. Preserve
+missing values as `-`, prior workflow history and all source data. Keep PDF/JSON
+mapping independent, and use the common PowerPoint generator for downloads and
+email attachments.
+
+The PowerPoint Corrective action tracker includes a leading **Finding ID**
+column before the independent CAR Ref column. Use the saved Finding ID from
+the Audit Findings workspace for both current checklist findings and standalone
+history, not the internal row UUID, client reference or generated B.x link.
+
+**Why:** The user supplied a revised tracker image and explicitly named the
+workspace Finding ID as the source of this additional column.
+
+**How to apply:** Preserve both identifiers on continuation pages and keep
+Correction, Corrective action, Owner, due date, status and verification aligned.
+An unissued Finding ID is `-`; reading the report must never issue a number.
+Keep PDF/JSON columns and unrelated PowerPoint sections unchanged.
+
+The Design and procurement status PowerPoint page uses available content space,
+not a fixed number of template rows. Keep Design on the left and Procurement
+on the right, each inside its original purple panel. Do not borrow the other
+section's column. Both panels retain rounded white comment boxes, aligned
+below the taller table and its check text.
+
+**Why:** After the premature Total submittals continuation was corrected, the
+user rejected the cross-column flow and missing comment-box layout and supplied
+the required two-panel screenshot again.
+
+**How to apply:** Retain the two-section branding, all saved rows, totals and
+comments. Add table rows and resize/reposition the padded comment boxes first;
+only continue when the content cannot fit. Continuations retain the same panel
+format, headings and footer clearance. Keep PDF/JSON and other sections independent.
+
+Document control and approval uses the same actual Audit Report signatories
+as the Conclusion: selected Audit Lead with Mark Complete date, actual
+intermediate approval decisions, and actual final approval decision. Include
+available signatures, never infer a signature or approval from eligibility.
+Replace the Revision history table with Approval History, without its Revision
+column, showing recorded decisions chronologically, including earlier cycles.
+
+**Why:** The user explicitly replaced manual document-control sign-offs and
+revision placeholders with the report's factual approval workflow details.
+
+**How to apply:** Preserve the left-hand Document information fields and
+original branding. Use missing-value dashes, retain recorded approval remarks
+and dates, and continue lengthy history in matching slides without losing text.
+Do not change PDF/JSON, report completion guards or the separate CAR workflow.

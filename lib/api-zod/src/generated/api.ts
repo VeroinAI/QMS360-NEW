@@ -5460,11 +5460,14 @@ export const listQaqcUsersQueryPageDefault = 1;
 export const listQaqcUsersQueryLimitDefault = 20;
 export const listQaqcUsersQueryLimitMax = 200;
 
+export const listQaqcUsersQuerySearchMax = 200;
+
 
 
 export const ListQaqcUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listQaqcUsersQuerySearchMax).optional()
 })
 
 export const listQaqcUsersResponseOneTotalMin = 0;
@@ -7136,11 +7139,14 @@ export const listLessonsUsersQueryPageDefault = 1;
 export const listLessonsUsersQueryLimitDefault = 20;
 export const listLessonsUsersQueryLimitMax = 200;
 
+export const listLessonsUsersQuerySearchMax = 200;
+
 
 
 export const ListLessonsUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listLessonsUsersQuerySearchMax).optional()
 })
 
 export const listLessonsUsersResponseOneTotalMin = 0;
@@ -14168,6 +14174,47 @@ export const GetAuditOpenVsClosedReportResponse = zod.object({
 
 
 /**
+ * @summary Read workbook-layout Audit report tables within Reports role scope
+ */
+export const getAuditReportTableQueryPageDefault = 1;
+
+export const getAuditReportTableQueryLimitDefault = 20;
+export const getAuditReportTableQueryLimitMax = 200;
+
+export const getAuditReportTableQuerySearchMax = 200;
+
+export const getAuditReportTableQueryYearMin = 1900;
+export const getAuditReportTableQueryYearMax = 2200;
+
+
+
+export const GetAuditReportTableQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(getAuditReportTableQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getAuditReportTableQueryLimitMax).default(getAuditReportTableQueryLimitDefault),
+  "search": zod.coerce.string().max(getAuditReportTableQuerySearchMax).optional(),
+  "year": zod.coerce.number().int().min(getAuditReportTableQueryYearMin).max(getAuditReportTableQueryYearMax).optional(),
+  "format": zod.enum(['json', 'csv']).optional()
+})
+
+export const GetAuditReportTableResponse = zod.object({
+  "title": zod.string(),
+  "columns": zod.array(zod.object({
+  "label": zod.string(),
+  "kind": zod.enum(['text', 'date', 'number'])
+})),
+  "rows": zod.array(zod.object({
+  "id": zod.string(),
+  "values": zod.array(zod.string().nullable())
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "generatedAt": zod.date(),
+  "availableYears": zod.array(zod.number()).describe('Distinct years with authorized rows in this report, independent of pagination and selected filters, newest first.')
+})
+
+
+/**
  * @summary Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
  */
 export const listAuditFindingRegisterQueryPageDefault = 1;
@@ -14862,11 +14909,14 @@ export const listAuditUsersQueryPageDefault = 1;
 export const listAuditUsersQueryLimitDefault = 20;
 export const listAuditUsersQueryLimitMax = 200;
 
+export const listAuditUsersQuerySearchMax = 200;
+
 
 
 export const ListAuditUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditUsersQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault),
+  "search": zod.coerce.string().max(listAuditUsersQuerySearchMax).optional()
 })
 
 export const listAuditUsersResponseOneTotalMin = 0;

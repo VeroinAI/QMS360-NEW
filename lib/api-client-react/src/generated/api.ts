@@ -74,6 +74,7 @@ import type {
   AuditProjectProgressInput,
   AuditReportApprovalDecisionInput,
   AuditReportDetails,
+  AuditReportTable,
   AuditSchedule,
   AuditScheduleActivityOptions,
   AuditScheduleActivityPage,
@@ -181,6 +182,7 @@ import type {
   GetAuditPlanNumberPreview200,
   GetAuditPlanNumberPreviewParams,
   GetAuditPlanOptionsParams,
+  GetAuditReportTableParams,
   GetAuditScheduleActivityOptionsParams,
   GetDailyOpeningProjects200,
   GetLessonApprovalHistory200,
@@ -26362,6 +26364,95 @@ export function useGetAuditOpenVsClosedReport<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAuditOpenVsClosedReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAuditReportTableUrl = (report: 'open-vs-closed' | 'findings-log' | 'car-status' | 'schedule',
+    params?: GetAuditReportTableParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/reports/table/${report}?${stringifiedParams}` : `/api/audit/reports/table/${report}`
+}
+
+/**
+ * @summary Read workbook-layout Audit report tables within Reports role scope
+ */
+export const getAuditReportTable = async (report: 'open-vs-closed' | 'findings-log' | 'car-status' | 'schedule',
+    params?: GetAuditReportTableParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditReportTable> => {
+
+  return customFetch<AuditReportTable>(getGetAuditReportTableUrl(report,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditReportTableQueryKey = (report: 'open-vs-closed' | 'findings-log' | 'car-status' | 'schedule',
+    params?: GetAuditReportTableParams,) => {
+    return [
+    `/api/audit/reports/table/${report}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAuditReportTableQueryOptions = <TData = Awaited<ReturnType<typeof getAuditReportTable>>, TError = ErrorType<unknown>>(report: 'open-vs-closed' | 'findings-log' | 'car-status' | 'schedule',
+    params?: GetAuditReportTableParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditReportTable>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditReportTableQueryKey(report,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditReportTable>>> = ({ signal }) => getAuditReportTable(report,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: report !== null && report !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditReportTable>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditReportTableQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditReportTable>>>
+export type GetAuditReportTableQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read workbook-layout Audit report tables within Reports role scope
+ */
+
+export function useGetAuditReportTable<TData = Awaited<ReturnType<typeof getAuditReportTable>>, TError = ErrorType<unknown>>(
+ report: 'open-vs-closed' | 'findings-log' | 'car-status' | 'schedule',
+    params?: GetAuditReportTableParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditReportTable>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditReportTableQueryOptions(report,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

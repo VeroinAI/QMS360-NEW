@@ -5,6 +5,7 @@ import { auditPptxMappings, PPTX_EMPTY } from "../src/lib/audit-pptx-mapping";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import { DOMParser } from "@xmldom/xmldom";
+import { applyAuditPptxSignoff, auditPptxSignoff } from "../src/lib/audit-pptx-signoff";
 
 const fixture = () => ({
   audit: {
@@ -126,7 +127,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   it("maps conforming records and resolves CAR references and grades through linked checklist findings", () => {
     const mapped = auditPptxMappings(build());
     expect(mapped.get(10)!.tables[0]).toEqual([["Design", "Actual verified practice", "Record X"]]);
-    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["-", "Moderate", "Actual root cause"]);
+    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 4)).toEqual(["-", "-", "Moderate", "Actual root cause"]);
   });
   it("uses the independently issued CAR number", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
@@ -136,7 +137,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       ] };
     (data.cars[0] as typeof data.cars[0] & { carNumber: string }).carNumber = "QAM-CTR-CAR-26-0007";
     const table = auditPptxMappings(build(data)).get(15)!.tables[0]!;
-    expect(table[0]?.slice(0, 3)).toEqual(["QAM-CTR-CAR-26-0007", "Moderate", "Actual root cause"]);
+    expect(table[0]?.slice(0, 4)).toEqual(["-", "QAM-CTR-CAR-26-0007", "Moderate", "Actual root cause"]);
   });
   it("does not overwrite existing report values or mutate the source audit, plan or other export sections", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, reportDetails: {
@@ -162,11 +163,11 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const data = fixture();
     data.audit.checklist[0] = { ...data.audit.checklist[0]!, description: "", question: "A checklist question" } as typeof data.audit.checklist[0];
     const mapped = auditPptxMappings(build(data)).get(11)!.tables[0]![0]!;
-    expect(mapped[1]).toContain(PPTX_EMPTY);
-    expect(mapped[1]).not.toContain("A checklist question");
-    expect(mapped[3]).toBe("Construction");
-    expect(mapped[2]).toBe("-");
-    expect(auditPptxMappings(buildConsolidatedAuditReport(data)).get(11)!.tables[0]![0]![3]).toBe("8");
+    expect(mapped[2]).toContain(PPTX_EMPTY);
+    expect(mapped[2]).not.toContain("A checklist question");
+    expect(mapped[4]).toBe("Construction");
+    expect(mapped[3]).toBe("-");
+    expect(buildConsolidatedAuditReport(data).find(s => s.key === "non-conformities")!.tables[0]!.rows[0]![4]).toBe("8");
   });
   it("uses Plan Auditee Roles even when meeting attendee names have been saved", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, openingMeeting: { attendees: ["lead"] } } };
@@ -192,7 +193,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(photos.map(photo => photo.fileName)).toEqual(["finding.png"]);
     expect(photos[0]!.description).toContain("Date captured: -");
     expect(buildConsolidatedAuditReport(data).find(section => section.key === "photographs")!.photos).toHaveLength(2);
-    expect(auditPptxMappings(build(data)).get(11)!.tables[0]![0]![2]).toBe("finding.png");
+    expect(auditPptxMappings(build(data)).get(11)!.tables[0]![0]![3]).toBe("finding.png");
   });
   it("keeps different findings on separate photographic slides and continues all images for one finding", async () => {
     const sections = build();
@@ -216,6 +217,8 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   });
   it("writes the filled fields to the real PPTX, omits only slide 16 and preserves grading and template styles", async () => {
     const sections = build();
+    const input = fixture();
+    applyAuditPptxSignoff(sections, auditPptxSignoff({ leadId: input.plan.leadAuditorId }, input.names));
     const original = unzipSync(await renderConsolidatedAuditPptx({ sections }));
     const output = unzipSync(await renderConsolidatedAuditPptx({ sections, skipPriorityActions: true }));
     const xml = (name: string) => strFromU8(output[name]!);

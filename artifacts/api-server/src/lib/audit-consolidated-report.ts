@@ -1,4 +1,5 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
+import { validFindingDate } from "./car-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
 import { fillAuditPptxWorkbookFields, recordedGoodPractice } from "./audit-pptx-workbook-fields";
 import { meetingAttendeeLabel, notRepresentedClosingAttendees, NOT_REPRESENTED_CLOSING } from "@workspace/field-controls";
@@ -200,9 +201,13 @@ export function buildConsolidatedAuditReport(input: {
         evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`);
       return [...references, row.notes?.trim()].filter(Boolean).join("\n") || "-";
     };
-    s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
+    s.tables.push({ title, columns: ncrPptx ? ["Ref", "Date", "Finding", "Objective evidence", "Audit Area", "Grade"]
+      : ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
       // Never substitute an internal/client reference or a CAR number for an issued finding number.
-      rows: items.map(row => [input.pptxWorkbookMappings ? value(row.findingNumber?.trim()) : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
+      rows: items.map(row => [input.pptxWorkbookMappings ? value((row.findingNumber || (ncrPptx ? row.pptxNcrFindingNumber : undefined))?.trim()) : row.reference,
+        ncrPptx ? (validFindingDate(row.legacy ? row.pptxNcrFindingDate : row.findingDate)
+          ? date(row.legacy ? row.pptxNcrFindingDate : row.findingDate) : "-") : row.area,
+        value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
         objectiveEvidence(row),
         value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };
@@ -240,11 +245,12 @@ export function buildConsolidatedAuditReport(input: {
   grading.notes.push("Definitions and response windows are proposed for approval in the supplied client standard. This report does not change existing CAR due dates.",
     "Response sequence: root-cause analysis and CAPA plan; audit team acceptance; implementation with evidence; effectiveness verification; closure in tracker.");
   const tracker = section("corrective-actions", "Corrective action tracker");
-  tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause",
+  tracker.tables.push({ title: "Corrective actions", columns: [...(input.pptxWorkbookMappings ? ["Finding ID"] : []), "Ref", "Grade", "Root cause",
     ...(input.pptxWorkbookMappings ? ["Correction", "Corrective action"] : ["Correction and corrective action"]),
     "Owner", "Due date", "Status", "Verified by / date"],
     rows: cars.map(car => { const f = findings.find(f => f.id === car.findingId);
-      return [car.carNumber || (input.pptxWorkbookMappings ? missing : "Not numbered"), f?.grade ?? missing, value(car.rootCause),
+      return [...(input.pptxWorkbookMappings ? [value(f?.findingNumber?.trim())] : []),
+        car.carNumber || (input.pptxWorkbookMappings ? missing : "Not numbered"), f?.grade ?? missing, value(car.rootCause),
         ...(input.pptxWorkbookMappings ? [car.correction?.trim() || missing, car.correctiveAction?.trim() || missing]
           : [[car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing]), name(car.ownerId), date(car.dueDate),
         value(car.status), car.effectivenessVerified ? `Effectiveness verified; ${date(car.closedAt)}; verifier ${missing}` : missing]; }) });
@@ -266,9 +272,10 @@ export function buildConsolidatedAuditReport(input: {
       ...cars.map(car => ["Non-conformity / CAPA response", value(findings.find(f => f.id === car.findingId)?.reference), "Linked in CAR register"])] });
   attachments.notes.push("Photographs are embedded in the PDF when available. Other supporting files remain linked in the Audit workspace; listing a document is not a claim that it has been signed or approved.");
   if (input.pptxWorkbookMappings) {
-    const findingReferences = new Map<string, { reference: string; grade: string }>();
+    const findingReferences = new Map<string, { reference: string; grade: string; findingNumber?: string }>();
     for (const finding of findings) {
-      const reference = { reference: finding.reference, grade: finding.grade };
+      const reference = { reference: finding.reference, grade: finding.grade,
+        findingNumber: finding.findingNumber || finding.pptxCarFindingNumber };
       if (finding.id) findingReferences.set(finding.id, reference);
       if (finding.findingId) findingReferences.set(finding.findingId, reference);
     }

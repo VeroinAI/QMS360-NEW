@@ -5,9 +5,10 @@ import {writeFile} from "node:fs/promises";
 import {eq} from "drizzle-orm";
 import {db,organizations,projects,platformRoles,users,audits,auditPlans,auditSchedules,
   auditWorkspaceRoles,auditPermissions,auditWorkspaceRolePermissions,auditUserWorkspaceRoles,auditAuditLogEntries,
-  auditNotifications,organizationSettings} from "@workspace/db";
+  auditNotifications,organizationSettings,auditFindings,correctiveActionReports} from "@workspace/db";
 import app from "../src/app";
 import {issueToken} from "../src/lib/auth";
+import {strFromU8,unzipSync} from "fflate";
 const suffix=randomUUID().slice(0,8);
 let server:Server,base:string,orgId:string,projectId:string,auditId:string,browserAuditId:string;
 const tokens:string[]=[],personIds:string[]=[];
@@ -44,7 +45,8 @@ beforeAll(async()=>{
     }
   }
   const [schedule]=await db.insert(auditSchedules).values({organizationId:orgId,projectId,title:"Approval schedule",year:2026}).returning();
-  const [plan]=await db.insert(auditPlans).values({organizationId:orgId,projectId,auditScheduleId:schedule!.id}).returning();
+  const [plan]=await db.insert(auditPlans).values({organizationId:orgId,projectId,auditScheduleId:schedule!.id,
+    status:JSON.stringify({leadAuditorId:personIds[0]})}).returning();
   const records=await db.insert(audits).values(["Approval workflow","Browser approval"].map(title=>({
     organizationId:orgId,projectId,auditPlanId:plan!.id,referenceNumber:`${title}-${suffix}`,workflowState:"planned",
     status:JSON.stringify({title,reportNumber:`REPORT-${suffix}-${title}`,reportDetails:{values:{overallConclusion:"Recorded conclusion"},rows:{}}}),
@@ -58,7 +60,7 @@ afterAll(async()=>{
     return;
   }
   if(!orgId)return;
-  for(const table of [auditNotifications,auditAuditLogEntries,audits,auditPlans,auditSchedules,auditUserWorkspaceRoles,
+  for(const table of [auditNotifications,auditAuditLogEntries,correctiveActionReports,auditFindings,audits,auditPlans,auditSchedules,auditUserWorkspaceRoles,
     auditWorkspaceRolePermissions,auditWorkspaceRoles,auditPermissions,users,platformRoles,projects,organizationSettings]){
     await db.delete(table).where(eq(table.organizationId,orgId));
   }
@@ -165,5 +167,58 @@ describe("Audit Report approval API",()=>{
     expect(final.body.reportApproval.pendingLevel).toBeNull();
     expect((await call("PUT",`/audits/${auditId}/report-details`,0,{values:{},rows:{}})).status).toBe(409);
     expect((await call("POST",`/audits/${auditId}/review`,2,{decision:"approve"})).status).toBe(409);
+  });
+  it("downloads conclusion sign-offs from the completed report's actual approval cycle",async()=>{
+    const response=await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`,{
+      headers:{authorization:`Bearer ${tokens[0]}`}});
+    expect(response.status).toBe(200);
+    const files=unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const conclusion=strFromU8(files["ppt/slides/slide17.xml"]);
+    const control=strFromU8(files["ppt/slides/slide2.xml"]);
+    for(const name of ["Author","First reviewer","Final reviewer"]) expect(control).toContain(`>${name}<`);
+    expect(control).toContain("Approval History");
+    expect(control).not.toContain("Revision history");
+    const controlHistory=Object.entries(files).filter(([path])=>/^ppt\/slides\/slide\d+\.xml$/.test(path))
+      .map(([,bytes])=>strFromU8(bytes)).filter(xml=>xml.includes("Document control and approval")).join("");
+    expect(controlHistory).toContain("L1 — Approved");
+    expect(controlHistory).toContain("L2 — Approved");
+    expect(conclusion).toContain(">Author<");
+    expect(conclusion.match(/>First reviewer</g)).toHaveLength(1);
+    expect(conclusion.match(/>Final reviewer</g)).toHaveLength(1);
+    expect(conclusion).toMatch(/Report issue date: \d/);
+    expect(conclusion).not.toMatch(/Acknowledged by|Distribution:/);
+  });
+  it("downloads the actual saved Finding IDs next to independent CAR references for current and standalone findings",async()=>{
+    const itemId=randomUUID(),currentId=randomUUID(),legacyId=randomUUID();
+    await db.insert(auditFindings).values([
+      {id:currentId,organizationId:orgId,auditId,classification:"Major NC",description:"Current finding",
+        evidence:{sourceChecklistItemId:itemId}},
+      {id:legacyId,organizationId:orgId,auditId,classification:"Minor NC",description:"Standalone finding",
+        evidence:{findingNumber:"LEGACY-NCR-0123",findingDate:"2026-10-25"}},
+    ]);
+    await db.update(audits).set({checklistState:[{id:itemId,auditFinding:"Major NC",
+      findingNumber:"CURRENT-NCR-0456",findingDate:"2026-10-26",description:"Current finding"}] as any}).where(eq(audits.id,auditId));
+    await db.insert(correctiveActionReports).values([currentId,legacyId].map((findingId,i)=>({
+      organizationId:orgId,auditFindingId:findingId,responsibleDepartment:"Quality",ownerId:personIds[0],
+      workflowState:"draft",correction:`Recorded correction ${i}`,correctiveAction:`Recorded action ${i}`,
+      effectivenessNotes:JSON.stringify({carNumber:`CAR-INDEPENDENT-${i}`}),
+    })));
+    const response=await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`,{
+      headers:{authorization:`Bearer ${tokens[0]}`}});
+    expect(response.status).toBe(200);
+    const files=unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const tracker=strFromU8(files["ppt/slides/slide15.xml"]);
+    const plain=tracker.replace(/<[^>]+>/g,"");
+    for(const value of ["Finding ID","CURRENT-NCR-0456","LEGACY-NCR-0123","CAR-INDEPENDENT-0","CAR-INDEPENDENT-1"])
+      expect(plain).toContain(value);
+    expect(plain).not.toContain(currentId);
+    expect(plain).not.toContain(legacyId);
+    const ncr=strFromU8(files["ppt/slides/slide11.xml"]).replace(/<[^>]+>/g,"");
+    for(const value of ["Ref","Date","Finding","Objective evidence","Audit Area","Grade",
+      "CURRENT-NCR-0456","LEGACY-NCR-0123","Current finding","Standalone finding"])
+      expect(ncr).toContain(value);
+    expect(ncr).toMatch(/26[-/]10[-/]2026/);
+    expect(ncr).toMatch(/25[-/]10[-/]2026/);
+    expect(ncr).not.toContain("CAR-INDEPENDENT");
   });
 });

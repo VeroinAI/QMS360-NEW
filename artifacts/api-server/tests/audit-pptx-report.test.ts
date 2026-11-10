@@ -59,7 +59,7 @@ describe("Original Audit PowerPoint report template", () => {
     data.find(s => s.key === "non-conformities")!.tables[0]!.rows =
       Array.from({ length: 13 }, (_, i) => [`NC-${i}`, "Area", `Finding ${i}`, "Evidence", "8.5", "Major"]);
     data.find(s => s.key === "corrective-actions")!.tables[0]!.rows =
-      Array.from({ length: 9 }, (_, i) => [`NC-${i}`, "Major", `Cause ${i}`, "Correction", "Corrective action", "Owner", "05/10/2026", "Open", "Not recorded"]);
+      Array.from({ length: 9 }, (_, i) => [`NC-${i}`, `CAR-${i}`, "Major", `Cause ${i}`, "Correction", "Corrective action", "Owner", "05/10/2026", "Open", "Not recorded"]);
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
     let paragraphs = 0;
     for (const [path, bytes] of Object.entries(result)) {
@@ -86,11 +86,16 @@ describe("Original Audit PowerPoint report template", () => {
       const path = `ppt/slides/slide${slide}.xml`;
       const source = parse(original[path]!); const output = parse(result[path]!);
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
+        // Document control now has factual approval rows and a three-column
+        // Approval History table, with bounded dynamic rows.
+        if (slide === 2 && ["xfrm", "tblGrid", "tcPr"].includes(tag)) continue;
         // The CAR tracker alone extends its pristine eight-column template to
-        // nine columns, with explicit padding and variable-height body rows.
-        if (slide === 15 && ["tblGrid", "tcPr"].includes(tag)) continue;
+        // ten columns, with explicit padding and variable-height body rows.
+        if (slide === 9 && tag === "tcPr") continue;
+        if ([11, 15].includes(slide) && ["tblGrid", "tcPr"].includes(tag)) continue;
         // Programme text boxes are intentionally widened/repositioned to fix overflow.
-        if ([5, 7, 8, 10, 12, 13, 15].includes(slide) && tag === "xfrm") continue;
+        // Conclusion sign-off is explicitly rearranged to the supplied three-row reference.
+        if ([5, 7, 8, 9, 10, 11, 12, 13, 15, 17].includes(slide) && tag === "xfrm") continue;
         const rendered = Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         const originalParts = Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         // CAR rows now follow the actual response count; retained rows keep the template styling.
@@ -117,13 +122,13 @@ describe("Original Audit PowerPoint report template", () => {
   it("sizes the CAR slide to its actual rows and continues when responses exceed one slide", async () => {
     const data = sections();
     const tracker = data.find(section => section.key === "corrective-actions")!.tables[0]!;
-    tracker.rows = [["CAR-001", "Major NC", "Cause", "Correction", "Corrective action", "Owner", "24-10-2026", "Submitted", "Pending verification"]];
+    tracker.rows = [["NC-001", "CAR-001", "Major NC", "Cause", "Correction", "Corrective action", "Owner", "24-10-2026", "Submitted", "Pending verification"]];
     const one = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
     const table = parse(one["ppt/slides/slide15.xml"]!).getElementsByTagNameNS(A, "tbl")[0]!;
     expect(table.getElementsByTagNameNS(A, "tr").length).toBe(2);
     expect(text(one["ppt/slides/slide15.xml"]!)).toContain("CAR-001");
     tracker.rows = Array.from({ length: 26 }, (_, i) => [
-      `CAR-${String(i + 1).padStart(3, "0")}`, "Major NC", "Cause", "Correction", "Corrective action",
+      `NC-${i + 1}`, `CAR-${String(i + 1).padStart(3, "0")}`, "Major NC", "Cause", "Correction", "Corrective action",
       "Owner", "24-10-2026", "Submitted", "Pending verification",
     ]);
     const many = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
@@ -136,7 +141,7 @@ describe("Original Audit PowerPoint report template", () => {
     data.find(s => s.key === "non-conformities")!.tables[0]!.rows =
       Array.from({ length: 13 }, (_, i) => [`NC-${i}`, "Area", `Finding ${i}`, "Evidence", "8.5", "Major"]);
     data.find(s => s.key === "corrective-actions")!.tables[0]!.rows =
-      Array.from({ length: 9 }, (_, i) => [`NC-${i}`, "Major", `Cause ${i}`, "Correction", "Corrective action", "Owner", "05/10/2026", "Open", "Not recorded"]);
+      Array.from({ length: 9 }, (_, i) => [`NC-${i}`, `CAR-${i}`, "Major", `Cause ${i}`, "Correction", "Corrective action", "Owner", "05/10/2026", "Open", "Not recorded"]);
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
     const allText = Object.entries(result).filter(([n]) => /^ppt\/slides\/slide\d+\.xml$/.test(n)).map(([, b]) => text(b)).join("\n");
     for (let i = 0; i < 13; i++) expect(allText).toContain(`Finding ${i}`);

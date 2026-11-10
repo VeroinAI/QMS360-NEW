@@ -13,7 +13,7 @@ const parse = (bytes: Uint8Array) => new DOMParser().parseFromString(strFromU8(b
 const text = (node: Element) => Array.from(node.getElementsByTagNameNS(A, "t")).map(t => t.textContent ?? "").join("\n");
 const cells = (row: Element) => Array.from(row.getElementsByTagNameNS(A, "tc")).map(text);
 const fixture = (cars: Record<string, unknown>[]) => ({
-  audit: { title: "Recorded Audit", checklist: [{ id: "item", findingId: "finding", auditFinding: "Major NC" }] },
+  audit: { title: "Recorded Audit", checklist: [{ id: "item", findingId: "finding", findingNumber: "NCR-2026-001", auditFinding: "Major NC" }] },
   cars, legacyFindings: [], evidence: [], names: new Map([["owner", "Recorded owner"]]), roleNames: new Map<string, string>(),
 });
 const car = { findingId: "finding", carNumber: "CAR-2026-001", rootCause: "Recorded cause", correction: "Repair the joint",
@@ -34,7 +34,7 @@ describe("Separate PowerPoint CAR response columns", () => {
     const tracker = sections.find(s => s.key === "corrective-actions")!.tables[0]!;
     expect(tracker.columns).toEqual(CAR_HEADERS);
     const mapped = auditPptxMappings(sections).get(15)!.tables[0]![0]!;
-    expect(mapped).toEqual(["CAR-2026-001", "Major", "Recorded cause", correction?.trim() || "-",
+    expect(mapped).toEqual(["NCR-2026-001", "CAR-2026-001", "Major", "Recorded cause", correction?.trim() || "-",
       correctiveAction?.trim() || "-", "Recorded owner", expect.any(String), "Submitted", "-"]);
     const files = unzipSync(await renderConsolidatedAuditPptx({ sections }));
     const rows = Array.from(parse(files["ppt/slides/slide15.xml"]!).getElementsByTagNameNS(A, "tr"));
@@ -44,14 +44,14 @@ describe("Separate PowerPoint CAR response columns", () => {
     expect(buildConsolidatedAuditReport(input).find(s => s.key === "corrective-actions")!.tables[0]).toEqual(other);
   });
 
-  it("keeps the nine-column empty tracker free of sample responses", async () => {
+  it("keeps the ten-column empty tracker free of invented Finding IDs or sample responses", async () => {
     const sections = buildConsolidatedAuditReport({ ...fixture([]), pptxWorkbookMappings: true });
     const files = unzipSync(await renderConsolidatedAuditPptx({ sections }));
     const doc = parse(files["ppt/slides/slide15.xml"]!);
     const rows = Array.from(doc.getElementsByTagNameNS(A, "tr"));
     expect(rows).toHaveLength(2);
-    expect(cells(rows[1]!)).toEqual(["No CAR responses recorded", ...Array(8).fill("-")]);
-    expect(doc.getElementsByTagNameNS(A, "gridCol")).toHaveLength(9);
+    expect(cells(rows[1]!).map(value => value.replaceAll("\n", ""))).toEqual(["-", "No CAR responses recorded", ...Array(8).fill("-")]);
+    expect(doc.getElementsByTagNameNS(A, "gridCol")).toHaveLength(10);
   });
 
   it("preserves both complete long responses and downstream alignment on branded continuation slides", async () => {
@@ -72,14 +72,14 @@ describe("Separate PowerPoint CAR response columns", () => {
     for (const doc of docs) {
       const table = doc.getElementsByTagNameNS(A, "tbl")[0]!;
       const widths = Array.from(table.getElementsByTagNameNS(A, "gridCol")).map(col => Number(col.getAttribute("w")));
-      expect(widths).toHaveLength(9);
+      expect(widths).toHaveLength(10);
       expect(widths.reduce((a, b) => a + b, 0)).toBe(11091672);
       const rows = Array.from(table.getElementsByTagNameNS(A, "tr"));
       expect(cells(rows[0]!).map(v => v.replaceAll("\n", "").trim())).toEqual(CAR_HEADERS);
       let height = 0;
       for (const row of rows) {
         height += Number(row.getAttribute("h"));
-        expect(cells(row)).toHaveLength(9);
+        expect(cells(row)).toHaveLength(10);
         for (const cell of Array.from(row.getElementsByTagNameNS(A, "tc"))) {
           expect(cell.getElementsByTagNameNS(A, "p").length * 152400 + 73152).toBeLessThanOrEqual(Number(row.getAttribute("h")));
         }
@@ -87,12 +87,13 @@ describe("Separate PowerPoint CAR response columns", () => {
       expect(1463040 + height).toBeLessThanOrEqual(5815584);
       for (const row of rows.slice(1)) {
         const values = cells(row).map(v => v.replaceAll("\n", ""));
-        if (values[0]!.startsWith("CAR-2026-001")) {
-          retained[0] += values[3]; retained[1] += values[4];
-          expect(values.slice(5)).toEqual(["Recorded owner", expect.any(String), "Submitted", "-"]);
+        expect(values[0]).toBe("NCR-2026-001");
+        if (values[1]!.startsWith("CAR-2026-001")) {
+          retained[0] += values[4]; retained[1] += values[5];
+          expect(values.slice(6)).toEqual(["Recorded owner", expect.any(String), "Submitted", "-"]);
         } else {
           second++;
-          expect(values).toEqual(["CAR-2026-002", "Major", "Recorded cause", "Second repair", "Second action", "Second owner", expect.any(String), "Closed", "-"]);
+          expect(values).toEqual(["NCR-2026-001", "CAR-2026-002", "Major", "Recorded cause", "Second repair", "Second action", "Second owner", expect.any(String), "Closed", "-"]);
         }
       }
     }
@@ -124,11 +125,26 @@ describe("Separate PowerPoint CAR response columns", () => {
   it("keeps endpoint register overrides aligned with the separate response columns", async () => {
     const source = await readFile(new URL("../src/routes/audit.ts", import.meta.url), "utf8");
     const route = source.split('router.get("/audits/:id/report/pptx"')[1]!.split("const images =")[0]!;
-    expect(route).toContain("row[3] = car.correction?.trim()");
-    expect(route).toContain("row[4] = car.correctiveAction?.trim()");
-    expect(route).toContain('if (row[5] === "Not recorded"');
-    expect(route).toContain('row[6] = car.extensionStatus === "approved"');
-    expect(route).toContain("row[7] = carDto(car).status");
-    expect(route).toContain("row[8] = meta.reviewedAt");
+    expect(route).toContain("row[4] = car.correction?.trim()");
+    expect(route).toContain("row[5] = car.correctiveAction?.trim()");
+    expect(route).toContain('if (row[6] === "Not recorded"');
+    expect(route).toContain('row[7] = car.extensionStatus === "approved"');
+    expect(route).toContain("row[8] = carDto(car).status");
+    expect(route).toContain("row[9] = meta.reviewedAt");
+  });
+  it.each([false, true])("uses the saved Finding ID for current and standalone findings (legacy: %s)", legacy => {
+    const base = fixture([{ ...car }]);
+    const input = legacy ? { ...base, audit: { ...base.audit, checklist: [] },
+      legacyFindings: [{ id: "finding", classification: "Minor NC", pptxCarFindingNumber: "LEGACY-NCR-007" }] } : base;
+    const before = JSON.stringify(input);
+    const mapped = auditPptxMappings(buildConsolidatedAuditReport({ ...input, pptxWorkbookMappings: true })).get(15)!.tables[0]![0]!;
+    expect(mapped.slice(0, 2)).toEqual([legacy ? "LEGACY-NCR-007" : "NCR-2026-001", "CAR-2026-001"]);
+    expect(JSON.stringify(input)).toBe(before);
+  });
+  it("does not substitute checklist IDs, client references or CAR numbers for an unissued Finding ID", () => {
+    const input = fixture([{ ...car }]);
+    input.audit.checklist = [{ ...input.audit.checklist[0], findingNumber: " " }];
+    const sections = buildConsolidatedAuditReport({ ...input, pptxWorkbookMappings: true });
+    expect(auditPptxMappings(sections).get(15)!.tables[0]![0]!.slice(0, 2)).toEqual(["-", "CAR-2026-001"]);
   });
 });

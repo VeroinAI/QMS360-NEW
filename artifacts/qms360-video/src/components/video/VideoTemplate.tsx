@@ -14,7 +14,7 @@ import { Scene4 } from './video_scenes/Scene4';
 import { Scene5 } from './video_scenes/Scene5';
 import { Scene6 } from './video_scenes/Scene6';
 import { Scene7 } from './video_scenes/Scene7';
-import logoUrl from '@assets/algihaz-logo.svg';
+import logoUrl from '../../../public/brand/algihaz-logo.svg?url';
 
 export const SCENE_DURATIONS = {
   s1: 4000,
